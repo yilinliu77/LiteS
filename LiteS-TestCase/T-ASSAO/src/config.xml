@@ -9,7 +9,7 @@
     <FORMAT>R_16F</FORMAT>
     <WIDTH>1280</WIDTH>
     <HEIGHT>720</HEIGHT>
-    <FILTER>LINEAR</FILTER>
+    <FILTER>NEAREST</FILTER>
     <WRAP>CLAMP_TO_EDGE</WRAP>
   </Texture>
   <Texture>
@@ -29,12 +29,38 @@
     <FILTER>LINEAR</FILTER>
   </Texture>
   <Texture>
-    <Name>quaterDepth</Name>
+    <Name>quadDepth1</Name>
     <INTERNAL_FORMAT>R</INTERNAL_FORMAT>
     <FORMAT>R_16F</FORMAT>
+    <FILTER>NEAREST</FILTER>
     <WIDTH>640</WIDTH>
     <HEIGHT>360</HEIGHT>
   </Texture>
+  <Texture>
+    <Name>quadDepth2</Name>
+    <INTERNAL_FORMAT>R</INTERNAL_FORMAT>
+    <FORMAT>R_16F</FORMAT>
+    <FILTER>NEAREST</FILTER>
+    <WIDTH>640</WIDTH>
+    <HEIGHT>360</HEIGHT>
+  </Texture>
+  <Texture>
+    <Name>quadDepth3</Name>
+    <INTERNAL_FORMAT>R</INTERNAL_FORMAT>
+    <FORMAT>R_16F</FORMAT>
+    <FILTER>NEAREST</FILTER>
+    <WIDTH>640</WIDTH>
+    <HEIGHT>360</HEIGHT>
+  </Texture>
+  <Texture>
+    <Name>quadDepth4</Name>
+    <INTERNAL_FORMAT>R</INTERNAL_FORMAT>
+    <FORMAT>R_16F</FORMAT>
+    <FILTER>NEAREST</FILTER>
+    <WIDTH>640</WIDTH>
+    <HEIGHT>360</HEIGHT>
+  </Texture>
+  
   <Texture>
     <Name>ssaoColorBuffer</Name>
     <INTERNAL_FORMAT>R</INTERNAL_FORMAT>
@@ -72,13 +98,16 @@
     <OutTexture>gAlbedo</OutTexture>
   </RenderPass>
   <RenderPass>
-    <Name>downSample</Name>
+    <Name>deinterleave</Name>
     <Model>Window</Model>
     <Width>640</Width>
     <Height>360</Height>
     <VertexShader>shaders/SSAOVert.glsl</VertexShader>
-    <FragmentShader>shaders/downSampleFrag.glsl</FragmentShader>
-    <OutTexture>quaterDepth</OutTexture>
+    <FragmentShader>shaders/deinterleaveFrag.glsl</FragmentShader>
+    <OutTexture>quadDepth1</OutTexture>
+    <OutTexture>quadDepth2</OutTexture>
+    <OutTexture>quadDepth3</OutTexture>
+    <OutTexture>quadDepth4</OutTexture>
   </RenderPass>
   <RenderPass>
     <Name>ssao</Name>
