@@ -29,139 +29,139 @@ void CSSAOComponent::run() {
 	GeometryPass->endPass();
 	nvtxRangePop();
 
-	//2.DownSample Pass
-	nvtxRangePushA("DownSample");
-	CPass* DownSamplePass = this->m_Scene->m_Pass.at("downSample");
-	DownSamplePass->beginPass();
+	//2.DeInterLeave Pass
+	nvtxRangePushA("deinterleave");
+	CPass* DeInterLeavePass = this->m_Scene->m_Pass.at("deinterleave");
+	DeInterLeavePass->beginPass();
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("depth"));
-	DownSamplePass->getShader()->setInt("tex", 0);
+	DeInterLeavePass->getShader()->setInt("tex", 0);
 
-	DownSamplePass->endPass();
+	DeInterLeavePass->endPass();
 	nvtxRangePop();
 
 
-	//3.SSAO Pass
-	nvtxRangePushA("SSAO");
-	CPass* SSAOPass = this->m_Scene->m_Pass.at("ssao");
-	SSAOPass->beginPass();
+	////3.SSAO Pass
+	//nvtxRangePushA("SSAO");
+	//CPass* SSAOPass = this->m_Scene->m_Pass.at("ssao");
+	//SSAOPass->beginPass();
 
-	//texture
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("quaterDepth"));
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("normal"));
-	SSAOPass->getShader()->setInt("gPositionDepth", 0);
-	SSAOPass->getShader()->setInt("gNormal", 1);
-
-
-	//Uniform
-	SSAOPass->getShader()->setFloat("gAspect", (float)this->m_Scene->m_WindowWidth / (float)this->m_Scene->m_WindowHeight);
-	SSAOPass->getShader()->setFloat("gRadiusWorld", 1.0f);
-	SSAOPass->getShader()->setFloat("gMaxRadiusScreen", 0.1f);
-	SSAOPass->getShader()->setFloat("gContrast", 4.0f);
-	
-	glm::vec2 size;
-	size.y = 2.0f * 1.0f * glm::tan(0.5f * 3.14f / 3.0f);
-	size.x = (float)this->m_Scene->m_WindowWidth / (float)this->m_Scene->m_WindowHeight * size.y;
-	SSAOPass->getShader()->setFloat("gNearPlaneHeightNormalized", m_Near*glm::tan(this->m_Scene->m_Camera->Zoom/2));
-
-	SSAOPass->endPass();
-	nvtxRangePop();
+	////texture
+	//glActiveTexture(GL_TEXTURE0);
+	//glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("quaterDepth"));
+	//glActiveTexture(GL_TEXTURE1);
+	//glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("normal"));
+	//SSAOPass->getShader()->setInt("gPositionDepth", 0);
+	//SSAOPass->getShader()->setInt("gNormal", 1);
 
 
-	//4.Blur Pass X
-	nvtxRangePushA("BlurX");
-	CPass* BlurPass = this->m_Scene->m_Pass.at("blurX");
-	BlurPass->beginPass();
+	////Uniform
+	//SSAOPass->getShader()->setFloat("gAspect", (float)this->m_Scene->m_WindowWidth / (float)this->m_Scene->m_WindowHeight);
+	//SSAOPass->getShader()->setFloat("gRadiusWorld", 1.0f);
+	//SSAOPass->getShader()->setFloat("gMaxRadiusScreen", 0.1f);
+	//SSAOPass->getShader()->setFloat("gContrast", 4.0f);
+	//
+	//glm::vec2 size;
+	//size.y = 2.0f * 1.0f * glm::tan(0.5f * 3.14f / 3.0f);
+	//size.x = (float)this->m_Scene->m_WindowWidth / (float)this->m_Scene->m_WindowHeight * size.y;
+	//SSAOPass->getShader()->setFloat("gNearPlaneHeightNormalized", m_Near*glm::tan(this->m_Scene->m_Camera->Zoom/2));
 
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("ssaoColorBuffer"));
-	BlurPass->getShader()->setInt("ssaoInput", 0);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("quaterDepth"));
-	BlurPass->getShader()->setInt("depthInput", 1);
-
-	BlurPass->getShader()->setVec2("texelSize", glm::vec2(2.0f / this->m_Scene->m_WindowWidth, 0.0f));
-
-	BlurPass->endPass();
-	nvtxRangePop();
+	//SSAOPass->endPass();
+	//nvtxRangePop();
 
 
-	//5.Blur Pass Y
-	nvtxRangePushA("BlurY");
-	BlurPass = this->m_Scene->m_Pass.at("blurY");
-	BlurPass->beginPass();
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("ssaoColorBufferBlur"));
-	BlurPass->getShader()->setInt("ssaoInput", 0);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("quaterDepth"));
-	BlurPass->getShader()->setInt("depthInput", 1);
-
-	BlurPass->getShader()->setVec2("texelSize", glm::vec2(0.0f, 2.0f / this->m_Scene->m_WindowHeight));
-
-	BlurPass->endPass();
-	nvtxRangePop();
-
-
-	//6.UpSample Pass
-	nvtxRangePushA("UpSample");
-	CPass* UpSamplePass = this->m_Scene->m_Pass.at("upSample");
-	UpSamplePass->beginPass();
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("depth"));
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("quaterDepth"));
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("ssaoColorBuffer"));
-
-	UpSamplePass->getShader()->setInt("depthTexture", 0);
-	UpSamplePass->getShader()->setInt("quaterDepthTexture", 1);
-	UpSamplePass->getShader()->setInt("ssaoTexture", 2);
-
-	UpSamplePass->getShader()->setVec2("gProjParams", glm::vec2(projectionMatrix[2][2], projectionMatrix[3][2]));
-	UpSamplePass->getShader()->setVec2("gPixelSize", glm::vec2(1.0f / this->m_Scene->m_WindowWidth, 1.0f / this->m_Scene->m_WindowHeight));
-
-	UpSamplePass->endPass();
-	nvtxRangePop();
-
-
-	////Debug.SSAOShow pass
-	//CPass* SSAOShow = this->m_Scene->m_Pass.at("showSSAO");
-	//SSAOShow->beginPass();
+	////4.Blur Pass X
+	//nvtxRangePushA("BlurX");
+	//CPass* BlurPass = this->m_Scene->m_Pass.at("blurX");
+	//BlurPass->beginPass();
 
 	//glActiveTexture(GL_TEXTURE0);
-	//glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("upSampleSSAO"));
+	//glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("ssaoColorBuffer"));
+	//BlurPass->getShader()->setInt("ssaoInput", 0);
+	//glActiveTexture(GL_TEXTURE1);
+	//glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("quaterDepth"));
+	//BlurPass->getShader()->setInt("depthInput", 1);
 
-	//SSAOShow->getShader()->setInt("gSSAO", 0);
+	//BlurPass->getShader()->setVec2("texelSize", glm::vec2(2.0f / this->m_Scene->m_WindowWidth, 0.0f));
 
-	//SSAOShow->endPass();
+	//BlurPass->endPass();
+	//nvtxRangePop();
 
-	//7.Shading Pass
-	nvtxRangePushA("Shading");
-	CPass* ShadingPass = this->m_Scene->m_Pass.at("shading");
-	ShadingPass->beginPass();
 
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("depth"));
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("normal"));
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("gAlbedo"));
-	glActiveTexture(GL_TEXTURE3);
-	glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("ssaoColorBuffer"));
+	////5.Blur Pass Y
+	//nvtxRangePushA("BlurY");
+	//BlurPass = this->m_Scene->m_Pass.at("blurY");
+	//BlurPass->beginPass();
 
-	ShadingPass->getShader()->setInt("gPositionDepth", 0);
-	ShadingPass->getShader()->setInt("gNormal", 1);
-	ShadingPass->getShader()->setInt("gAlbedo", 2);
-	ShadingPass->getShader()->setInt("ssao", 3);
+	//glActiveTexture(GL_TEXTURE0);
+	//glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("ssaoColorBufferBlur"));
+	//BlurPass->getShader()->setInt("ssaoInput", 0);
+	//glActiveTexture(GL_TEXTURE1);
+	//glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("quaterDepth"));
+	//BlurPass->getShader()->setInt("depthInput", 1);
 
-	ShadingPass->endPass();
-	nvtxRangePop();
+	//BlurPass->getShader()->setVec2("texelSize", glm::vec2(0.0f, 2.0f / this->m_Scene->m_WindowHeight));
+
+	//BlurPass->endPass();
+	//nvtxRangePop();
+
+
+	////6.UpSample Pass
+	//nvtxRangePushA("UpSample");
+	//CPass* UpSamplePass = this->m_Scene->m_Pass.at("upSample");
+	//UpSamplePass->beginPass();
+
+	//glActiveTexture(GL_TEXTURE0);
+	//glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("depth"));
+	//glActiveTexture(GL_TEXTURE1);
+	//glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("quaterDepth"));
+	//glActiveTexture(GL_TEXTURE2);
+	//glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("ssaoColorBuffer"));
+
+	//UpSamplePass->getShader()->setInt("depthTexture", 0);
+	//UpSamplePass->getShader()->setInt("quaterDepthTexture", 1);
+	//UpSamplePass->getShader()->setInt("ssaoTexture", 2);
+
+	//UpSamplePass->getShader()->setVec2("gProjParams", glm::vec2(projectionMatrix[2][2], projectionMatrix[3][2]));
+	//UpSamplePass->getShader()->setVec2("gPixelSize", glm::vec2(1.0f / this->m_Scene->m_WindowWidth, 1.0f / this->m_Scene->m_WindowHeight));
+
+	//UpSamplePass->endPass();
+	//nvtxRangePop();
+
+
+	//////Debug.SSAOShow pass
+	////CPass* SSAOShow = this->m_Scene->m_Pass.at("showSSAO");
+	////SSAOShow->beginPass();
+
+	////glActiveTexture(GL_TEXTURE0);
+	////glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("upSampleSSAO"));
+
+	////SSAOShow->getShader()->setInt("gSSAO", 0);
+
+	////SSAOShow->endPass();
+
+	////7.Shading Pass
+	//nvtxRangePushA("Shading");
+	//CPass* ShadingPass = this->m_Scene->m_Pass.at("shading");
+	//ShadingPass->beginPass();
+
+	//glActiveTexture(GL_TEXTURE0);
+	//glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("depth"));
+	//glActiveTexture(GL_TEXTURE1);
+	//glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("normal"));
+	//glActiveTexture(GL_TEXTURE2);
+	//glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("gAlbedo"));
+	//glActiveTexture(GL_TEXTURE3);
+	//glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("ssaoColorBuffer"));
+
+	//ShadingPass->getShader()->setInt("gPositionDepth", 0);
+	//ShadingPass->getShader()->setInt("gNormal", 1);
+	//ShadingPass->getShader()->setInt("gAlbedo", 2);
+	//ShadingPass->getShader()->setInt("ssao", 3);
+
+	//ShadingPass->endPass();
+	//nvtxRangePop();
 
 
 	frameCount++;
