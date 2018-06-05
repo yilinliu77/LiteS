@@ -1,4 +1,5 @@
 #include "CSSAOComponent.h"
+#include<iostream>
 #include <nvToolsExt.h>
 #include <random>
 #include <CMesh.h>
@@ -42,34 +43,35 @@ void CSSAOComponent::run() {
 	nvtxRangePop();
 
 
-	////3.SSAO Pass
-	//nvtxRangePushA("SSAO");
-	//CPass* SSAOPass = this->m_Scene->m_Pass.at("ssao");
-	//SSAOPass->beginPass();
+	//3.SSAO Pass
+	nvtxRangePushA("SSAO");
+	for (int i = 1; i <= 4; ++i) {
+		CPass* SSAOPass = this->m_Scene->m_Pass.at("ssao"+std::to_string(i));
+		SSAOPass->beginPass();
 
-	////texture
-	//glActiveTexture(GL_TEXTURE0);
-	//glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("quaterDepth"));
-	//glActiveTexture(GL_TEXTURE1);
-	//glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("normal"));
-	//SSAOPass->getShader()->setInt("gPositionDepth", 0);
-	//SSAOPass->getShader()->setInt("gNormal", 1);
+		//texture
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("quadDepth" + std::to_string(i)));
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("normal"));
+		SSAOPass->getShader()->setInt("gPositionDepth", 0);
+		SSAOPass->getShader()->setInt("gNormal", 1);
 
 
-	////Uniform
-	//SSAOPass->getShader()->setFloat("gAspect", (float)this->m_Scene->m_WindowWidth / (float)this->m_Scene->m_WindowHeight);
-	//SSAOPass->getShader()->setFloat("gRadiusWorld", 1.0f);
-	//SSAOPass->getShader()->setFloat("gMaxRadiusScreen", 0.1f);
-	//SSAOPass->getShader()->setFloat("gContrast", 4.0f);
-	//
-	//glm::vec2 size;
-	//size.y = 2.0f * 1.0f * glm::tan(0.5f * 3.14f / 3.0f);
-	//size.x = (float)this->m_Scene->m_WindowWidth / (float)this->m_Scene->m_WindowHeight * size.y;
-	//SSAOPass->getShader()->setFloat("gNearPlaneHeightNormalized", m_Near*glm::tan(this->m_Scene->m_Camera->Zoom/2));
+		//Uniform
+		SSAOPass->getShader()->setFloat("gAspect", (float)this->m_Scene->m_WindowWidth / (float)this->m_Scene->m_WindowHeight);
+		SSAOPass->getShader()->setFloat("gRadiusWorld", 1.0f);
+		SSAOPass->getShader()->setFloat("gMaxRadiusScreen", 0.1f);
+		SSAOPass->getShader()->setFloat("gContrast", 4.0f);
 
-	//SSAOPass->endPass();
-	//nvtxRangePop();
+		glm::vec2 size;
+		size.y = 2.0f * 1.0f * glm::tan(0.5f * 3.14f / 3.0f);
+		size.x = (float)this->m_Scene->m_WindowWidth / (float)this->m_Scene->m_WindowHeight * size.y;
+		SSAOPass->getShader()->setFloat("gNearPlaneHeightNormalized", m_Near*glm::tan(this->m_Scene->m_Camera->Zoom / 2));
 
+		SSAOPass->endPass();
+	}
+	nvtxRangePop();
 
 	////4.Blur Pass X
 	//nvtxRangePushA("BlurX");
@@ -141,27 +143,27 @@ void CSSAOComponent::run() {
 
 	////SSAOShow->endPass();
 
-	////7.Shading Pass
-	//nvtxRangePushA("Shading");
-	//CPass* ShadingPass = this->m_Scene->m_Pass.at("shading");
-	//ShadingPass->beginPass();
+	//7.Shading Pass
+	nvtxRangePushA("Shading");
+	CPass* ShadingPass = this->m_Scene->m_Pass.at("shading");
+	ShadingPass->beginPass();
 
-	//glActiveTexture(GL_TEXTURE0);
-	//glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("depth"));
-	//glActiveTexture(GL_TEXTURE1);
-	//glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("normal"));
-	//glActiveTexture(GL_TEXTURE2);
-	//glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("gAlbedo"));
-	//glActiveTexture(GL_TEXTURE3);
-	//glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("ssaoColorBuffer"));
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("depth"));
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("normal"));
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("gAlbedo"));
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, this->m_Scene->m_Texture.at("ssaoColorBuffer1"));
 
-	//ShadingPass->getShader()->setInt("gPositionDepth", 0);
-	//ShadingPass->getShader()->setInt("gNormal", 1);
-	//ShadingPass->getShader()->setInt("gAlbedo", 2);
-	//ShadingPass->getShader()->setInt("ssao", 3);
+	ShadingPass->getShader()->setInt("gPositionDepth", 0);
+	ShadingPass->getShader()->setInt("gNormal", 1);
+	ShadingPass->getShader()->setInt("gAlbedo", 2);
+	ShadingPass->getShader()->setInt("ssao", 3);
 
-	//ShadingPass->endPass();
-	//nvtxRangePop();
+	ShadingPass->endPass();
+	nvtxRangePop();
 
 
 	frameCount++;
