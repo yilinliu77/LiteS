@@ -62,7 +62,31 @@
   </Texture>
   
   <Texture>
-    <Name>ssaoColorBuffer</Name>
+    <Name>ssaoColorBuffer1</Name>
+    <INTERNAL_FORMAT>R</INTERNAL_FORMAT>
+    <FORMAT>R_16F</FORMAT>
+    <WIDTH>640</WIDTH>
+    <HEIGHT>360</HEIGHT>
+    <FILTER>LINEAR</FILTER>
+  </Texture>
+  <Texture>
+    <Name>ssaoColorBuffer2</Name>
+    <INTERNAL_FORMAT>R</INTERNAL_FORMAT>
+    <FORMAT>R_16F</FORMAT>
+    <WIDTH>640</WIDTH>
+    <HEIGHT>360</HEIGHT>
+    <FILTER>LINEAR</FILTER>
+  </Texture>
+  <Texture>
+    <Name>ssaoColorBuffer3</Name>
+    <INTERNAL_FORMAT>R</INTERNAL_FORMAT>
+    <FORMAT>R_16F</FORMAT>
+    <WIDTH>640</WIDTH>
+    <HEIGHT>360</HEIGHT>
+    <FILTER>LINEAR</FILTER>
+  </Texture>
+  <Texture>
+    <Name>ssaoColorBuffer4</Name>
     <INTERNAL_FORMAT>R</INTERNAL_FORMAT>
     <FORMAT>R_16F</FORMAT>
     <WIDTH>640</WIDTH>
@@ -110,38 +134,40 @@
     <OutTexture>quadDepth4</OutTexture>
   </RenderPass>
   <RenderPass>
-    <Name>ssao</Name>
+    <Name>ssao1</Name>
     <Model>Window</Model>
     <Width>640</Width>
     <Height>360</Height>
     <VertexShader>shaders/SSAOVert.glsl</VertexShader>
     <FragmentShader>shaders/SSAOFrag.glsl</FragmentShader>
-    <OutTexture>ssaoColorBuffer</OutTexture>
+    <OutTexture>ssaoColorBuffer1</OutTexture>
   </RenderPass>
   <RenderPass>
-    <Name>blurX</Name>
+    <Name>ssao2</Name>
     <Model>Window</Model>
     <Width>640</Width>
     <Height>360</Height>
-    <VertexShader>shaders/blurVert.glsl</VertexShader>
-    <FragmentShader>shaders/blurFrag.glsl</FragmentShader>
-    <OutTexture>ssaoColorBufferBlur</OutTexture>
-  </RenderPass>
-  <RenderPass>
-    <Name>blurY</Name>
-    <Model>Window</Model>
-    <Width>640</Width>
-    <Height>360</Height>
-    <VertexShader>shaders/blurVert.glsl</VertexShader>
-    <FragmentShader>shaders/blurFrag.glsl</FragmentShader>
-    <OutTexture>ssaoColorBuffer</OutTexture>
-  </RenderPass>
-  <RenderPass>
-    <Name>upSample</Name>
-    <Model>Window</Model>
     <VertexShader>shaders/SSAOVert.glsl</VertexShader>
-    <FragmentShader>shaders/upSampleFrag.glsl</FragmentShader>
-    <OutTexture>upSampleSSAO</OutTexture>
+    <FragmentShader>shaders/SSAOFrag.glsl</FragmentShader>
+    <OutTexture>ssaoColorBuffer2</OutTexture>
+  </RenderPass>
+  <RenderPass>
+    <Name>ssao3</Name>
+    <Model>Window</Model>
+    <Width>640</Width>
+    <Height>360</Height>
+    <VertexShader>shaders/SSAOVert.glsl</VertexShader>
+    <FragmentShader>shaders/SSAOFrag.glsl</FragmentShader>
+    <OutTexture>ssaoColorBuffer3</OutTexture>
+  </RenderPass>
+  <RenderPass>
+    <Name>ssao4</Name>
+    <Model>Window</Model>
+    <Width>640</Width>
+    <Height>360</Height>
+    <VertexShader>shaders/SSAOVert.glsl</VertexShader>
+    <FragmentShader>shaders/SSAOFrag.glsl</FragmentShader>
+    <OutTexture>ssaoColorBuffer4</OutTexture>
   </RenderPass>
 
   <RenderPass>
