@@ -1,7 +1,11 @@
-#
+cmake_minimum_required(VERSION 3.8.0)
+project(T-PointCloud)
+
+#Path
+#set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build)
+
 # Compiler and Linker options
 # Platform independent
-#
 if(${CMAKE_GENERATOR} MATCHES ".*Visual Studio.*|.*Ninja.*")
 	set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} /MDd /Zi /GL ")
 	set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} /MD")
@@ -14,26 +18,26 @@ else()
 	message(FATAL_ERROR "Unsurpported generator")
 endif(${CMAKE_GENERATOR} MATCHES ".*Visual Studio.*|.*Ninja.*")
 
-#
-# Dependency Path
-#
 find_package(glfw3 CONFIG REQUIRED)
 find_package(glew CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
+find_package(glm CONFIG REQUIRED)
 
 include_directories (${GLFW3_INCLUDE_DIRS})
 include_directories (${GLEW_INCLUDE_DIRS})
 include_directories (${ASSIMP_INCLUDE_DIRS})
+include_directories (${GLM_INCLUDE_DIRS})
 
-SET(CMAKE_INSTALL_PREFIX ${PROJECT_BINARY_DIR}/lib)
-SET(CMAKE_CONFIGURATION_TYPES "Debug;Release;MinSizeRel;RelWithDebInfo")
+# link_directories($ENV{OPENGL}/lib/x64)
 
-#
-# Add source file
-#
-file(GLOB_RECURSE SOURCE_FILES src/*.cpp)
-file(GLOB_RECURSE HEADER_FILES src/*.h)
+file(GLOB SOURCE_FILES ./*.cpp ../../LiteS/src/*.cpp)
+file(GLOB HEADER_FILES ./*.h ../../LiteS/src/*.h)
 
-add_library (LiteS ${SOURCE_FILES} ${HEADER_FILES})
+#add_subdirectory(libs)
 
-#set_target_properties (LiteS PROPERTIES DEBUG_POSTFIX d)
+add_executable(main ${SOURCE_FILES} ${HEADER_FILES} )
+
+#add_dependencies(main tinyply)
+
+target_link_libraries(main GLEW::GLEW glfw ${ASSIMP_LIBRARIES})
+

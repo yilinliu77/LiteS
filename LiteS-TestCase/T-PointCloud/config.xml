@@ -9,7 +9,7 @@
     <PointCloud>C:/repos/RESOURCES/Old House 2/Old House Files/modify/old_house.ply</PointCloud>
     <Window></Window>
     <!--<Model>C:/Users/whatseven/source/repos/RESOURCES/scene/nanosuit/nanosuit.obj</Model>-->
-    <VertexShader>shaders/testVert.glsl</VertexShader>
-    <FragmentShader>shaders/testFrag.glsl</FragmentShader>
+    <VertexShader>C:/repos/Graphics/RENDERING/LiteS/LiteS/resources/shaders/NormalVert.glsl</VertexShader>
+    <FragmentShader>C:/repos/Graphics/RENDERING/LiteS/LiteS/resources/shaders/NormalFrag.glsl</FragmentShader>
   </RenderPass>
 </config>

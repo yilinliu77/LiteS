@@ -12,20 +12,23 @@ public:
 	string directory;
 	bool gammaCorrection;
 
-	//CModel();
 	/*  Functions   */
 	// constructor, expects a filepath to a 3D model.
-	CModel(string const &path);
+	CModel(string const &path, ModelType v_type);
 
 	CModel();
 
 	void loadModel(string const &path);
+
+	void loadPointCloud(string const &path);
 
 	void draw(CShader* vShader);
 
 	void draw(CShader* vShader, glm::mat4& vModelMatrix);
 
 private:
+	ModelType m_modelType;
+
 	//bool usedTexture;
 	vector<Texture> textures_loaded;
 	// processes a node in a recursive fashion. Processes each individual mesh located at the node and repeats this process on its children nodes (if any).
