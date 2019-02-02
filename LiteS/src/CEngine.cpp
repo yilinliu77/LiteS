@@ -217,14 +217,9 @@ bool CEngine::__readProperties() {
 	XMLDocument doc;
 	doc.LoadFile("config.xml");
 	XMLNode *node = 0;
-	node = doc.FirstChildElement("config")->FirstChild();//m_companionWindowWidth
 
-	while (node->ToElement() && strcmp(node->ToElement()->Value(), "Texture")) {
-		node = node->NextSibling();
-
-	}
-
-	while (node->ToElement()&&!strcmp(node->ToElement()->Value(), "Texture")) {
+	node = doc.FirstChildElement("config")->FirstChildElement("Texture");//
+	while (node&&!strcmp(node->ToElement()->Value(), "Texture")) {
 		stream << node->FirstChildElement("Name")->GetText();
 		string name;
 		stream >> name;
@@ -361,7 +356,8 @@ bool CEngine::__readProperties() {
 		node = node->NextSibling();
 	}
 
-	while (node->ToElement()&&!strcmp(node->ToElement()->Value(), "RenderPass")) {
+	node = doc.FirstChildElement("config")->FirstChildElement("RenderPass");//m_companionWindowWidth
+	while (node&&!strcmp(node->ToElement()->Value(), "RenderPass")) {
 		CPass* pass = new CPass();
 		stream << node->FirstChildElement("Name")->GetText();
 		string Name;
@@ -378,15 +374,23 @@ bool CEngine::__readProperties() {
 			pass->m_Width = this->m_Scene->m_WindowWidth;
 			pass->m_Height = this->m_Scene->m_WindowHeight;
 		}
-		const char* ModelPath = node->FirstChildElement("Model")->GetText();
-		if (!strcmp(ModelPath, "Window")) {
-			pass->m_Models.push_back(new CModel("window"));
-		} else if (!strcmp(ModelPath, "Custom")) {
-			pass->m_Models.push_back(new CModel());
-		} else {
-			pass->m_Models.push_back(new CModel(ModelPath));
+
+		//Model
+		if(node->FirstChildElement("Mesh")) {
+			const char* ModelPath = node->FirstChildElement("Mesh")->GetText();
+			pass->m_Models.push_back(new CModel(ModelPath, Mesh));
 		}
-		
+
+		if (node->FirstChildElement("PointCloud")) {
+			const char* PointCloudPath = node->FirstChildElement("PointCloud")->GetText();
+			pass->m_Models.push_back(new CModel(PointCloudPath, PointCloud));
+		}
+
+		if (node->FirstChildElement("Window")) {
+			pass->m_Models.push_back(new CModel("", Window));
+
+		}
+
 		//Shader
 		const char* VertFile = node->FirstChildElement("VertexShader")->GetText();
 		const char* FragFile = node->FirstChildElement("FragmentShader")->GetText();

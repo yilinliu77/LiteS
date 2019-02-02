@@ -7,59 +7,48 @@ using namespace std;
 
 unsigned int TextureFromFile(const char *path, const string &directory);
 
-//CModel::CModel() {};
-CModel::CModel(string const &path) : gammaCorrection(false) {
-	if(path=="window")
-		this->meshes.push_back(new CMesh("window"));
+CModel::CModel(string const &path, ModelType v_type) : gammaCorrection(false), m_modelType(v_type){
+	if(v_type == Window)
+		this->meshes.push_back(new CMesh());
+	else if (v_type == PointCloud) 
+		loadModel(path);
 	else
 		loadModel(path);
 }
 
-CModel::CModel() {
-	this->meshes.push_back(new CMesh());
-}
-
-void CModel::loadModel(string const &path) {
-	// read file via ASSIMP
-	Assimp::Importer importer;
-	//		const aiScene* scene = importer.ReadFile(path, aiProcess_JoinIdenticalVertices
-	//												 | aiProcess_Triangulate
-	//												 | aiProcess_GenSmoothNormals
-	////												 | aiProcess_FindInstances
-	//												 | aiProcess_FlipUVs
-	//												 | aiProcess_PreTransformVertices
-	//		);
-	const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
-	// check for errors
-	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) // if is Not Zero
-	{
-		scene = importer.ReadFile(path, aiProcess_Triangulate
-								  | aiProcess_GenSmoothNormals
-								  | aiProcess_FindInstances
-								  | aiProcess_FlipUVs
-								  | aiProcess_PreTransformVertices
-		);
-		if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) // if is Not Zero
-		{
-			cout << "ERROR::ASSIMP:: " << importer.GetErrorString() << endl;
-			return;
-		}
-	}
-	directory = path.substr(0, path.find_last_of('/'));
-	// process ASSIMP's root node recursively
-	processNode(scene->mRootNode, scene);
-}
-
+/*
+ * Draw object
+ */
 void CModel::draw(CShader * vShader) {
-	unsigned int Count = this->meshes.size();
-	for (unsigned int i = 0; i < Count; ++i)
+	size_t Count = this->meshes.size();
+	for (size_t i = 0; i < Count; ++i)
 		this->meshes[i]->Draw(vShader);
 }
 
 void CModel::draw(CShader * vShader, glm::mat4& vModelMatrix) {
-	unsigned int Count = this->meshes.size();
-	for (unsigned int i = 0; i < Count; ++i)
+	size_t Count = this->meshes.size();
+	for (size_t i = 0; i < Count; ++i)
 		this->meshes[i]->Draw(vShader,vModelMatrix);
+}
+
+/*
+ * Load Model using assimp
+ */
+void CModel::loadModel(string const &path) {
+	Assimp::Importer importer;
+	const aiScene* scene;
+
+	if(m_modelType==PointCloud)
+		scene = importer.ReadFile(path,NULL);
+	else if(m_modelType==Mesh)
+		scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
+	// check for errors
+	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) // if is Not Zero
+		throw string("ERROR::ASSIMP:: ") + importer.GetErrorString();
+
+	directory = path.substr(0, path.find_last_of('/'));
+	// process ASSIMP's root node recursively
+	processNode(scene->mRootNode, scene);
 }
 
 void CModel::processNode(aiNode *node, const aiScene *scene) {
@@ -119,7 +108,9 @@ CMesh* CModel::processMesh(aiMesh *mesh, const aiScene *scene) {
 		for (unsigned int j = 0; j < face.mNumIndices; j++)
 			indices.push_back(face.mIndices[j]);
 	}
-	// process materials
+	// process materials if it is mesh
+	if(m_modelType==PointCloud)
+		return new CMesh(vertices, indices);
 
 	int count = 0;
 	aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];

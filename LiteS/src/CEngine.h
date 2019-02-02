@@ -3,12 +3,8 @@
 #ifndef CENGINE_H
 #define CENGINE_H
 
-#include<iostream>
-#include"CCamera.h"
 #include"tinyxml2.h"
-#include"CPass.h"
 #include"CComponent.h"
-#include"CModel.h"
 #include"CScene.h"
 #include <GLFW/glfw3.h>
 
@@ -34,7 +30,6 @@ public:
 	~CEngine();
 	bool initEngine();
 	void runEngine();
-	//void excutePass(CPass* vPass);
 	void handleInput(GLFWwindow* window);
 
 private:

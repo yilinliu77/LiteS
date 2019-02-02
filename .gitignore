@@ -1,7 +1,8 @@
 # User
 debug
 release
-
+build
+.vs
 
 # Prerequisites
 *.d
