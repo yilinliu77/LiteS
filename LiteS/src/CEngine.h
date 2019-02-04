@@ -8,9 +8,12 @@
 #include"CScene.h"
 #include <GLFW/glfw3.h>
 
-
 using namespace std;
 using namespace tinyxml2;
+
+enum RenderMode {
+	debug,release
+};
 
 class CEngine {
 public:
@@ -23,21 +26,26 @@ public:
 	static float m_lastFrame;
 
 	static CScene* m_Scene;
+	//std::vector<CMesh&> m_meshToRender;
 
 	CComponent* m_Component;
 
 	CEngine();
 	~CEngine();
-	bool initEngine();
+	bool initEngine(string configFile);
 	void runEngine();
 	void handleInput(GLFWwindow* window);
+	void switchMode(RenderMode v_mode);
 
 private:
 	GLFWwindow * m_Window;
 
 	bool __initDLL();
-	bool __readProperties();
-	bool __initScene();
+	bool __readProperties(string configFile);
+	bool __initScene(string configFile);
+	RenderMode m_mode;
+
+	std::vector<bool> keyPreesed;
 };
 
 #endif

@@ -167,8 +167,8 @@ struct Texture {
 
 struct MeshMaterial {
 	MeshMaterial() {
-		diffuse = glm::vec3(1.0f);
-		specular = glm::vec3(1.0f);
+		diffuse = glm::vec3(0.0f);
+		specular = glm::vec3(0.0f);
 		shininess = 1;
 		shadingModel = 0;
 		opacity = 1;

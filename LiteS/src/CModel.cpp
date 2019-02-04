@@ -38,10 +38,12 @@ void CModel::loadModel(string const &path) {
 	Assimp::Importer importer;
 	const aiScene* scene;
 
-	if(m_modelType==PointCloud)
-		scene = importer.ReadFile(path,NULL);
-	else if(m_modelType==Mesh)
+	if (m_modelType == PointCloud)
+		scene = importer.ReadFile(path, NULL);
+	else if (m_modelType == Mesh)
 		scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
+	else
+		throw "Model type unsupported";
 	// check for errors
 	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) // if is Not Zero
 		throw string("ERROR::ASSIMP:: ") + importer.GetErrorString();
