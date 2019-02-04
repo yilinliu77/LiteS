@@ -6,11 +6,9 @@ in vec3 FragPos;
 in vec3 Normal;
 in vec2 TexCoords;
 
-uniform vec3 viewPos;
+uniform vec3 color;
 
 void main()
-{    
-    vec3 final=vec3(1,0,0);
-    
-    FragColor = vec4(final, 1.0);
+{        
+    FragColor = vec4(color, 1.0);
 }

@@ -2,17 +2,18 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include"stb_image.h"
+#include <thread>
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void APIENTRY glDebugOutput(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
 
-CEngine::CEngine() {}
+CEngine::CEngine() { keyPreesed.assign(500, false); }
 
 CEngine::~CEngine() {}
 
-bool CEngine::initEngine() {
-	if (!this->__initScene()) {
+bool CEngine::initEngine(string configFile) {
+	if (!this->__initScene(configFile)) {
 		std::cout << "Scene init failed" << std::endl;
 		return false;
 	}
@@ -20,7 +21,7 @@ bool CEngine::initEngine() {
 		std::cout << "DLL init failed" << std::endl;
 		return false;
 	}
-	if (!this->__readProperties()) {
+	if (!this->__readProperties(configFile)) {
 		std::cout << "Properties init failed" << std::endl;
 		return false;
 	}
@@ -32,6 +33,11 @@ void CEngine::runEngine() {
 		std::cout << "Extra init failed" << std::endl;
 		return;
 	}
+
+	std::thread initThread(&CComponent::extraAlgorithm,this->m_Component);
+	initThread.detach();
+	std::cout << "done" << std::endl;
+
 	while (!glfwWindowShouldClose(this->m_Window)) {
 		float currentFrame = (float)glfwGetTime();
 		m_deltaTime = currentFrame - m_lastFrame;
@@ -43,6 +49,8 @@ void CEngine::runEngine() {
 		glfwSwapBuffers(m_Window);
 		glfwPollEvents();
 	}
+	
+	
 }
 
 //void CEngine::excutePass(CPass * vPass) {
@@ -84,7 +92,16 @@ void CEngine::handleInput(GLFWwindow * window) {
 		CEngine::m_Scene->m_Camera->ProcessKeyboard(LEFT, m_deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
 		CEngine::m_Scene->m_Camera->ProcessKeyboard(RIGHT, m_deltaTime);
+	if (glfwGetKey(window,GLFW_KEY_F9)== GLFW_PRESS) {
+		keyPreesed[GLFW_KEY_F9]=true;
+	}
+	if (keyPreesed[GLFW_KEY_F9]&&glfwGetKey(window, GLFW_KEY_F9) == GLFW_RELEASE) {
+		keyPreesed[GLFW_KEY_F9] = false;
+		this->m_Component->continueExtraInit();
+	}
 }
+
+void CEngine::switchMode(RenderMode v_mode) { m_mode = v_mode; }
 
 void mouse_callback(GLFWwindow * window, double xpos, double ypos) {
 	if (CEngine::m_firstMouse) {
@@ -212,10 +229,10 @@ bool CEngine::__initDLL() {
 	return true;
 }
 
-bool CEngine::__readProperties() {
+bool CEngine::__readProperties(string configFile) {
 	stringstream stream;
 	XMLDocument doc;
-	doc.LoadFile("config.xml");
+	doc.LoadFile(configFile.c_str());
 	XMLNode *node = 0;
 
 	node = doc.FirstChildElement("config")->FirstChildElement("Texture");//
@@ -449,11 +466,11 @@ bool CEngine::__readProperties() {
 	return true;
 }
 
-bool CEngine::__initScene() {
+bool CEngine::__initScene(string configFile) {
 	CEngine::m_Scene = new CScene();
 	stringstream stream;
 	XMLDocument doc;
-	XMLError errXml = doc.LoadFile("config.xml");
+	XMLError errXml = doc.LoadFile(configFile.c_str());
 	if (XML_SUCCESS == errXml) {
 		XMLNode *node = 0;
 		node = doc.FirstChildElement("config")->FirstChild();//m_companionWindowWidth

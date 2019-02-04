@@ -1,4 +1,5 @@
 #include "CPass.h"
+#include <GL/glew.h>
 
 CPass::CPass() { m_IsTargetTexture = false; }
 
@@ -9,7 +10,7 @@ void CPass::beginPass() {
 	if (this->m_IsTargetTexture)
 		glBindFramebuffer(GL_FRAMEBUFFER, this->m_FrameBuffer);
 
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 

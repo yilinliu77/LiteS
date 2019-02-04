@@ -5,9 +5,9 @@
  
   <RenderPass>
     <Name>display</Name>
-    <Mesh>C:/Users/whatseven/source/repos/RESOURCES/scene/sponza/sponza.obj</Mesh>
+    <!-- <Mesh>C:/Users/whatseven/source/repos/RESOURCES/scene/sponza/sponza.obj</Mesh> -->
     <PointCloud>C:/repos/RESOURCES/Old House 2/Old House Files/modify/old_house.ply</PointCloud>
-    <Window></Window>
+    <!-- <Window></Window> -->
     <!--<Model>C:/Users/whatseven/source/repos/RESOURCES/scene/nanosuit/nanosuit.obj</Model>-->
     <VertexShader>C:/repos/Graphics/RENDERING/LiteS/LiteS/resources/shaders/NormalVert.glsl</VertexShader>
     <FragmentShader>C:/repos/Graphics/RENDERING/LiteS/LiteS/resources/shaders/NormalFrag.glsl</FragmentShader>
