@@ -5,6 +5,7 @@
  
   <RenderPass>
     <Name>display</Name>
+    <!-- <RenderMode>Deffer</RenderMode> -->
     <!-- <Mesh>C:/Users/whatseven/source/repos/RESOURCES/scene/sponza/sponza.obj</Mesh> -->
     <PointCloud>C:/repos/RESOURCES/Old House 2/Old House Files/modify/old_house.ply</PointCloud>
     <!-- <Window></Window> -->

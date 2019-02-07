@@ -21,12 +21,12 @@ public:
 	void loadModel(string const &path);
 
 	void loadPointCloud(string const &path);
+	void processPointCloudNode(aiNode* node, const aiScene* scene);
 
 	void draw(CShader* vShader);
 
 	void draw(CShader* vShader, glm::mat4& vModelMatrix);
 
-private:
 	ModelType m_modelType;
 
 	//bool usedTexture;

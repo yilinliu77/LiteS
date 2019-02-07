@@ -4,6 +4,7 @@
 
 #include"CShader.h"
 #include"CModel.h"
+#include <GL/glew.h>
 
 using namespace std;
 
@@ -30,6 +31,7 @@ public:
 	vector<CModel*> m_Models;
 	unsigned int m_Width;
 	unsigned int m_Height;
+
 
 private:
 	CShader * m_Shader;

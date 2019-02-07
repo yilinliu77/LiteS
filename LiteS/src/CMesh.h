@@ -198,6 +198,7 @@ inline glm::vec3 abs(glm::vec3 v) {
 
 class CMesh {
 public:
+	virtual ~CMesh() = default;
 	/*  Mesh Data  */
 	vector<Vertex> vertices;
 	vector<unsigned int> indices;
@@ -205,40 +206,33 @@ public:
 	vector<Texture> textures;
 	unsigned int VAO;
 
-	/*  Functions  */
-	// constructor
-	CMesh();
-
-	CMesh(const std::vector<Vertex>& vPoints, vector<unsigned int> vIndices);
-
-	CMesh(vector<Vertex> vertices, vector<unsigned int> indices
-		, MeshMaterial material, vector<Texture> textures);
-
-	CMesh::CMesh(glm::vec3 c, float edge);
-
-	void Draw(CShader * shader);
-
-	void Draw(CShader* shader, glm::mat4& vModelMatrix);
-
-	Bounds3f getBounds() { return this->bounds; }
-	glm::vec3 getCentroid() { return this->bounds.getCentroid(); }
-
-	bool Intersect(Ray& ray, SurfaceInteraction* isect) const;
-
-	bool IntersectP(const Ray& ray) const;
-
-	void setMesh(vector<Vertex> vertices, vector<unsigned int> indices, MeshMaterial material);
-
-private:
 	/*  Render data  */
 	Bounds3f bounds;
 	unsigned int VBO, EBO;
 	glm::mat4 model;
 	static GLuint boundIndex[36];
 
-	/*  Functions    */
+	/*  Functions  */
+	// constructor
+	CMesh() = default;
 
-	void setupMesh();
+	
+
+	virtual void Draw(CShader * shader) = 0;
+
+	virtual void Draw(CShader* shader, glm::mat4& vModelMatrix) = 0;
+
+	Bounds3f getBounds() { return this->bounds; }
+	glm::vec3 getCentroid() { return this->bounds.getCentroid(); }
+
+	bool Intersect(Ray& ray, SurfaceInteraction* isect);
+
+	bool IntersectP(const Ray& ray);
+
+	//virtual void setMesh(vector<Vertex> vertices, vector<unsigned int> indices, MeshMaterial material) = 0;
+
+	virtual void setupMesh() = 0;
+
 };
 
 #endif

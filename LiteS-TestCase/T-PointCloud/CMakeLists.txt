@@ -7,7 +7,7 @@ project(T-PointCloud)
 # Compiler and Linker options
 # Platform independent
 if(${CMAKE_GENERATOR} MATCHES ".*Visual Studio.*|.*Ninja.*")
-	set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} /MDd /Zi /GL ")
+	set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} /MDd /Zi /GL /Od")
 	set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} /MD")
 
 	SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /Profile /LTCG")
