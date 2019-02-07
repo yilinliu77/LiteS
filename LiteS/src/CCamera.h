@@ -18,9 +18,10 @@ enum Camera_Movement {
 };
 
 // Default camera values
-const float YAW = -90.0f;
+const float YAW = 0.f;
 const float PITCH = 0.0f;
-const float SENSITIVTY = 0.1f;
+const float ROLL = 0.0f;
+const float SENSITIVTY = 0.005f;
 const float ZOOM = 45.0f;
 
 // An abstract camera class that processes input and calculates the corresponding Eular Angles, Vectors and Matrices for use in OpenGL
@@ -32,20 +33,27 @@ public:
 	glm::vec3 Up;
 	glm::vec3 Right;
 	glm::vec3 WorldUp;
+	glm::vec3 WorldCenter;
 	// Eular Angles
 	float Yaw;
 	float Pitch;
+	float Roll;
 	// Camera options
 	float MovementSpeed;
 	float MouseSensitivity;
 	float Zoom;
 
 	// Constructor with vectors
-	CCamera(float vCameraSpeed,glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = YAW, float pitch = PITCH) : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(vCameraSpeed), MouseSensitivity(SENSITIVTY), Zoom(ZOOM) {
+	CCamera(float vCameraSpeed,glm::vec3 position = glm::vec3(0.0f, 0.0f, 3.0f)
+		, glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f)) : Front(glm::vec3(0.0f, 0.0f, -1.0f))
+				, MovementSpeed(vCameraSpeed), MouseSensitivity(SENSITIVTY)
+				, Zoom(ZOOM), WorldCenter(glm::vec3(0.f,0.f,0.f))
+				,Yaw(YAW),Pitch(PITCH),Roll(ROLL){
 		Position = position;
-		WorldUp = up;
-		Yaw = yaw;
-		Pitch = pitch;
+		Front = glm::normalize(WorldCenter - Position);
+		Up = up;
+		Right = glm::normalize(glm::cross(Front, Up));
+
 		updateCameraVectors();
 	}
 	// Constructor with scalar values
@@ -80,16 +88,11 @@ public:
 		xoffset *= MouseSensitivity;
 		yoffset *= MouseSensitivity;
 
-		Yaw += xoffset;
-		Pitch += yoffset;
+		glm::vec2 direction(xoffset, yoffset);
 
-		// Make sure that when pitch is out of bounds, screen doesn't get flipped
-		if (constrainPitch) {
-			if (Pitch > 89.0f)
-				Pitch = 89.0f;
-			if (Pitch < -89.0f)
-				Pitch = -89.0f;
-		}
+		Yaw = glm::dot(direction,glm::vec2(1.f,0.f));
+		Pitch = glm::dot(direction, glm::vec2(0.f, 1.f));
+		Roll = glm::dot(direction, glm::vec2(-1.f, -1.f));
 
 		// Update Front, Right and Up Vectors using the updated Eular angles
 		updateCameraVectors();
@@ -97,12 +100,15 @@ public:
 
 	// Processes input received from a mouse scroll-wheel event. Only requires input on the vertical wheel-axis
 	void ProcessMouseScroll(float yoffset) {
-		if (Zoom >= 1.0f && Zoom <= 45.0f)
-			Zoom -= yoffset;
-		if (Zoom <= 1.0f)
-			Zoom = 1.0f;
-		if (Zoom >= 45.0f)
-			Zoom = 45.0f;
+		//if (Zoom >= 1.0f && Zoom <= 45.0f)
+		//	Zoom -= yoffset;
+		//if (Zoom <= 1.0f)
+		//	Zoom = 1.0f;
+		//if (Zoom >= 45.0f)
+		//	Zoom = 45.0f;
+
+		Position += Front * yoffset * 10.0f *SENSITIVTY;
+
 	}
 
 private:
@@ -113,10 +119,17 @@ private:
 		front.x = cos(glm::radians(Yaw)) * cos(glm::radians(Pitch));
 		front.y = sin(glm::radians(Pitch));
 		front.z = sin(glm::radians(Yaw)) * cos(glm::radians(Pitch));
-		Front = glm::normalize(front);
-		// Also re-calculate the Right and Up vector
-		Right = glm::normalize(glm::cross(Front, WorldUp));  // Normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
+		Front = WorldCenter - Position;
+		//glm::quat rotateionQuat = glm::quat(glm::vec3(Pitch, -Yaw, 0));
+		//Front = rotateionQuat*glm::vec4(Front,1.f);
+		Front = glm::rotate(glm::mat4(1.0f), -Yaw, Up)*glm::vec4(Front, 1.0f);
+		Front = glm::rotate(glm::mat4(1.0f), Pitch, Right)*glm::vec4(Front, 1.0f);
+		//Front = glm::rotate(glm::mat4(1.0f), Roll, glm::vec3(0.f, 0.f, 1.0f))*glm::vec4(Front,1.0f);
+		Position = WorldCenter - Front;
+		Front = glm::normalize(Front);
 		Up = glm::normalize(glm::cross(Right, Front));
+		Right = glm::normalize(glm::cross(Front, Up));  // Normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
 	}
 };
+
 #endif

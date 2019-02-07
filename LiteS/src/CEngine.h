@@ -21,12 +21,12 @@ public:
 	static bool m_firstMouse;
 	static float m_lastX;
 	static float m_lastY;
+	static bool m_mouseClicked;
 	// timing
 	static float m_deltaTime;
 	static float m_lastFrame;
 
 	static CScene* m_Scene;
-	//std::vector<CMesh&> m_meshToRender;
 
 	CComponent* m_Component;
 
@@ -34,6 +34,7 @@ public:
 	~CEngine();
 	bool initEngine(string configFile);
 	void runEngine();
+	bool isClicked(GLFWwindow* window, unsigned key);
 	void handleInput(GLFWwindow* window);
 	void switchMode(RenderMode v_mode);
 
@@ -46,6 +47,10 @@ private:
 	RenderMode m_mode;
 
 	std::vector<bool> keyPreesed;
+
+	GLsizei pointSize;
+
+	bool show_demo_window = true;
 };
 
 #endif

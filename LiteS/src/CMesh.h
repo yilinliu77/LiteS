@@ -233,6 +233,8 @@ public:
 
 	virtual void setupMesh() = 0;
 
+	virtual void changeColor(glm::vec3 aColor, unsigned aIndex) = 0;
+
 };
 
 #endif
