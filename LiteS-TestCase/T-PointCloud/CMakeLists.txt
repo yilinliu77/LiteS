@@ -22,22 +22,26 @@ find_package(glfw3 CONFIG REQUIRED)
 find_package(glew CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
-
+find_package(imgui CONFIG REQUIRED)
 include_directories (${GLFW3_INCLUDE_DIRS})
 include_directories (${GLEW_INCLUDE_DIRS})
 include_directories (${ASSIMP_INCLUDE_DIRS})
 include_directories (${GLM_INCLUDE_DIRS})
+include_directories (${IMGUI_INCLUDE_DIRS})
 
 # link_directories($ENV{OPENGL}/lib/x64)
 
 file(GLOB SOURCE_FILES ./*.cpp ../../LiteS/src/*.cpp)
 file(GLOB HEADER_FILES ./*.h ../../LiteS/src/*.h)
+file(GLOB RESOURCES_FILES ./config.xml ../../LiteS/resources/shaders/* ../../LiteS/resources/*)
+include_directories (../../LiteS/resources/)
+
 
 #add_subdirectory(libs)
 
-add_executable(main ${SOURCE_FILES} ${HEADER_FILES} )
+add_executable(main ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_FILES})
 
 #add_dependencies(main tinyply)
 
-target_link_libraries(main GLEW::GLEW glfw ${ASSIMP_LIBRARIES})
+target_link_libraries(main GLEW::GLEW glfw ${ASSIMP_LIBRARIES} imgui::imgui)
 

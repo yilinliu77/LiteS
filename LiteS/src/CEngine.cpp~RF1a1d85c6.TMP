@@ -5,16 +5,12 @@
 #include <thread>
 #include "CDifferPass.h"
 #include "CPointCloudComponent.h"
-#include <imgui.h>
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void APIENTRY glDebugOutput(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
 
-CEngine::CEngine():pointSize(4){ keyPreesed.assign(500, false); }
+CEngine::CEngine() { keyPreesed.assign(500, false); }
 
 CEngine::~CEngine() {}
 
@@ -36,8 +32,8 @@ bool CEngine::initEngine(string configFile) {
 
 void CEngine::runEngine() {
 	this->m_Component->extraInit();
-	//this->m_Component->extraAlgorithm();
-	std::thread initThread(&CComponent::extraAlgorithm,this->m_Component);
+
+	std::thread initThread(&CPointCloudComponent::extraAlgorithm,this->m_Component);
 	initThread.detach();
 	std::cout << "done" << std::endl;
 
@@ -47,40 +43,7 @@ void CEngine::runEngine() {
 		m_lastFrame = currentFrame;
 		handleInput(m_Window);
 
-		// Start the Dear ImGui frame
-		ImGui_ImplOpenGL3_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
-
-		ImGui::ShowDemoWindow(&show_demo_window);
-
-		{
-			static float f = 0.0f;
-			static int counter = 0;
-
-			ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-
-			ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-			ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-
-			ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-			ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-			ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-
-			if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-				counter++;
-			ImGui::SameLine();
-			ImGui::Text("counter = %d", counter);
-
-			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-			ImGui::End();
-		}
-
-		ImGui::Render();
-
 		this->m_Component->run();
-
-		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 		glfwSwapBuffers(m_Window);
 		glfwPollEvents();
@@ -89,16 +52,33 @@ void CEngine::runEngine() {
 	
 }
 
-bool CEngine::isClicked(GLFWwindow * window,unsigned key) {
-	if (glfwGetKey(window, key) == GLFW_PRESS) {
-		keyPreesed[key] = true;
-		return false;
-	}
-	if (keyPreesed[key] && glfwGetKey(window, key) == GLFW_RELEASE) {
-		keyPreesed[key] = false;
-		return true;
-	}
-}
+//void CEngine::excutePass(CPass * vPass) {
+//	glViewport(0, 0, this->m_companionWindowWidth, this->m_companionWindowHeight);
+//
+//	if (vPass->m_IsTargetTexture)
+//		glBindFramebuffer(GL_FRAMEBUFFER, vPass->m_FrameBuffer);
+//
+//	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+//	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+//	glEnable(GL_DEPTH_TEST);
+//
+//	glm::mat4 projectionMatrix = glm::perspective(glm::radians(this->m_Camera->Zoom), (float)this->m_companionWindowWidth / (float)this->m_companionWindowHeight, 0.1f, 1000000.0f);
+//	glm::mat4 viewMatrix = this->m_Camera->GetViewMatrix();
+//	glm::mat4 modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(50.0, 50.0, 50.0));
+//
+//	vPass->getShader()->use();
+//	vPass->getShader()->setMat4("matrix", projectionMatrix*viewMatrix*modelMatrix);
+//	vPass->getShader()->setMat4("model", modelMatrix);
+//
+//	this->m_Component->updateUniforms();
+//
+//	for (int i = 0; i < this->m_Model->meshes.size(); ++i) {
+//		this->m_Model->meshes[i]->Draw(vPass->getShader());
+//	}
+//
+//	glUseProgram(0);
+//	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+//}
 
 void CEngine::handleInput(GLFWwindow * window) {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -111,54 +91,31 @@ void CEngine::handleInput(GLFWwindow * window) {
 		CEngine::m_Scene->m_Camera->ProcessKeyboard(LEFT, m_deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
 		CEngine::m_Scene->m_Camera->ProcessKeyboard(RIGHT, m_deltaTime);
-
-	if(isClicked(window,GLFW_KEY_F9)) {
-		if(this->m_Component->m_shouldContinue) {
-			this->m_Component->m_shouldContinue = false;
-		}
-		else
-			this->m_Component->continueExtraAlgorithm();
+	if (glfwGetKey(window,GLFW_KEY_F9)== GLFW_PRESS) {
+		keyPreesed[GLFW_KEY_F9]=true;
 	}
-	if (isClicked(window, GLFW_KEY_F10))
-		this->m_Component->stepExtraAlgorithm();
-	if (isClicked(window, GLFW_KEY_EQUAL))
-		glPointSize(pointSize += 1);
-	if (isClicked(window, GLFW_KEY_MINUS)) {
-		glPointSize(pointSize -= 1);
-		if (pointSize < 0)
-			pointSize = 0;
+	if (keyPreesed[GLFW_KEY_F9]&&glfwGetKey(window, GLFW_KEY_F9) == GLFW_RELEASE) {
+		keyPreesed[GLFW_KEY_F9] = false;
+		this->m_Component->continueExtraInit();
 	}
-
-
 }
 
 void CEngine::switchMode(RenderMode v_mode) { m_mode = v_mode; }
 
 void mouse_callback(GLFWwindow * window, double xpos, double ypos) {
-	if(CEngine::m_mouseClicked) {
-		float xoffset = (float)xpos - CEngine::m_lastX;
-		float yoffset = CEngine::m_lastY - (float)ypos; // reversed since y-coordinates go from bottom to top
-
+	if (CEngine::m_firstMouse) {
 		CEngine::m_lastX = (float)xpos;
 		CEngine::m_lastY = (float)ypos;
+		CEngine::m_firstMouse = false;
+	}
 
-		CEngine::m_Scene->m_Camera->ProcessMouseMovement(xoffset, yoffset);
-	}
-	
-}
+	float xoffset = (float)xpos - CEngine::m_lastX;
+	float yoffset = CEngine::m_lastY - (float)ypos; // reversed since y-coordinates go from bottom to top
 
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
-	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-		CEngine::m_mouseClicked = true;
-		double xpos;
-		double ypos;
-		glfwGetCursorPos(window, &xpos, &ypos);
-		CEngine::m_lastX = (float)xpos;
-		CEngine::m_lastY = (float)ypos;
-	}
-	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
-		CEngine::m_mouseClicked = false;
-	}
+	CEngine::m_lastX = (float)xpos;
+	CEngine::m_lastY = (float)ypos;
+
+	CEngine::m_Scene->m_Camera->ProcessMouseMovement(xoffset, yoffset);
 }
 
 void scroll_callback(GLFWwindow * window, double xoffset, double yoffset) {
@@ -249,12 +206,11 @@ bool CEngine::__initDLL() {
 	glfwSetCursorPosCallback(m_Window, mouse_callback);
 	glfwSetScrollCallback(m_Window, scroll_callback);
 	glfwSetFramebufferSizeCallback(m_Window, framebuffer_size_callback);
-	glfwSetMouseButtonCallback(m_Window, mouse_button_callback);
 	// tell GLFW to capture our mouse
-	glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+	glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 	//init glew
-	glewExperimental = GL_FALSE;
+	glewExperimental = GL_TRUE;
 	GLenum nGlewError = glewInit();
 	if (nGlewError != GLEW_OK) {
 		printf("%s - Error initializing GLEW! %s\n", __FUNCTION__, glewGetErrorString(nGlewError));
@@ -269,28 +225,6 @@ bool CEngine::__initDLL() {
 		glDebugMessageControl(GL_DEBUG_SOURCE_API, GL_DEBUG_TYPE_ERROR, GL_DEBUG_SEVERITY_HIGH, 0, NULL, GL_TRUE);
 	} else
 		return false;
-
-	glPointSize(pointSize);
-
-	/*
-	 * Imgui setup
-	 */
-	 // Setup Dear ImGui context
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO(); (void)io;
-	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
-	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
-
-	// Setup Dear ImGui style
-	ImGui::StyleColorsDark();
-	//ImGui::StyleColorsClassic();
-
-	// Setup Platform/Renderer bindings
-	ImGui_ImplGlfw_InitForOpenGL(m_Window, true);
-	ImGui_ImplOpenGL3_Init("#version 330");
-
-
 	return true;
 }
 
@@ -571,7 +505,7 @@ bool CEngine::__initScene(string configFile) {
 		CEngine::m_lastX = CEngine::m_Scene->m_WindowWidth / 2.0f;
 		CEngine::m_lastY = CEngine::m_Scene->m_WindowHeight / 2.0f;
 
-		CEngine::m_Scene->m_Camera = new CCamera(CameraSpeed,glm::vec3(0, 0, 3));
+		CEngine::m_Scene->m_Camera = new CCamera(CameraSpeed,glm::vec3(0, 0.1, 0.5));
 
 		return true;
 	} else {
@@ -586,4 +520,3 @@ float CEngine::m_lastX = 0;
 float CEngine::m_lastY = 0;
 float CEngine::m_deltaTime = 0;
 float CEngine::m_lastFrame = 0;
-bool CEngine::m_mouseClicked = false;

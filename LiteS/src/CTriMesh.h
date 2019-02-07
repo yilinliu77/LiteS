@@ -13,6 +13,7 @@ public:
 	void setupMesh() override;
 	void Draw(CShader* shader) override;
 	void Draw(CShader * shader, glm::mat4 & vModelMatrix) override;
+	void changeColor(glm::vec3 aColor, unsigned aIndex) override;
 };
 	
 

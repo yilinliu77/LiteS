@@ -2,24 +2,26 @@
 #ifndef CCOMPONENT_H
 #define CCOMPONENT_H
 #include"CScene.h"
-#include"CPass.h"
-#include <mutex>
 
 class CComponent {
 public:
+
+	CComponent(CScene * vScene);
+
+
 	CScene * m_Scene;
 
-	CComponent(CScene * vScene) :m_shouldContinue(false), m_Scene(vScene) {  }
-	~CComponent() {};
+	virtual ~CComponent() = default;
 	virtual void run() = 0;
-	//virtual void updateUniforms() = 0;
-	virtual bool extraInit();
-	virtual void extraAlgorithm();
-	virtual void continueExtraInit();
-	virtual void waitForContinueSignal();
+	virtual void extraInit() = 0;
+	
+	virtual void extraAlgorithm() = 0;
+	virtual void stepExtraAlgorithm() = 0;
+	virtual void continueExtraAlgorithm() = 0;
+	virtual void waitForStepSignal() = 0;
+	virtual void waitForContinueSignal() = 0;
 
-	std::mutex m_shouldContinueMutex;
-	std::condition_variable m_shouldContinueCV;
 	bool m_shouldContinue;
+	bool m_shouldStep;
 };
 #endif
