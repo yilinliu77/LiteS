@@ -3,15 +3,19 @@
 #include "stb_image.h"
 
 #include "CModel.h"
+#include "CTriMesh.h"
+#include "CPointCloudMesh.h"
 using namespace std;
 
 unsigned int TextureFromFile(const char *path, const string &directory);
 
 CModel::CModel(string const &path, ModelType v_type) : gammaCorrection(false), m_modelType(v_type){
-	if(v_type == Window)
-		this->meshes.push_back(new CMesh());
+	
+	//this->meshes.push_back(new CMesh());
+	if (v_type == Window)
+		throw "unsupport window";
 	else if (v_type == PointCloud) 
-		loadModel(path);
+		loadPointCloud(path);
 	else
 		loadModel(path);
 }
@@ -32,18 +36,72 @@ void CModel::draw(CShader * vShader, glm::mat4& vModelMatrix) {
 }
 
 /*
- * Load Model using assimp
+ * Load Point Ploud Model using assimp
+ */
+
+void CModel::loadPointCloud(string const &path) {
+	Assimp::Importer importer;
+	const aiScene* scene;
+
+	scene = importer.ReadFile(path, NULL);
+	// check for errors
+	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) // if is Not Zero
+		throw string("ERROR::ASSIMP:: ") + importer.GetErrorString();
+
+	processPointCloudNode(scene->mRootNode, scene);
+}
+
+void CModel::processPointCloudNode(aiNode *node, const aiScene *scene) {
+	vector<Vertex> vertices;
+	vector<unsigned int> indices;
+
+	aiMesh* aiMesh = scene->mMeshes[node->mMeshes[0]];
+	
+	for (unsigned int i = 0; i < aiMesh->mNumVertices; i++) {
+		Vertex vertex;
+		glm::vec3 vector; // we declare a placeholder vector since assimp uses its own vector class that doesn't directly convert to glm's vec3 class so we transfer the data to this placeholder glm::vec3 first.
+						  // positions
+		vector.x = aiMesh->mVertices[i].x;
+		vector.y = aiMesh->mVertices[i].y;
+		vector.z = aiMesh->mVertices[i].z;
+		vertex.Position = vector;
+		// normals
+		if (aiMesh->mNormals) {
+			vector.x = aiMesh->mNormals[i].x;
+			vector.y = aiMesh->mNormals[i].y;
+			vector.z = aiMesh->mNormals[i].z;
+			vertex.Normal = vector;
+		}
+
+		//if (mesh->mColors[0]) {
+		//	vector.x = mesh->mColors[0][i][0];
+		//	vector.y = mesh->mColors[0][i][1];
+		//	vector.z = mesh->mColors[0][i][2];
+		//	vertex.Color = vector;
+		//}
+
+		vertices.push_back(vertex);
+	}
+	// now wak through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.
+	for (unsigned int i = 0; i < aiMesh->mNumFaces; i++) {
+		aiFace face = aiMesh->mFaces[i];
+		// retrieve all indices of the face and store them in the indices vector
+		for (unsigned int j = 0; j < face.mNumIndices; j++)
+			indices.push_back(face.mIndices[j]);
+	}
+
+	meshes.push_back(new CPointCloudMesh(vertices, indices));
+
+}
+
+/*
+ * Load Mesh Model using assimp
  */
 void CModel::loadModel(string const &path) {
 	Assimp::Importer importer;
 	const aiScene* scene;
 
-	if (m_modelType == PointCloud)
-		scene = importer.ReadFile(path, NULL);
-	else if (m_modelType == Mesh)
-		scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
-	else
-		throw "Model type unsupported";
+	scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
 	// check for errors
 	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) // if is Not Zero
 		throw string("ERROR::ASSIMP:: ") + importer.GetErrorString();
@@ -110,9 +168,6 @@ CMesh* CModel::processMesh(aiMesh *mesh, const aiScene *scene) {
 		for (unsigned int j = 0; j < face.mNumIndices; j++)
 			indices.push_back(face.mIndices[j]);
 	}
-	// process materials if it is mesh
-	if(m_modelType==PointCloud)
-		return new CMesh(vertices, indices);
 
 	int count = 0;
 	aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
@@ -169,7 +224,7 @@ CMesh* CModel::processMesh(aiMesh *mesh, const aiScene *scene) {
 	std::vector<Texture> heightMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_height");
 	textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
 
-	return new CMesh(vertices, indices, meshMaterial, textures);
+	return new CTriMesh(vertices, indices, meshMaterial, textures);
 }
 
 vector<Texture> CModel::loadMaterialTextures(aiMaterial *mat, aiTextureType type, string typeName) {

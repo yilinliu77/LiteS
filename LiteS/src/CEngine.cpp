@@ -3,6 +3,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include"stb_image.h"
 #include <thread>
+#include "CDifferPass.h"
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
@@ -375,7 +376,14 @@ bool CEngine::__readProperties(string configFile) {
 
 	node = doc.FirstChildElement("config")->FirstChildElement("RenderPass");//m_companionWindowWidth
 	while (node&&!strcmp(node->ToElement()->Value(), "RenderPass")) {
-		CPass* pass = new CPass();
+		CPass* pass;
+		if (node->FirstChildElement("RenderMode")
+			&& strcmp(node->FirstChildElement("RenderMode")->ToElement()->GetText(), "Deffer")) {
+			pass = new CDifferPass();
+		}
+		else
+			pass = new CPass();
+
 		stream << node->FirstChildElement("Name")->GetText();
 		string Name;
 		stream >> Name;

@@ -9,7 +9,7 @@ class CComponent {
 public:
 	CScene * m_Scene;
 
-	CComponent(CScene * vScene) :m_shouldContinue(false), m_Scene(vScene) { }
+	CComponent(CScene * vScene) :m_shouldContinue(false), m_Scene(vScene) {  }
 	~CComponent() {};
 	virtual void run() = 0;
 	//virtual void updateUniforms() = 0;

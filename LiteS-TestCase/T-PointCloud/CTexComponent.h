@@ -8,8 +8,9 @@ public:
 	~CTexComponent();
 	void run() override;
 	void extraAlgorithm() override;
+	bool extraInit() override;
 
 private:
-	
+	CPass* DisplayPass;
 };
 

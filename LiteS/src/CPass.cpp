@@ -1,7 +1,9 @@
 #include "CPass.h"
 #include <GL/glew.h>
 
-CPass::CPass() { m_IsTargetTexture = false; }
+CPass::CPass() {
+	m_IsTargetTexture = false; 
+}
 
 CPass::~CPass() {}
 
@@ -14,13 +16,8 @@ void CPass::beginPass() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 
-	/*glm::mat4 projectionMatrix = glm::perspective(glm::radians(vScene->m_Camera->Zoom), (float)vScene->m_WindowWidth / (float)vScene->m_WindowHeight, 0.1f, 1000000.0f);
-	glm::mat4 viewMatrix = vScene->m_Camera->GetViewMatrix();
-	glm::mat4 modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(50.0, 50.0, 50.0));*/
 
 	this->getShader()->use();
-	//this->getShader()->setMat4("matrix", projectionMatrix*viewMatrix*modelMatrix);
-	//this->getShader()->setMat4("model", modelMatrix);
 
 	//this->m_Component->updateUniforms();
 }

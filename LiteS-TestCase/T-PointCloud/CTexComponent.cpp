@@ -1,11 +1,13 @@
 #include "CTexComponent.h"
 
-CTexComponent::CTexComponent(CScene * vScene) :CComponent(vScene){}
+CTexComponent::CTexComponent(CScene * vScene) :CComponent(vScene){ 
+	DisplayPass = this->m_Scene->m_Pass.at("display");
+}
 
 CTexComponent::~CTexComponent() = default;
 
 void CTexComponent::run() {
-	CPass* DisplayPass = this->m_Scene->m_Pass.at("display");
+	 
 	DisplayPass->beginPass();
 
 	const glm::mat4 projectionMatrix = glm::perspective(glm::radians(this->m_Scene->m_Camera->Zoom),
@@ -31,6 +33,11 @@ void CTexComponent::extraAlgorithm() {
 	}
 	std::cout << "init" << std::endl;
 
+}
+
+bool CTexComponent::extraInit() {
+
+	return true;
 }
 
 
