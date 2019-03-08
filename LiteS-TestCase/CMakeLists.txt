@@ -8,4 +8,5 @@
 # ENDFOREACH()
 
 ADD_SUBDIRECTORY(T-PointCloud)
+ADD_SUBDIRECTORY(T-PathPlaning)
 
