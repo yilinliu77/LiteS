@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<config>
+  <companionWindowWidth>1600</companionWindowWidth>
+  <companionWindowHeight>900</companionWindowHeight>
+ 
+  <RenderPass>
+    <Name>display</Name>
+    <!-- <RenderMode>Deffer</RenderMode> -->
+    <!-- <Mesh>C:/Users/whatseven/source/repos/RESOURCES/scene/sponza/sponza.obj</Mesh> -->
+    <PointCloud>C:/Users/vcc/Documents/repo/SFM/point_before_sampling.ply</PointCloud>
+    <!-- <Window></Window> -->
+    <!--<Model>C:/Users/whatseven/source/repos/RESOURCES/scene/nanosuit/nanosuit.obj</Model>-->
+    <VertexShader>C:/Users/vcc/Documents/repo/RENDERING/LiteS/LiteS/resources/shaders/PointCloudVert.glsl</VertexShader>
+    <FragmentShader>C:/Users/vcc/Documents/repo/RENDERING/LiteS/LiteS/resources/shaders/PointCloudFrag.glsl</FragmentShader>
+  </RenderPass>
+</config>

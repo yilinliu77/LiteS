@@ -39,9 +39,9 @@ include_directories (../../LiteS/resources/)
 
 #add_subdirectory(libs)
 
-add_executable(main ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_FILES})
+add_executable(T-PointCloud ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_FILES})
 
 #add_dependencies(main tinyply)
 
-target_link_libraries(main GLEW::GLEW glfw ${ASSIMP_LIBRARIES} imgui::imgui)
+target_link_libraries(T-PointCloud GLEW::GLEW glfw ${ASSIMP_LIBRARIES} imgui::imgui)
 
