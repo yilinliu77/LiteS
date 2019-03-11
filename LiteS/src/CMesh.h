@@ -231,7 +231,8 @@ public:
 
 	//virtual void setMesh(vector<Vertex> vertices, vector<unsigned int> indices, MeshMaterial material) = 0;
 
-	virtual void setupMesh() = 0;
+	virtual void setupMeshWithIndex() {}
+	virtual void setupMesh() {}
 
 	virtual void changeColor(glm::vec3 aColor, unsigned aIndex) = 0;
 
