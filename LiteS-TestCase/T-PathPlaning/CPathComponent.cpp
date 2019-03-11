@@ -18,7 +18,7 @@ void CPathComponent::extraAlgorithm() {
 
 	vector<Vertex> &in_vertexs = mesh->vertices;
 	vector<unsigned int> &in_indices = mesh->indices;
-
+	saveMesh(mesh, "test.stl");
 	//
 	// Calculate total area
 	//
@@ -30,10 +30,8 @@ void CPathComponent::extraAlgorithm() {
 			, in_vertexs[in_indices[i + 2]].Position);
 	}
 
-	std::vector<glm::vec3> out_samples;
-	std::vector<glm::vec3> out_normals;
+	std::vector<Vertex> out_samples;
 	out_samples.reserve(samples_num*total_surface_area);
-	out_normals.reserve(samples_num*total_surface_area);
 	//
 	// Random sample point in each face of the mesh
 	//
@@ -63,10 +61,16 @@ void CPathComponent::extraAlgorithm() {
 
 			float w = 1.0f - v - u;
 
-			out_samples.push_back(u * vertex0 + v * vertex1 + w * vertex2);
-			out_normals.push_back(face_normal);
+			Vertex vertex;
+			vertex.Position = u * vertex0 + v * vertex1 + w * vertex2;
+			vertex.Normal = face_normal;
+			out_samples.push_back(vertex);
 		}
 	}
+
+	CMesh* outMesh = new CPointCloudMesh(out_samples);
+
+
 
 	for(int i=0;i<200;i++) {
 		mesh->changeColor(glm::vec3(1.0f, 0.f, 0.f), i);

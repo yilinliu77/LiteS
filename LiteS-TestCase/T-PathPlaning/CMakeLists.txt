@@ -43,5 +43,5 @@ add_executable(T-PathPlaning ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_FILES})
 
 #add_dependencies(main tinyply)
 
-target_link_libraries(T-PathPlaning GLEW::GLEW glfw ${ASSIMP_LIBRARIES} imgui::imgui)
+target_link_libraries(T-PathPlaning GLEW::GLEW glfw assimp::assimp imgui::imgui)
 

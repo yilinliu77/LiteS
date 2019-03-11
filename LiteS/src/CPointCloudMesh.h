@@ -6,7 +6,9 @@
 class CPointCloudMesh:public CMesh {
 public:
 	CPointCloudMesh(const std::vector<Vertex>& vPoints, const vector<unsigned int> &vIndices);
+	CPointCloudMesh(const std::vector<Vertex>& vPoints);
 
+	void setupMeshWithIndex() override;
 	void setupMesh() override;
 	void Draw(CShader* shader) override;
 	void Draw(CShader* shader, glm::mat4& vModelMatrix) override;
