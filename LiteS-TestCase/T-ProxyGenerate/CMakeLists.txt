@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8.0)
-project(T-PathPlaning)
+project(T-ProxyGenerate)
 
 #Path
 #set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build)
