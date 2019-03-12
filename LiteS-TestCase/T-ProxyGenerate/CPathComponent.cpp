@@ -79,14 +79,12 @@ void CPathComponent::sample_mesh(string vPath) {
 	saveMesh(outMesh, vPath);
 }
 
-void CPathComponent::extraAlgorithm() {
-	//sample_mesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/point_after_sampling.ply");
-
+void CPathComponent::fixDiscontinuecy(string vPath){
 	CMesh* outMesh = new CPointCloudMesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/point_after_sampling.ply");
 
 
 	//
-	// Fix
+	// Generate height map
 	//
 	const float LOWEST = -99999.0f;
 	int image_width = outMesh->bounds.pMax[0] - outMesh->bounds.pMin[0]+1;
@@ -100,6 +98,9 @@ void CPathComponent::extraAlgorithm() {
 	{
 		image.data[i] = LOWEST;
 	}
+	//
+	// Fill the height map with height
+	//
 	for(size_t i=0;i< outMesh->vertices.size();++i)
 	{
 		int x = (outMesh->vertices[i].Position.x - outMesh->bounds.pMin[0]);
@@ -107,7 +108,9 @@ void CPathComponent::extraAlgorithm() {
 		if (image.data[y*image_width + x] < outMesh->vertices[i].Position.z)
 			image.data[y*image_width + x] = outMesh->vertices[i].Position.z;
 	}
-
+	//
+	// Calculate ground
+	//
 	float ground_level = -LOWEST;
 	for (size_t y = 0; y < image_height; ++y) {
 		for (size_t x = 0; x < image_width; ++x) {
@@ -115,7 +118,9 @@ void CPathComponent::extraAlgorithm() {
 				? image.data[y*image_width + x] : ground_level;
 		}
 	}
-
+	//
+	// Scale the height map
+	//
 	for (size_t y = 0; y < image_height; ++y) {
 		for (size_t x = 0; x < image_width; ++x) {
 			if (image.data[y*image_width + x] != LOWEST)
@@ -123,6 +128,9 @@ void CPathComponent::extraAlgorithm() {
 		}
 	}
 
+	//
+	// Detect the height discontinuecy, generate new points
+	//
 	std::vector<Vertex> proxy_vertexes;
 
 	bool ground = true;
@@ -167,7 +175,27 @@ void CPathComponent::extraAlgorithm() {
 		}
 	}
 	CMesh* proxy_points = new CPointCloudMesh(proxy_vertexes);
-	saveMesh(proxy_points,"C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_point.ply");
+	saveMesh(proxy_points,vPath);
+}
+
+void CPathComponent::addSafeSpace(string vPath){
+	CMesh* outMesh = new CPointCloudMesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/point_after_sampling.ply");
+
+	saveMesh(proxy_points,vPath);
+}
+
+void CPathComponent::reconstructMesh(string vPath){
+
+}
+
+void CPathComponent::extraAlgorithm() {
+	//sample_mesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/point_after_sampling.ply");
+	//fixDiscontinuecy("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_point.ply")
+
+	addSafeSpace("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_airspace.ply")
+
+	reconstructMesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_point.ply")
+
 	return;
 	
 }
