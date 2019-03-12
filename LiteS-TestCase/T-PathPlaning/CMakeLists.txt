@@ -31,17 +31,18 @@ include_directories (${IMGUI_INCLUDE_DIRS})
 
 # link_directories($ENV{OPENGL}/lib/x64)
 
-file(GLOB SOURCE_FILES ./*.cpp ../../LiteS/src/*.cpp)
-file(GLOB HEADER_FILES ./*.h ../../LiteS/src/*.h)
-file(GLOB RESOURCES_FILES ./config.xml ../../LiteS/resources/shaders/* ../../LiteS/resources/*)
-include_directories (../../LiteS/resources/)
+file(GLOB SOURCE_FILES ./*.cpp)
+file(GLOB HEADER_FILES ./*.h)
+file(GLOB RESOURCES_FILES ./config.xml ../../LiteS-Engine/resources/shaders/* ../../LiteS-Engine/resources/*)
+include_directories (../../LiteS-Engine/resources/)
+include_directories (../../LiteS-Engine/src/)
 
 
 #add_subdirectory(libs)
 
+
 add_executable(T-PathPlaning ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_FILES})
+add_dependencies(T-PathPlaning LiteS)
 
-#add_dependencies(main tinyply)
-
-target_link_libraries(T-PathPlaning GLEW::GLEW glfw assimp::assimp imgui::imgui)
+target_link_libraries(T-PathPlaning GLEW::GLEW glfw assimp::assimp imgui::imgui LiteS)
 

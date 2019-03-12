@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<config>
+  <companionWindowWidth>1024</companionWindowWidth>
+  <companionWindowHeight>512</companionWindowHeight>
+
+  <RenderPass>
+    <Name>display</Name>
+    <Model>C:/Users/whatseven/source/repos/RESOURCES/scene/sponza/sponza.obj</Model>
+    <!--<Model>C:/Users/whatseven/source/repos/RESOURCES/scene/nanosuit/nanosuit.obj</Model>-->
+    <VertexShader>shaders/testVert.glsl</VertexShader>
+    <FragmentShader>shaders/testFrag.glsl</FragmentShader>
+  </RenderPass>
+</config>
