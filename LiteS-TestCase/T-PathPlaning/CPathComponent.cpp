@@ -1,9 +1,17 @@
 #include "CPathComponent.h"
-#include "../../LiteS/src/CPointCloudMesh.h"
+#include "CPointCloudMesh.h"
 
-#include "../../LiteS/src/util.h"
-
+#include "util.h"
+#include <set>
 #include <random>
+
+struct My8BitRGBImage
+{
+	int ncols;
+	int nrows;
+	float* data;
+
+};
 
 CPathComponent::CPathComponent(CScene * vScene) :CPointCloudComponent(vScene){ 
 	DisplayPass = this->m_Scene->m_Pass.at("display");
@@ -11,14 +19,13 @@ CPathComponent::CPathComponent(CScene * vScene) :CPointCloudComponent(vScene){
 
 CPathComponent::~CPathComponent() = default;
 
-void CPathComponent::extraAlgorithm() {
+void CPathComponent::sample_mesh(string vPath) {
 	CMesh* mesh = DisplayPass->m_Models[0]->meshes[0];
 
 	int samples_num = 25;
 
 	vector<Vertex> &in_vertexs = mesh->vertices;
 	vector<unsigned int> &in_indices = mesh->indices;
-	saveMesh(mesh, "test.stl");
 	//
 	// Calculate total area
 	//
@@ -69,23 +76,55 @@ void CPathComponent::extraAlgorithm() {
 	}
 
 	CMesh* outMesh = new CPointCloudMesh(out_samples);
+	saveMesh(outMesh, vPath);
+}
+
+void CPathComponent::extraAlgorithm() {
+	//sample_mesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/point_after_sampling.ply");
+
+	CMesh* outMesh = new CPointCloudMesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/point_after_sampling.ply");
 
 
+	//
+	// Fix
+	//
+	const float LOWEST = -99999.0f;
+	int image_width = outMesh->bounds.pMax[0] - outMesh->bounds.pMin[0]+1;
+	int image_height = outMesh->bounds.pMax[1] - outMesh->bounds.pMin[1]+1;
+	My8BitRGBImage image;
+	image.data = new float[image_height*image_width];
+	image.ncols = image_width;
+	image.nrows = image_height;
 
-	for(int i=0;i<200;i++) {
-		mesh->changeColor(glm::vec3(1.0f, 0.f, 0.f), i);
-		cout << "change " << i << " to red" << endl;
-		this->waitForStepSignal();
+	for (size_t i=0;i<image_height*image_width;++i)
+	{
+		image.data[i] = LOWEST;
 	}
-	this->waitForContinueSignal();
-
-	for (int i = 0; i < 5000; i++) {
-		mesh->changeColor(glm::vec3(.0f, 1.f, 0.f), i);
-		cout << "change " << i << " to yellow" << endl;
-		this->waitForStepSignal();
+	for(size_t i=0;i< outMesh->vertices.size();++i)
+	{
+		int x = (outMesh->vertices[i].Position.x - outMesh->bounds.pMin[0]);
+		int y = (outMesh->vertices[i].Position.y - outMesh->bounds.pMin[1]);
+		if (image.data[y*image_width + x] < outMesh->vertices[i].Position.z)
+			image.data[y*image_width + x] = outMesh->vertices[i].Position.z;
 	}
-	this->waitForContinueSignal();
 
+	float ground_level = -LOWEST;
+	for (size_t y = 0; y < image_height; ++y) {
+		for (size_t x = 0; x < image_width; ++x) {
+			ground_level = image.data[y*image_width + x] < ground_level
+				? image.data[y*image_width + x] : ground_level;
+		}
+	}
+
+	for (size_t y = 0; y < image_height; ++y) {
+		for (size_t x = 0; x < image_width; ++x) {
+			if (image.data[y*image_width + x] != LOWEST)
+				image.data[y*image_width + x] = (image.data[y*image_width + x] - ground_level);
+		}
+	}
+
+	return;
+	
 }
 
 void CPathComponent::extraInit() {}
