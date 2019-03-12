@@ -123,6 +123,51 @@ void CPathComponent::extraAlgorithm() {
 		}
 	}
 
+	std::vector<Vertex> proxy_vertexes;
+
+	bool ground = true;
+	for (size_t y = 0; y < image_height; ++y) {
+		for (size_t x = 0; x < image_width; ++x) {
+			if (y <= 1 || y >= image_height - 2 || x <= 1 || x >= image_width - 2) continue;
+
+			float gx = image.data[(y - 1)*image_width + x - 1] - image.data[(y + 1)*image_width + x - 1]
+				+ 2 * (image.data[(y - 1)*image_width + x] - image.data[(y + 1)*image_width + x])
+				+ image.data[(y - 1)*image_width + x + 1] - image.data[(y + 1)*image_width + x + 1];
+			float gy = image.data[(y - 1)*image_width + x - 1] - image.data[(y - 1)*image_width + x + 1]
+				+ 2 * (image.data[(y)*image_width + x - 1] - image.data[(y)*image_width + x + 1])
+				+ image.data[(y + 1)*image_width + x - 1] - image.data[(y + 1)*image_width + x + 1];
+			
+			float screen_x = x + outMesh->bounds.pMin[0];
+			float screen_y = y + outMesh->bounds.pMin[1];
+			
+			Vertex t;
+			t.Normal = glm::vec3(gx, gy, 1.0f);
+			t.Normal = glm::normalize(t.Normal);
+			t.Position = glm::vec3(screen_x, screen_y, ground ? 0 : image.data[y*image_width + x]);
+
+			proxy_vertexes.push_back(t);
+
+			float ldx = abs(-image.data[(y)*image_width + x - 1] + image.data[y*image_width + x]);
+			float udy = abs(-image.data[(y - 1)*image_width + x] + image.data[y*image_width + x]);
+			float rdx = abs(-image.data[y*image_width + x] + image.data[(y)*image_width + x + 1]);
+			float ddy = abs(-image.data[y*image_width + x] + image.data[(y + 1)*image_width + x]);
+
+			float m = std::max(std::max(ldx, rdx), std::max(udy, ddy));
+
+			if (m < 1.5f) continue;
+			ground = !ground;
+
+			for (int i=0;i<m;++i)
+			{
+				t.Normal = glm::vec3(gx, gy, 0.0f);
+				t.Normal = glm::normalize(t.Normal);
+				t.Position = glm::vec3(screen_x, screen_y,i);
+				proxy_vertexes.push_back(t);
+			}
+		}
+	}
+	CMesh* proxy_points = new CPointCloudMesh(proxy_vertexes);
+	saveMesh(proxy_points,"C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_point.ply");
 	return;
 	
 }
