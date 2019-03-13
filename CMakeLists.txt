@@ -1,9 +1,6 @@
 cmake_minimum_required (VERSION 3.1)
 project (LiteS)
 
-ADD_SUBDIRECTORY(LiteS-Engine)
-ADD_SUBDIRECTORY(LiteS-TestCase)
-
 function(ComplerOption)
     # Compiler and Linker options
     # Platform independent
@@ -21,3 +18,12 @@ function(ComplerOption)
 endfunction()
 
 ComplerOption()
+
+SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${PROJECT_BINARY_DIR}/bin)
+SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${PROJECT_BINARY_DIR}/bin)
+SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${PROJECT_BINARY_DIR}/lib)
+SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${PROJECT_BINARY_DIR}/lib)
+SET(CMAKE_DEBUG_POSTFIX "_d")
+
+ADD_SUBDIRECTORY(LiteS-Engine)
+ADD_SUBDIRECTORY(LiteS-TestCase)

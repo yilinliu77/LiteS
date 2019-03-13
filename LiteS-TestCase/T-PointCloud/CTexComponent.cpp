@@ -1,5 +1,5 @@
 #include "CTexComponent.h"
-#include "../../LiteS/src/CPointCloudMesh.h"
+#include "CPointCloudMesh.h"
 
 CTexComponent::CTexComponent(CScene * vScene) :CPointCloudComponent(vScene){ 
 	DisplayPass = this->m_Scene->m_Pass.at("display");
