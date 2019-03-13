@@ -10,5 +10,5 @@
 
 
 ADD_SUBDIRECTORY(T-PointCloud)
-ADD_SUBDIRECTORY(T-PathPlaning)
-
+ADD_SUBDIRECTORY(T-ProxyGenerate)
+ADD_SUBDIRECTORY(T-PathGenerate)
