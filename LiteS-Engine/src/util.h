@@ -41,7 +41,7 @@ void saveMesh(CMesh* v_mesh,string v_outName) {
 
 	auto pMesh = scene.mMeshes[0];
 
-	long numValidPoints = v_mesh->vertices.size();
+	size_t numValidPoints = v_mesh->vertices.size();
 
 	pMesh->mVertices = new aiVector3D[numValidPoints];
 	pMesh->mNumVertices = numValidPoints;
@@ -58,8 +58,8 @@ void saveMesh(CMesh* v_mesh,string v_outName) {
 	properties->SetPropertyBool(AI_CONFIG_EXPORT_POINT_CLOUDS, true);
 	mAiExporter.Export(&scene, "ply", v_outName, 0, properties);
 
-	delete properties;
 	cout << mAiExporter.GetErrorString() << endl;
+	//delete properties;
 	return;
 }
 	

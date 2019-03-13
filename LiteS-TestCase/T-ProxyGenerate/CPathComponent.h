@@ -8,6 +8,9 @@ public:
 	CPathComponent(CScene * vScene);
 	~CPathComponent();
 	void sample_mesh(string vPath);
+	void fixDiscontinuecy(string vPath);
+	void addSafeSpace(string vPath);
+	void reconstructMesh(string vPath);
 	void extraAlgorithm() override;
 	void extraInit() override;
 

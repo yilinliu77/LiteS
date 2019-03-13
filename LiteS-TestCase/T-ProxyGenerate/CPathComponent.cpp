@@ -5,6 +5,12 @@
 #include <set>
 #include <random>
 
+#include <fssr/iso_surface.h>
+#include <fssr/octree.h>
+#include <mve/mesh.h>
+#include <mve/defines.h>
+#include <mve/mesh_io_ply.h>
+
 struct My8BitRGBImage
 {
 	int ncols;
@@ -38,7 +44,7 @@ void CPathComponent::sample_mesh(string vPath) {
 	}
 
 	std::vector<Vertex> out_samples;
-	out_samples.reserve(samples_num*total_surface_area);
+	out_samples.reserve(static_cast<size_t>(samples_num*total_surface_area));
 	//
 	// Random sample point in each face of the mesh
 	//
@@ -50,10 +56,10 @@ void CPathComponent::sample_mesh(string vPath) {
 		glm::vec3 vertex2 = in_vertexs[in_indices[i + 2]].Position;
 
 		float item_surface_area = triangleArea(vertex0, vertex1, vertex2);
-		size_t local_sample_num = item_surface_area * samples_num;
+		size_t local_sample_num = static_cast<size_t>(item_surface_area * samples_num);
 
 		std::mt19937 gen;
-		gen.seed(i);
+		gen.seed(static_cast<unsigned int>(i));
 
 		glm::vec3 face_normal = glm::normalize(glm::cross(vertex2-vertex1, vertex2 - vertex0));
 
@@ -87,8 +93,9 @@ void CPathComponent::fixDiscontinuecy(string vPath){
 	// Generate height map
 	//
 	const float LOWEST = -99999.0f;
-	int image_width = outMesh->bounds.pMax[0] - outMesh->bounds.pMin[0]+1;
-	int image_height = outMesh->bounds.pMax[1] - outMesh->bounds.pMin[1]+1;
+	float resolution = 2.0f;
+	int image_width = resolution * static_cast<int>(outMesh->bounds.pMax[0] - outMesh->bounds.pMin[0]+1);
+	int image_height = resolution * static_cast<int>(outMesh->bounds.pMax[1] - outMesh->bounds.pMin[1]+1);
 	My8BitRGBImage image;
 	image.data = new float[image_height*image_width];
 	image.ncols = image_width;
@@ -103,8 +110,8 @@ void CPathComponent::fixDiscontinuecy(string vPath){
 	//
 	for(size_t i=0;i< outMesh->vertices.size();++i)
 	{
-		int x = (outMesh->vertices[i].Position.x - outMesh->bounds.pMin[0]);
-		int y = (outMesh->vertices[i].Position.y - outMesh->bounds.pMin[1]);
+		int x = static_cast<int>((outMesh->vertices[i].Position.x - outMesh->bounds.pMin[0]) * resolution);
+		int y = static_cast<int>((outMesh->vertices[i].Position.y - outMesh->bounds.pMin[1]) * resolution);
 		if (image.data[y*image_width + x] < outMesh->vertices[i].Position.z)
 			image.data[y*image_width + x] = outMesh->vertices[i].Position.z;
 	}
@@ -114,6 +121,7 @@ void CPathComponent::fixDiscontinuecy(string vPath){
 	float ground_level = -LOWEST;
 	for (size_t y = 0; y < image_height; ++y) {
 		for (size_t x = 0; x < image_width; ++x) {
+			if(image.data[y*image_width + x]==LOWEST) continue;
 			ground_level = image.data[y*image_width + x] < ground_level
 				? image.data[y*image_width + x] : ground_level;
 		}
@@ -145,8 +153,8 @@ void CPathComponent::fixDiscontinuecy(string vPath){
 				+ 2 * (image.data[(y)*image_width + x - 1] - image.data[(y)*image_width + x + 1])
 				+ image.data[(y + 1)*image_width + x - 1] - image.data[(y + 1)*image_width + x + 1];
 			
-			float screen_x = x + outMesh->bounds.pMin[0];
-			float screen_y = y + outMesh->bounds.pMin[1];
+			float screen_x = x / resolution + outMesh->bounds.pMin[0];
+			float screen_y = y / resolution + outMesh->bounds.pMin[1];
 			
 			Vertex t;
 			t.Normal = glm::vec3(gx, gy, 1.0f);
@@ -162,7 +170,8 @@ void CPathComponent::fixDiscontinuecy(string vPath){
 
 			float m = std::max(std::max(ldx, rdx), std::max(udy, ddy));
 
-			if (m < 1.5f) continue;
+			if (m < 6.0f) continue;
+
 			ground = !ground;
 
 			for (int i=0;i<m;++i)
@@ -179,22 +188,55 @@ void CPathComponent::fixDiscontinuecy(string vPath){
 }
 
 void CPathComponent::addSafeSpace(string vPath){
-	CMesh* outMesh = new CPointCloudMesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/point_after_sampling.ply");
+	CMesh* outMesh = new CPointCloudMesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_point.ply");
 
-	saveMesh(proxy_points,vPath);
+
+
+	saveMesh(outMesh,vPath);
 }
 
 void CPathComponent::reconstructMesh(string vPath){
+	CMesh* outMesh = new CPointCloudMesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/gt_point.ply");
 
+	fssr::IsoOctree octree;
+
+	for (auto vertex : outMesh->vertices) {
+		fssr::Sample s;
+		s.pos = math::Vec3d(vertex.Position.x, vertex.Position.y, vertex.Position.z);
+		s.normal= math::Vec3d(vertex.Normal.x, vertex.Normal.y, vertex.Normal.z);
+		s.scale = 1.0f;
+		octree.insert_sample(s);
+	}
+
+	octree.limit_octree_level();
+	octree.compute_voxels();
+	octree.clear_samples();
+
+	fssr::IsoSurface iso_surface(&octree, fssr::INTERPOLATION_CUBIC);
+	mve::TriangleMesh::Ptr mve_mesh = iso_surface.extract_mesh();
+	
+	std::size_t num_vertices = mve_mesh->get_vertices().size();
+	std::vector<float> confidences = mve_mesh->get_vertex_confidences();
+	mve::TriangleMesh::DeleteList delete_verts(num_vertices, false);
+	for (std::size_t i = 0; i < num_vertices; ++i) {
+		if (confidences[i] == 0.0f) {
+			delete_verts[i] = true;
+		}
+	}
+	mve_mesh->delete_vertices_fix_faces(delete_verts);
+
+	mve::geom::SavePLYOptions opts;
+	opts.write_vertex_normals = true;
+	mve::geom::save_ply_mesh(mve_mesh, vPath, opts);
 }
 
 void CPathComponent::extraAlgorithm() {
 	//sample_mesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/point_after_sampling.ply");
-	//fixDiscontinuecy("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_point.ply")
+	//fixDiscontinuecy("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_point.ply");
 
-	addSafeSpace("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_airspace.ply")
+	//addSafeSpace("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_airspace.ply");
 
-	reconstructMesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_point.ply")
+	reconstructMesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_mesh.ply");
 
 	return;
 	
