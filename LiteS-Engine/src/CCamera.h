@@ -14,7 +14,9 @@ enum Camera_Movement {
 	FORWARD,
 	BACKWARD,
 	LEFT,
-	RIGHT
+	RIGHT,
+	UP,
+	DOWN
 };
 
 // Default camera values
@@ -50,7 +52,7 @@ public:
 				, Zoom(ZOOM), WorldCenter(glm::vec3(0.f,0.f,0.f))
 				,Yaw(YAW),Pitch(PITCH),Roll(ROLL){
 		Position = position;
-		Front = glm::normalize(WorldCenter - Position);
+		Front = WorldCenter - Position;
 		Up = up;
 		Right = glm::normalize(glm::cross(Front, Up));
 
@@ -67,24 +69,42 @@ public:
 	*/
 	// Returns the view matrix calculated using Eular Angles and the LookAt Matrix
 	glm::mat4 GetViewMatrix() {
-		return glm::lookAt(Position, Position + Front, Up);
+		return glm::lookAt(Position, WorldCenter, Up);
 	}
 
 	// Processes input received from any keyboard-like input system. Accepts input parameter in the form of camera defined ENUM (to abstract it from windowing systems)
-	void ProcessKeyboard(Camera_Movement direction, float deltaTime) {
+	void ProcessPositionMovement(Camera_Movement direction, float deltaTime) {
 		float velocity = MovementSpeed * deltaTime;
-		if (direction == FORWARD)
+		if (direction == FORWARD) {
 			Position += Front * velocity;
-		if (direction == BACKWARD)
+			WorldCenter += Front * velocity;
+		}
+		if (direction == BACKWARD) {
 			Position -= Front * velocity;
-		if (direction == LEFT)
+			WorldCenter -= Front * velocity;
+		}
+		if (direction == LEFT) {
+			WorldCenter -= Right * velocity;
 			Position -= Right * velocity;
-		if (direction == RIGHT)
+		}
+		if (direction == RIGHT) {
 			Position += Right * velocity;
+			WorldCenter += Right * velocity;
+
+		}
+		if (direction == UP) {
+			WorldCenter += Up * velocity;
+			Position += Up * velocity;
+		}
+		if (direction == DOWN) {
+			WorldCenter += -Up * velocity;
+			Position += -Up * velocity;
+		}
+
 	}
 
 	// Processes input received from a mouse input system. Expects the offset value in both the x and y direction.
-	void ProcessMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch = true) {
+	void ProcessRotate(float xoffset, float yoffset, GLboolean constrainPitch = true) {
 		xoffset *= MouseSensitivity;
 		yoffset *= MouseSensitivity;
 
@@ -94,8 +114,31 @@ public:
 		Pitch = glm::dot(direction, glm::vec2(0.f, 1.f));
 		Roll = glm::dot(direction, glm::vec2(-1.f, -1.f));
 
+		Front = glm::normalize(WorldCenter - Position);
+
+		Position = glm::rotate(glm::mat4(1.0f), -xoffset, glm::vec3(0, 0.0f, 1.0f))
+			*glm::vec4(Position,1.0f);
+		WorldCenter = glm::rotate(glm::mat4(1.0f), -xoffset, glm::vec3(0, 0.0f, 1.0f))
+			*glm::vec4(WorldCenter, 1.0f);
+		Right = glm::normalize(glm::rotate(glm::mat4(1.0f), -xoffset, glm::vec3(0, 0.0f, 1.0f))
+			*glm::vec4(Right, 1.0f));
+		Front = glm::normalize(WorldCenter - Position);
+		Up = glm::normalize(glm::cross(Right,Front));
+
+
+		glm::mat4 modelMatrix(1.0f);
+		modelMatrix = glm::translate(modelMatrix, WorldCenter);
+		modelMatrix = glm::rotate(modelMatrix, yoffset, Right);
+		modelMatrix = glm::translate(modelMatrix, -WorldCenter);
+		Position = modelMatrix * glm::vec4(Position, 1.0f);
+
+		Front = glm::normalize(WorldCenter - Position);
+		//Right = modelMatrix * glm::vec4(Right,1.0f);
+		Up = glm::normalize(glm::cross(Right,Front));
+		Right = glm::normalize(glm::cross(Front, Up));
+
 		// Update Front, Right and Up Vectors using the updated Eular angles
-		updateCameraVectors();
+		//updateCameraVectors();
 	}
 
 	// Processes input received from a mouse scroll-wheel event. Only requires input on the vertical wheel-axis
@@ -124,7 +167,7 @@ private:
 		//Front = rotateionQuat*glm::vec4(Front,1.f);
 		Front = glm::rotate(glm::mat4(1.0f), -Yaw, Up)*glm::vec4(Front, 1.0f);
 		Front = glm::rotate(glm::mat4(1.0f), Pitch, Right)*glm::vec4(Front, 1.0f);
-		//Front = glm::rotate(glm::mat4(1.0f), Roll, glm::vec3(0.f, 0.f, 1.0f))*glm::vec4(Front,1.0f);
+		//Front = glm::rotate(glm::mat4(1.0f), -Roll, glm::vec3(0.f, 0.f, 1.0f))*glm::vec4(Front,1.0f);
 		Position = WorldCenter - Front;
 		Front = glm::normalize(Front);
 		Up = glm::normalize(glm::cross(Right, Front));

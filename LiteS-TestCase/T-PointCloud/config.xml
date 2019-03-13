@@ -10,7 +10,7 @@
     <PointCloud>C:/repos/RESOURCES/Old House 2/Old House Files/modify/old_house.ply</PointCloud>
     <!-- <Window></Window> -->
     <!--<Model>C:/Users/whatseven/source/repos/RESOURCES/scene/nanosuit/nanosuit.obj</Model>-->
-    <VertexShader>C:/repos/Graphics/RENDERING/LiteS/LiteS/resources/shaders/PointCloudVert.glsl</VertexShader>
-    <FragmentShader>C:/repos/Graphics/RENDERING/LiteS/LiteS/resources/shaders/PointCloudFrag.glsl</FragmentShader>
+    <VertexShader>C:/repos/Graphics/RENDERING/LiteS/LiteS-Engine/resources/shaders/PointCloudVert.glsl</VertexShader>
+    <FragmentShader>C:/repos/Graphics/RENDERING/LiteS/LiteS-Engine/resources/shaders/PointCloudFrag.glsl</FragmentShader>
   </RenderPass>
 </config>
