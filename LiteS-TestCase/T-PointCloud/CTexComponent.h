@@ -1,7 +1,7 @@
 #pragma once
-#include "../../LiteS/src/CComponent.h"
+#include "CComponent.h"
 #include <mutex>
-#include "../../LiteS/src/CPointCloudComponent.h"
+#include "CPointCloudComponent.h"
 
 class CTexComponent : public CPointCloudComponent {
 public:

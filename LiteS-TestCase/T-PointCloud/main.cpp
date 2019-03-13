@@ -1,4 +1,4 @@
-#include "../../LiteS/src/CEngine.h"
+#include "CEngine.h"
 #include "CTexComponent.h"
 
 int main(){
