@@ -48,7 +48,7 @@ private:
 
 	std::vector<bool> keyPreesed;
 
-	GLsizei pointSize;
+	GLfloat pointSize;
 
 	bool show_demo_window = true;
 };

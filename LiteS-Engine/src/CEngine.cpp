@@ -104,13 +104,13 @@ void CEngine::handleInput(GLFWwindow * window) {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-		CEngine::m_Scene->m_Camera->ProcessKeyboard(FORWARD, m_deltaTime);
+		CEngine::m_Scene->m_Camera->ProcessPositionMovement(FORWARD, m_deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		CEngine::m_Scene->m_Camera->ProcessKeyboard(BACKWARD, m_deltaTime);
+		CEngine::m_Scene->m_Camera->ProcessPositionMovement(BACKWARD, m_deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		CEngine::m_Scene->m_Camera->ProcessKeyboard(LEFT, m_deltaTime);
+		CEngine::m_Scene->m_Camera->ProcessPositionMovement(LEFT, m_deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		CEngine::m_Scene->m_Camera->ProcessKeyboard(RIGHT, m_deltaTime);
+		CEngine::m_Scene->m_Camera->ProcessPositionMovement(RIGHT, m_deltaTime);
 
 	if(isClicked(window,GLFW_KEY_F9)) {
 		if(this->m_Component->m_shouldContinue) {
@@ -141,8 +141,26 @@ void mouse_callback(GLFWwindow * window, double xpos, double ypos) {
 
 		CEngine::m_lastX = (float)xpos;
 		CEngine::m_lastY = (float)ypos;
+		
+		if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+		{
+			if(yoffset>0)
+				CEngine::m_Scene->m_Camera->ProcessPositionMovement(DOWN, CEngine::m_deltaTime);
+			if(yoffset < 0)
+				CEngine::m_Scene->m_Camera->ProcessPositionMovement(UP, CEngine::m_deltaTime);
+			if (xoffset > 0)
+				CEngine::m_Scene->m_Camera->ProcessPositionMovement(LEFT, CEngine::m_deltaTime);
+			if (xoffset < 0)
+				CEngine::m_Scene->m_Camera->ProcessPositionMovement(RIGHT, CEngine::m_deltaTime);
+		}
+		else {
+			if (abs(xoffset) > abs(yoffset))
+				CEngine::m_Scene->m_Camera->ProcessRotate(xoffset, yoffset);
+			else
+				CEngine::m_Scene->m_Camera->ProcessRotate(xoffset, yoffset);
+		}
+		
 
-		CEngine::m_Scene->m_Camera->ProcessMouseMovement(xoffset, yoffset);
 	}
 	
 }
