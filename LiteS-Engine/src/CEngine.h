@@ -47,6 +47,7 @@ private:
 	GLFWwindow * m_Window;
 
 	bool __initDLL();
+	void __generateAxis();
 	bool __readProperties(string configFile);
 	bool __initScene(string configFile);
 	RenderMode m_mode;

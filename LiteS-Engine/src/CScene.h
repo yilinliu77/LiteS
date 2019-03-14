@@ -20,6 +20,8 @@ public:
 
 	map<string, GLuint> m_Texture;
 	map<string, CPass*> m_Pass;
+
+	CModel* m_SystemModel;
 };
 
 #endif

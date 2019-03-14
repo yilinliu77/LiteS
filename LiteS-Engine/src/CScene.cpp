@@ -1,5 +1,7 @@
 #include "CScene.h"
 
-CScene::CScene() {}
+CScene::CScene() {
+	m_SystemModel = new CModel();
+}
 
 CScene::~CScene() {}
