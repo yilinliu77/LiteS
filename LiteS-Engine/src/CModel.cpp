@@ -20,6 +20,8 @@ CModel::CModel(string const &path, ModelType v_type) : gammaCorrection(false), m
 		loadModel(path);
 }
 
+CModel::CModel(){}
+
 /*
  * Draw object
  */
@@ -40,7 +42,7 @@ void CModel::draw(CShader * vShader, glm::mat4& vModelMatrix) {
  */
 
 void CModel::loadPointCloud(string const &path) {
-	CPointCloudMesh* pm = new CPointCloudMesh(path);
+	CMesh* pm = new CPointCloudMesh(path);
 	pm->setupMesh();
 	meshes.push_back(pm);
 }

@@ -11,6 +11,8 @@
 #include <mve/defines.h>
 #include <mve/mesh_io_ply.h>
 
+const float insert_sample_density = 2;
+
 struct My8BitRGBImage
 {
 	int ncols;
@@ -85,6 +87,15 @@ void CPathComponent::sample_mesh(string vPath) {
 	saveMesh(outMesh, vPath);
 }
 
+void patch(My8BitRGBImage* img, int x, int y, float(*ptr)[3][3]) {
+	for (int i = 0; i <3; ++i) {
+		for (int j=0;j<3;++j)
+		{
+			(*ptr)[i][j] = img->data[(y - 1 + i)*img->ncols + (x - 1 + j)];
+		}
+	}
+}
+
 void CPathComponent::fixDiscontinuecy(string vPath){
 	CMesh* outMesh = new CPointCloudMesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/point_after_sampling.ply");
 
@@ -115,6 +126,24 @@ void CPathComponent::fixDiscontinuecy(string vPath){
 		if (image.data[y*image_width + x] < outMesh->vertices[i].Position.z)
 			image.data[y*image_width + x] = outMesh->vertices[i].Position.z;
 	}
+
+	//
+	// Median Filter to the height map
+	//
+	for (size_t y = 0; y < image_height; ++y) {
+		for (size_t x = 0; x < image_width; ++x) {
+			if (y <= 1 || y >= image_height - 2 || x <= 1 || x >= image_width - 2) {
+				image.data[y*image_width + x] = LOWEST;
+				continue;
+			}
+
+			float heights[9];
+			patch(&image, x, y, (float(*)[3][3])&heights);
+			std::nth_element(heights, heights + (9 / 2), heights + 9);
+			image.data[y*image_width + x] = heights[9 / 2];
+		}
+	}
+
 	//
 	// Calculate ground
 	//
@@ -133,6 +162,9 @@ void CPathComponent::fixDiscontinuecy(string vPath){
 		for (size_t x = 0; x < image_width; ++x) {
 			if (image.data[y*image_width + x] != LOWEST)
 				image.data[y*image_width + x] = (image.data[y*image_width + x] - ground_level);
+			else
+				image.data[y*image_width + x] = 0;
+
 		}
 	}
 
@@ -141,17 +173,26 @@ void CPathComponent::fixDiscontinuecy(string vPath){
 	//
 	std::vector<Vertex> proxy_vertexes;
 
-	bool ground = true;
 	for (size_t y = 0; y < image_height; ++y) {
 		for (size_t x = 0; x < image_width; ++x) {
 			if (y <= 1 || y >= image_height - 2 || x <= 1 || x >= image_width - 2) continue;
 
-			float gx = image.data[(y - 1)*image_width + x - 1] - image.data[(y + 1)*image_width + x - 1]
-				+ 2 * (image.data[(y - 1)*image_width + x] - image.data[(y + 1)*image_width + x])
-				+ image.data[(y - 1)*image_width + x + 1] - image.data[(y + 1)*image_width + x + 1];
-			float gy = image.data[(y - 1)*image_width + x - 1] - image.data[(y - 1)*image_width + x + 1]
-				+ 2 * (image.data[(y)*image_width + x - 1] - image.data[(y)*image_width + x + 1])
-				+ image.data[(y + 1)*image_width + x - 1] - image.data[(y + 1)*image_width + x + 1];
+			float heights[3][3];
+			patch(&image, x, y, &heights);
+
+			float gy =(heights[0][0] - heights[2][0])
+				+ 2.0f * (heights[0][1] - heights[2][1])
+				+ (heights[0][2] - heights[2][2]);
+			float gx =(heights[0][0] - heights[0][2])
+				+ 2.0f * (heights[1][0] - heights[1][2])
+				+ (heights[2][0] - heights[2][2]);
+
+			//float gx = image.data[(y - 1)*image_width + x - 1] - image.data[(y + 1)*image_width + x - 1]
+			//	+ 2 * (image.data[(y - 1)*image_width + x] - image.data[(y + 1)*image_width + x])
+			//	+ image.data[(y - 1)*image_width + x + 1] - image.data[(y + 1)*image_width + x + 1];
+			//float gy = image.data[(y - 1)*image_width + x - 1] - image.data[(y - 1)*image_width + x + 1]
+			//	+ 2 * (image.data[(y)*image_width + x - 1] - image.data[(y)*image_width + x + 1])
+			//	+ image.data[(y + 1)*image_width + x - 1] - image.data[(y + 1)*image_width + x + 1];
 			
 			float screen_x = x / resolution + outMesh->bounds.pMin[0];
 			float screen_y = y / resolution + outMesh->bounds.pMin[1];
@@ -159,7 +200,7 @@ void CPathComponent::fixDiscontinuecy(string vPath){
 			Vertex t;
 			t.Normal = glm::vec3(gx, gy, 1.0f);
 			t.Normal = glm::normalize(t.Normal);
-			t.Position = glm::vec3(screen_x, screen_y, ground ? 0 : image.data[y*image_width + x]);
+			t.Position = glm::vec3(screen_x, screen_y, image.data[y*image_width + x]);
 
 			proxy_vertexes.push_back(t);
 
@@ -170,15 +211,18 @@ void CPathComponent::fixDiscontinuecy(string vPath){
 
 			float m = std::max(std::max(ldx, rdx), std::max(udy, ddy));
 
-			if (m < 6.0f) continue;
+			if (m * resolution < 1.0f) continue;
 
-			ground = !ground;
 
-			for (int i=0;i<m;++i)
+			for (int i=0;i< resolution * m;++i)
 			{
 				t.Normal = glm::vec3(gx, gy, 0.0f);
 				t.Normal = glm::normalize(t.Normal);
-				t.Position = glm::vec3(screen_x, screen_y,i);
+				t.Position = glm::vec3(screen_x, screen_y, image.data[y*image_width + x] - float(i)/ resolution);
+				if (t.Position.z<0)
+				{
+					break;
+				}
 				proxy_vertexes.push_back(t);
 			}
 		}
@@ -196,12 +240,13 @@ void CPathComponent::addSafeSpace(string vPath){
 }
 
 void CPathComponent::reconstructMesh(string vPath){
-	CMesh* outMesh = new CPointCloudMesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/gt_point.ply");
+	CMesh* outMesh = new CPointCloudMesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_point.ply");
 
 	fssr::IsoOctree octree;
-
+	
 	for (auto vertex : outMesh->vertices) {
 		fssr::Sample s;
+
 		s.pos = math::Vec3d(vertex.Position.x, vertex.Position.y, vertex.Position.z);
 		s.normal= math::Vec3d(vertex.Normal.x, vertex.Normal.y, vertex.Normal.z);
 		s.scale = 1.0f;

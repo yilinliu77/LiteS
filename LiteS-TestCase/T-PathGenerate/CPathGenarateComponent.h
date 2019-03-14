@@ -8,6 +8,7 @@ public:
 	CPathGenarateComponent(CScene * vScene);
 	~CPathGenarateComponent();
 	void generate_nadir();
+	void optimize_nadir();
 	void extraAlgorithm() override;
 	void extraInit() override;
 

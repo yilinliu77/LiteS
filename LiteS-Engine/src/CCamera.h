@@ -150,7 +150,7 @@ public:
 		//if (Zoom >= 45.0f)
 		//	Zoom = 45.0f;
 
-		Position += Front * yoffset * 10.0f *SENSITIVTY;
+		Position += Front * yoffset * 0.005f * MovementSpeed;
 
 	}
 

@@ -7,6 +7,7 @@
 #include"CComponent.h"
 #include"CScene.h"
 #include <GLFW/glfw3.h>
+#include <mutex>
 
 using namespace std;
 using namespace tinyxml2;
@@ -27,6 +28,10 @@ public:
 	static float m_lastFrame;
 
 	static CScene* m_Scene;
+
+	//Post Process
+	static std::mutex m_addMeshMutex;
+	static std::vector<CMesh*> toAddMeshes;
 
 	CComponent* m_Component;
 

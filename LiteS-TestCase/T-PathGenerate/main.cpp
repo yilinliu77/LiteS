@@ -8,7 +8,7 @@ int main(){
 		getchar();
 		return 0;
 	}
-	engine.m_Component = new CPathComponent(engine.m_Scene);
+	engine.m_Component = new CPathGenarateComponent(engine.m_Scene);
 	//engine.switchMode(debug);
 
 	engine.runEngine();
