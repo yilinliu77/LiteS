@@ -41,6 +41,26 @@ CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints)
 	bounds.pMax = pmax;
 }
 
+CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints, const glm::vec3 vColor)
+{
+	this->vertices = vPoints;
+	pointsColor.assign(vertices.size(), vColor);
+
+	glm::vec3 pmin(INFINITY, INFINITY, INFINITY);
+	glm::vec3 pmax(-INFINITY, -INFINITY, -INFINITY);
+	for (int i = 0; i < vPoints.size(); ++i) {
+		pmin[0] = std::min(pmin[0], vPoints[i].Position[0]);
+		pmin[1] = std::min(pmin[1], vPoints[i].Position[1]);
+		pmin[2] = std::min(pmin[2], vPoints[i].Position[2]);
+		pmax[0] = std::max(pmax[0], vPoints[i].Position[0]);
+		pmax[1] = std::max(pmax[1], vPoints[i].Position[1]);
+		pmax[2] = std::max(pmax[2], vPoints[i].Position[2]);
+	}
+	bounds = Bounds3f();
+	bounds.pMin = pmin;
+	bounds.pMax = pmax;
+}
+
 CPointCloudMesh::CPointCloudMesh(const std::string & vPath)
 {
 	Assimp::Importer importer;

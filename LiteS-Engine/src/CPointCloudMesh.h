@@ -8,6 +8,8 @@ public:
 	CPointCloudMesh(const std::vector<Vertex>& vPoints, const vector<unsigned int> &vIndices);
 	CPointCloudMesh(const std::vector<Vertex>& vPoints);
 
+	CPointCloudMesh(const std::vector<Vertex>& vPoints, const glm::vec3 vColor);
+
 	CPointCloudMesh(const std::string& vPath);
 
 	void processPointCloudNode(aiNode * node, const aiScene * scene);

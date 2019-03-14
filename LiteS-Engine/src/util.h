@@ -44,12 +44,15 @@ void saveMesh(CMesh* v_mesh,string v_outName) {
 	size_t numValidPoints = v_mesh->vertices.size();
 
 	pMesh->mVertices = new aiVector3D[numValidPoints];
+	pMesh->mNormals = new aiVector3D[numValidPoints];
 	pMesh->mNumVertices = numValidPoints;
 
 	int i = 0;
 	for (auto &p : v_mesh->vertices) {
 		pMesh->mVertices[i] = aiVector3D(v_mesh->vertices[i].Position.x, v_mesh->vertices[i].Position.y
 			, v_mesh->vertices[i].Position.z);
+		pMesh->mNormals[i] = aiVector3D(v_mesh->vertices[i].Normal.x, v_mesh->vertices[i].Normal.y
+			, v_mesh->vertices[i].Normal.z);
 		++i;
 	}
 

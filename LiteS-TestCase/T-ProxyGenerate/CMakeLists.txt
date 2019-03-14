@@ -48,8 +48,8 @@ link_directories (C:/Users/vcc/Documents/repo/SFM/REFERENCE/mve/libs/mve/Release
 link_directories (C:/Users/vcc/Documents/repo/SFM/REFERENCE/mve/libs/util/Release/)
 
 
-add_executable(T-PathPlaning ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_FILES})
-add_dependencies(T-PathPlaning LiteS)
+add_executable(T-ProxyGenerate ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_FILES})
+add_dependencies(T-ProxyGenerate LiteS)
 
-target_link_libraries(T-PathPlaning GLEW::GLEW glfw assimp::assimp imgui::imgui LiteS mve_fssr.lib mve.lib mve_util.lib PNG::PNG TIFF::TIFF ${JPEG_LIBRARIES})
+target_link_libraries(T-ProxyGenerate GLEW::GLEW glfw assimp::assimp imgui::imgui LiteS mve_fssr.lib mve.lib mve_util.lib PNG::PNG TIFF::TIFF ${JPEG_LIBRARIES})
 

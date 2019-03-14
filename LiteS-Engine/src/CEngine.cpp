@@ -82,6 +82,16 @@ void CEngine::runEngine() {
 
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
+		//Lock the target arrays
+		std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
+		for (int i= toAddMeshes.size()-1;i>=0;--i)
+		{
+			toAddMeshes[i]->setupMesh();
+			this->m_Component->m_Scene->m_Pass["display"]->m_Models[0]->meshes.push_back(toAddMeshes[i]);
+			toAddMeshes.pop_back();
+		}
+		
+
 		glfwSwapBuffers(m_Window);
 		glfwPollEvents();
 	}
@@ -272,7 +282,7 @@ bool CEngine::__initDLL() {
 	glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
 	//init glew
-	glewExperimental = GL_FALSE;
+	glewExperimental = GL_TRUE;
 	GLenum nGlewError = glewInit();
 	if (nGlewError != GLEW_OK) {
 		printf("%s - Error initializing GLEW! %s\n", __FUNCTION__, glewGetErrorString(nGlewError));
@@ -605,3 +615,5 @@ float CEngine::m_lastY = 0;
 float CEngine::m_deltaTime = 0;
 float CEngine::m_lastFrame = 0;
 bool CEngine::m_mouseClicked = false;
+std::mutex CEngine::m_addMeshMutex;
+std::vector<CMesh*> CEngine::toAddMeshes;
