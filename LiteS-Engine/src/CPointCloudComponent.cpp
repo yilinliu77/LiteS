@@ -58,5 +58,6 @@ void CPointCloudComponent::run() {
 	DisplayPass->getShader()->setMat4("model", modelMatrix);
 	DisplayPass->getShader()->setMat4("view", viewMatrix);
 
+	this->m_Scene->m_SystemModel->draw(DisplayPass->getShader());
 	DisplayPass->endPass();
 }

@@ -5,6 +5,7 @@
 #include <thread>
 #include "CDifferPass.h"
 #include "CPointCloudComponent.h"
+#include "CPointCloudMesh.h"
 #include <imgui.h>
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -322,6 +323,22 @@ bool CEngine::__initDLL() {
 	return true;
 }
 
+void CEngine::__generateAxis() {
+	vector<Vertex> AxisPoint;
+	for (float i = 0; i < 100; i += 0.1) {
+		Vertex v;
+		v.Position = glm::vec3(i, 0, 0);
+		AxisPoint.push_back(v);
+		v.Position = glm::vec3(0, i, 0);
+		AxisPoint.push_back(v);
+		v.Position = glm::vec3(0, 0, i);
+		AxisPoint.push_back(v);
+	}
+	CMesh* AxisMesh = new CPointCloudMesh(AxisPoint,glm::vec3(0,1,0));
+	AxisMesh->setupMesh();
+	CEngine::m_Scene->m_SystemModel->meshes.push_back(AxisMesh);
+}
+
 bool CEngine::__readProperties(string configFile) {
 	stringstream stream;
 	XMLDocument doc;
@@ -562,6 +579,12 @@ bool CEngine::__readProperties(string configFile) {
 		if (node == NULL)
 			break;
 	}
+	
+	//
+	//Generate System Wide Mesh
+	//
+	__generateAxis();
+	
 
 	return true;
 }
