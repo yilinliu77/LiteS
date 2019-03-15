@@ -48,6 +48,8 @@ void CEngine::runEngine() {
 		m_lastFrame = currentFrame;
 		handleInput(m_Window);
 
+		glPointSize(pointSize);
+
 		// Start the Dear ImGui frame
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
@@ -136,8 +138,8 @@ void CEngine::handleInput(GLFWwindow * window) {
 		glPointSize(pointSize += 1);
 	if (isClicked(window, GLFW_KEY_MINUS)) {
 		glPointSize(pointSize -= 1);
-		if (pointSize < 0)
-			pointSize = 0;
+		if (pointSize < 1)
+			pointSize = 1;
 	}
 
 
