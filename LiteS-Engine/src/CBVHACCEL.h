@@ -1,12 +1,10 @@
 #ifndef BVHTREE_HEADER
 #define BVHTREE_HEADER
 
-#include <Eigen/Dense>
+#include <glm/glm.hpp>
 #include <iostream>
 
-#include "Mesh.h"
-
-using namespace Eigen;
+#include "CMesh.h"
 
 const int MAX_TRIANGLES_IN_NODE = 255;
 
@@ -55,7 +53,7 @@ class BVHAccel {
 public:
     int totalLinearNodes;
 
-    BVHAccel(const std::vector<shared_ptr<Mesh>>& p):splitMethod(SAH){
+    BVHAccel(const std::vector<CMesh*>& p):splitMethod(SAH){
         if (p.size() == 0)
             return;
 
@@ -63,7 +61,7 @@ public:
 
         // init
         BVHBuildNode* root;
-        std::vector<shared_ptr<Mesh>> pClone(p);
+        std::vector<CMesh*> pClone(p);
         int totalNodes = 0;
         root = recursiveBuildTree(pClone, 0, pClone.size(), &totalNodes, orderedMesh);
 
@@ -74,12 +72,12 @@ public:
     }
     ~BVHAccel() {}
     LinearBVHNode* getLinearNodes() { return nodes; }
-    std::vector<shared_ptr<Mesh>> getOrderedMesh() { return orderedMesh; }
+    std::vector<CMesh*> getOrderedMesh() { return orderedMesh; }
 
 	bool BVHAccel::Intersect(Ray &ray, SurfaceInteraction *isect) const {
 		if (!nodes) return false;
 		bool hit = false;
-		Vector3f invDir(1 / ray.d[0], 1 / ray.d[1], 1 / ray.d[2]);
+		glm::vec3 invDir(1 / ray.d[0], 1 / ray.d[1], 1 / ray.d[2]);
 		int dirIsNeg[3] = { invDir[0] < 0, invDir[1] < 0, invDir[2] < 0 };
 		// Follow ray through BVH nodes to find primitive intersections
 		int toVisitOffset = 0, currentNodeIndex = 0;
@@ -121,19 +119,19 @@ public:
 private:
     const SplitMethod splitMethod;
     LinearBVHNode* nodes = NULL;
-	std::vector<shared_ptr<Mesh>> orderedMesh;
+	std::vector<CMesh*> orderedMesh;
 
-    BVHBuildNode* recursiveBuildTree(std::vector<shared_ptr<Mesh>>& p, int start, int end,
+    BVHBuildNode* recursiveBuildTree(std::vector<CMesh*>& p, int start, int end,
         int* totalNodes,
-        std::vector<shared_ptr<Mesh>>& orderedObjects)
+        std::vector<CMesh*>& orderedObjects)
     {
-        // return value,the earlist value -> root
+        // return value,the earliest value -> root
         BVHBuildNode* node = new BVHBuildNode();
         (*totalNodes)++;
         int nObjects = end - start;
         int nTris = 0;
         for (int i = start; i < end; i++) {
-            nTris += p[i]->points.size();
+            nTris += p[i]->vertices.size();
         }
 
         // judge the status of recur
@@ -159,11 +157,11 @@ private:
 
             // partition
             int mid = -1;
-            // when the number of object is less than 4,use euqal set strategy
+            // when the number of object is less than 4,use equal set strategy
             if (nObjects <= 4) {
                 mid = (start + end) / 2;
                 std::nth_element(&p[start], &p[mid], &p[end - 1] + 1,
-                    [dim](shared_ptr<Mesh> a, shared_ptr<Mesh> b) {
+                    [dim](CMesh* a, CMesh* b) {
                         return a->getCentroid()[dim] < b->getCentroid()[dim];
                     });
             } else {
@@ -208,7 +206,7 @@ private:
                 // partition
                 float leafCost = nObjects;
                 if (nTris > MAX_TRIANGLES_IN_NODE || minCost < leafCost) {
-					shared_ptr<Mesh>* pMid = std::partition(&p[start], &p[end - 1] + 1, [=](shared_ptr<Mesh> pi) {
+					CMesh** pMid = std::partition(&p[start], &p[end - 1] + 1, [=](CMesh* pi) {
                         int b = nBuckets * bounds.Offset(pi->getBounds().getCentroid())[dim];
                         if (b == nBuckets)
                             b -= 1;
@@ -218,7 +216,7 @@ private:
                     if (mid == start || mid == end) { // judge if buckets devision failed
                         mid = (start + end) / 2;
                         std::nth_element(
-                            &p[start], &p[mid], &p[end - 1] + 1, [dim](shared_ptr<Mesh> a, shared_ptr<Mesh> b) {
+                            &p[start], &p[mid], &p[end - 1] + 1, [dim](CMesh* a, CMesh* b) {
                                 return a->getCentroid()[dim] < b->getCentroid()[dim];
                             });
                     }
@@ -256,15 +254,15 @@ private:
         float x = (linearBVHNode->bounds.pMax[0] - linearBVHNode->bounds.pMin[0]) / 2;
         float y = (linearBVHNode->bounds.pMax[1] - linearBVHNode->bounds.pMin[1]) / 2;
         float z = (linearBVHNode->bounds.pMax[2] - linearBVHNode->bounds.pMin[2]) / 2;
-        Eigen::Vector3f boundVerticesVector[] = {
-            linearBVHNode->bounds.getCentroid() + Eigen::Vector3f(x, y, z),
-            linearBVHNode->bounds.getCentroid() + Eigen::Vector3f(x, -y, z),
-            linearBVHNode->bounds.getCentroid() + Eigen::Vector3f(x, -y, -z),
-            linearBVHNode->bounds.getCentroid() + Eigen::Vector3f(x, y, -z),
-            linearBVHNode->bounds.getCentroid() + Eigen::Vector3f(-x, -y, -z),
-            linearBVHNode->bounds.getCentroid() + Eigen::Vector3f(-x, -y, z),
-            linearBVHNode->bounds.getCentroid() + Eigen::Vector3f(-x, y, z),
-            linearBVHNode->bounds.getCentroid() + Eigen::Vector3f(-x, y, -z),
+        glm::vec3 boundVerticesVector[] = {
+            linearBVHNode->bounds.getCentroid() + glm::vec3(x, y, z),
+            linearBVHNode->bounds.getCentroid() + glm::vec3(x, -y, z),
+            linearBVHNode->bounds.getCentroid() + glm::vec3(x, -y, -z),
+            linearBVHNode->bounds.getCentroid() + glm::vec3(x, y, -z),
+            linearBVHNode->bounds.getCentroid() + glm::vec3(-x, -y, -z),
+            linearBVHNode->bounds.getCentroid() + glm::vec3(-x, -y, z),
+            linearBVHNode->bounds.getCentroid() + glm::vec3(-x, y, z),
+            linearBVHNode->bounds.getCentroid() + glm::vec3(-x, y, -z),
         };
         for (int i = 0; i < 8; ++i) {
             linearBVHNode->boundVertices[3 * i] = boundVerticesVector[i][0];
