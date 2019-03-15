@@ -30,7 +30,7 @@ CPathComponent::~CPathComponent() = default;
 void CPathComponent::sample_mesh(string vPath) {
 	CMesh* mesh = DisplayPass->m_Models[0]->meshes[0];
 
-	int samples_num = 25;
+	int samples_num = 4;
 
 	vector<Vertex> &in_vertexs = mesh->vertices;
 	vector<unsigned int> &in_indices = mesh->indices;

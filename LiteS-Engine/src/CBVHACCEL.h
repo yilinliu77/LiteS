@@ -3,7 +3,7 @@
 
 #include <glm/glm.hpp>
 #include <iostream>
-
+#include <glm/common.hpp>
 #include "CMesh.h"
 
 const int MAX_TRIANGLES_IN_NODE = 255;
@@ -52,10 +52,21 @@ struct LinearBVHNode {
 class BVHAccel {
 public:
     int totalLinearNodes;
+	std::vector<Tri> totalTriangles;
 
     BVHAccel(const std::vector<CMesh*>& p):splitMethod(SAH){
         if (p.size() == 0)
             return;
+
+		for (auto * mesh: p)
+		{
+			for (int i = 0; i < mesh->indices.size() / 3; ++i) {
+				Tri t(mesh->vertices[mesh->indices[i * 3]]
+					, mesh->vertices[mesh->indices[i * 3 + 1]]
+					, mesh->vertices[mesh->indices[i * 3 + 2]]);
+				totalTriangles.push_back(t);
+			}
+		}
 
         totalLinearNodes = 0;
 
@@ -63,7 +74,7 @@ public:
         BVHBuildNode* root;
         std::vector<CMesh*> pClone(p);
         int totalNodes = 0;
-        root = recursiveBuildTree(pClone, 0, pClone.size(), &totalNodes, orderedMesh);
+        root = recursiveBuildTree(totalTriangles, 0, totalTriangles.size(), &totalNodes, orderedTriangles);
 
         // compact the tree
         nodes = (LinearBVHNode*)malloc(sizeof(LinearBVHNode) * totalNodes);
@@ -72,12 +83,14 @@ public:
     }
     ~BVHAccel() {}
     LinearBVHNode* getLinearNodes() { return nodes; }
-    std::vector<CMesh*> getOrderedMesh() { return orderedMesh; }
+    std::vector<Tri*> getOrderedTriangles() { return orderedTriangles; }
 
 	bool BVHAccel::Intersect(Ray &ray, SurfaceInteraction *isect) const {
 		if (!nodes) return false;
 		bool hit = false;
-		glm::vec3 invDir(1 / ray.d[0], 1 / ray.d[1], 1 / ray.d[2]);
+		glm::vec3 invDir(std::min(1 / ray.d.x, 99999999.0f)
+			, std::min(1 / ray.d.y, 99999999.0f)
+			, std::min(1 / ray.d.z, 99999999.0f));
 		int dirIsNeg[3] = { invDir[0] < 0, invDir[1] < 0, invDir[2] < 0 };
 		// Follow ray through BVH nodes to find primitive intersections
 		int toVisitOffset = 0, currentNodeIndex = 0;
@@ -89,7 +102,7 @@ public:
 				if (node->nObject > 0) {
 					// Intersect ray with primitives in leaf BVH node
 					for (int i = 0; i < node->nObject; ++i)
-						if (orderedMesh[node->objectOffset + i]->Intersect(
+						if (orderedTriangles[node->objectOffset + i]->Intersect(
 							ray, isect))
 							hit = true;
 					if (toVisitOffset == 0) break;
@@ -116,35 +129,49 @@ public:
 		return hit;
 	}
 
+	bool BVHAccel::Visible(Vertex& vOberveVertex, Vertex& vVertex) {
+		Ray ray(vOberveVertex.Position, vVertex.Position - vOberveVertex.Position);
+		float current_t =glm::length(vVertex.Position - vOberveVertex.Position);
+		SurfaceInteraction isect;
+		if (!Intersect(ray, &isect))
+			return false;
+		glm::vec3 hitPosition = isect.pHit;
+		if (current_t <=isect.t)
+		{
+			return true;
+		}
+		return false;
+	}
+
 private:
     const SplitMethod splitMethod;
     LinearBVHNode* nodes = NULL;
-	std::vector<CMesh*> orderedMesh;
+	std::vector<Tri*> orderedTriangles;
 
-    BVHBuildNode* recursiveBuildTree(std::vector<CMesh*>& p, int start, int end,
+    BVHBuildNode* recursiveBuildTree(std::vector<Tri>& p, int start, int end,
         int* totalNodes,
-        std::vector<CMesh*>& orderedObjects)
+		std::vector<Tri*>& orderedObjects)
     {
         // return value,the earliest value -> root
         BVHBuildNode* node = new BVHBuildNode();
         (*totalNodes)++;
         int nObjects = end - start;
-        int nTris = 0;
-        for (int i = start; i < end; i++) {
-            nTris += p[i]->vertices.size();
-        }
+  //      int nTris = end - start;
+		//for (int i = start; i < end; i++) {
+		//	nTris += p[i]->vertices.size();
+		//}
 
         // judge the status of recur
         if (nObjects == 1) {
-            node->initLeaf(p[start]->getBounds(), orderedMesh.size(), nObjects);
+            node->initLeaf(p[start].bounds, orderedTriangles.size(), nObjects);
             for (int i = start; i < end; ++i)
-                orderedMesh.push_back(p[i]);
+				orderedTriangles.push_back(&p[i]);
             return node;
         } else {
             // compute all the bounds now between start and end
-            Bounds3f bounds = p[start]->getBounds();
+            Bounds3f bounds = p[start].bounds;
             for (int i = start + 1; i < end; i++)
-                bounds = bounds.unionBounds(p[i]->getBounds());
+                bounds = bounds.unionBounds(p[i].bounds);
             // detect if the bounds have zero volume
             // TODO
             // if (bounds.pMax==bounds.pMin)
@@ -161,8 +188,8 @@ private:
             if (nObjects <= 4) {
                 mid = (start + end) / 2;
                 std::nth_element(&p[start], &p[mid], &p[end - 1] + 1,
-                    [dim](CMesh* a, CMesh* b) {
-                        return a->getCentroid()[dim] < b->getCentroid()[dim];
+                    [dim](Tri a, Tri b) {
+                        return a.bounds.getCentroid()[dim] < b.bounds.getCentroid()[dim];
                     });
             } else {
                 const int nBuckets = 12;
@@ -172,11 +199,11 @@ private:
                 };
                 BucketInfo buckets[nBuckets];
                 for (int i = start; i < end; ++i) {
-                    int b = nBuckets * bounds.Offset(p[i]->getBounds().getCentroid())[dim];
+                    int b = nBuckets * bounds.Offset(p[i].bounds.getCentroid())[dim];
                     if (b == nBuckets)
                         b -= 1;
                     ++buckets[b].count;
-                    buckets[b].bounds = buckets->bounds.unionBounds(p[i]->getBounds());
+                    buckets[b].bounds = buckets->bounds.unionBounds(p[i].bounds);
                 }
 
                 // compute the cost
@@ -205,9 +232,9 @@ private:
                 }
                 // partition
                 float leafCost = nObjects;
-                if (nTris > MAX_TRIANGLES_IN_NODE || minCost < leafCost) {
-					CMesh** pMid = std::partition(&p[start], &p[end - 1] + 1, [=](CMesh* pi) {
-                        int b = nBuckets * bounds.Offset(pi->getBounds().getCentroid())[dim];
+                if (nObjects > MAX_TRIANGLES_IN_NODE || minCost < leafCost) {
+					Tri* pMid = std::partition(&p[start], &p[end - 1] + 1, [=](Tri pi) {
+                        int b = nBuckets * bounds.Offset(pi.bounds.getCentroid())[dim];
                         if (b == nBuckets)
                             b -= 1;
                         return b <= minCostSplitBucket;
@@ -216,20 +243,20 @@ private:
                     if (mid == start || mid == end) { // judge if buckets devision failed
                         mid = (start + end) / 2;
                         std::nth_element(
-                            &p[start], &p[mid], &p[end - 1] + 1, [dim](CMesh* a, CMesh* b) {
-                                return a->getCentroid()[dim] < b->getCentroid()[dim];
+                            &p[start], &p[mid], &p[end - 1] + 1, [dim](Tri a, Tri b) {
+                                return a.bounds.getCentroid()[dim] < b.bounds.getCentroid()[dim];
                             });
                     }
                 } else {
-                    node->initLeaf(bounds, orderedMesh.size(), nObjects);
+                    node->initLeaf(bounds, orderedTriangles.size(), nObjects);
                     for (int i = start; i < end; ++i)
-                        orderedMesh.push_back(p[i]);
+						orderedTriangles.push_back(&p[i]);
                     return node;
                 }
             }
             node->initInterior(
-                dim, recursiveBuildTree(p, start, mid, totalNodes, orderedMesh),
-                recursiveBuildTree(p, mid, end, totalNodes, orderedMesh));
+                dim, recursiveBuildTree(p, start, mid, totalNodes, orderedTriangles),
+                recursiveBuildTree(p, mid, end, totalNodes, orderedTriangles));
         }
         return node;
     }

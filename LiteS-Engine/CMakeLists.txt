@@ -1,5 +1,7 @@
 project (LiteS-Engine)
 
+
+
 #
 # Dependency Path
 #
@@ -12,10 +14,6 @@ include_directories (${GLEW_INCLUDE_DIRS})
 include_directories (${ASSIMP_INCLUDE_DIRS})
 
 include_directories (resources/)
-
-
-SET(CMAKE_INSTALL_PREFIX ${PROJECT_BINARY_DIR}/lib)
-SET(CMAKE_CONFIGURATION_TYPES "Debug;Release;MinSizeRel;RelWithDebInfo")
 
 #
 # Add source file
