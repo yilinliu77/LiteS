@@ -149,17 +149,35 @@ void CPathGenarateComponent::optimize_nadir() {
 	//	optimizeOrientation(i);
 	//}
 
-	std::function<float(glm::vec3)> func =
-		[&](glm::vec3 const & pos) -> float
+	std::function<float(glm::vec3, glm::vec3,size_t)> func =
+		[&](glm::vec3 const & vCameraPos,glm::vec3 vCameraDirection,size_t vCameraIndex) -> float
 	{
 		for (size_t pointIndex = 0; pointIndex < proxyPoint->vertices.size(); pointIndex++)
 		{
-			if (glm::length(proxyPoint->vertices[pointIndex].Position - pos) > 15.0f)
+			glm::vec3 samplePosition = proxyPoint->vertices[pointIndex].Position;
+			glm::vec3 sampleNormal = proxyPoint->vertices[pointIndex].Normal;
+
+			if (glm::length(samplePosition - vCameraPos) > 15.0f)
 				continue;
 
 			float score;
 
+			for (auto & cameraItem : obsRays[pointIndex]) {
+				if (cameraItem.first.w == vCameraIndex)
+					continue;
 
+				glm::vec3 camera1Pos = glm::vec3(cameraItem.first.x
+					, cameraItem.first.y
+					, cameraItem.first.z);
+				glm::vec3 camera1Direction = cameraPosVector[cameraItem.first.w].Normal;
+
+				glm::vec3 sample2Camera1 = camera1Pos - samplePosition;
+				glm::vec3 sample2Camera2 = camera1Pos - vCameraPos;
+
+				float viewAngle = glm::dot(glm::normalize(sample2Camera1), glm::normalize(sample2Camera2));
+				
+				float w1=
+			}
 
 
 		}
