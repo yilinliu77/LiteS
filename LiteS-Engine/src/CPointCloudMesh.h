@@ -10,6 +10,8 @@ public:
 
 	CPointCloudMesh(const std::vector<Vertex>& vPoints, const glm::vec3 vColor);
 
+	CPointCloudMesh(const std::vector<Vertex>& vPoints, const glm::vec3 vColor, const int vPointSize);
+
 	CPointCloudMesh(const std::string& vPath);
 
 	void processPointCloudNode(aiNode * node, const aiScene * scene);
@@ -26,6 +28,8 @@ public:
 	std::mutex m_VAOMutex;
 	vector<glm::vec3> pointsColorAdd;
 	vector<unsigned> pointsIndexAdd;
+
+	int pointSize = -1;
 
 };
 

@@ -15,6 +15,9 @@ BVHAccel* bvhTree;
 CMesh* cameraPosMesh;
 vector<Vertex> cameraPosVector;
 
+vector<float> reconstructionScore;
+
+
 //Which camera can see an specific sample
 //( (Direction.x, Direction.y, Direction.z, cameraIndex), (Normal.x, Normal.y, Normal.z, distance) )
 vector<vector<std::pair<glm::vec4, glm::vec4>>> obsRays;
@@ -50,7 +53,7 @@ void CPathGenarateComponent::generate_nadir() {
 		{
 			Vertex v;
 			v.Position = cameraPos;
-			v.Normal = glm::vec3(0, 0, -1);
+			v.Normal = glm::normalize(-cameraPos);
 			cameraPosVector.push_back(v);
 			cameraPos.y += step;
 		}
@@ -59,7 +62,7 @@ void CPathGenarateComponent::generate_nadir() {
 
 	}
 
-	cameraPosMesh = new CPointCloudMesh(cameraPosVector,glm::vec3(1.0f,0.0f,0.0f));
+	cameraPosMesh = new CPointCloudMesh(cameraPosVector,glm::vec3(1.0f,0.0f,0.0f),5);
 	//Lock the target arrays
 	std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
 	CEngine::toAddMeshes.push_back(cameraPosMesh);
@@ -115,9 +118,21 @@ void updateRays(int vi) {
 	
 }
 
+void optimizeOrientation(int vCameraIndex) {
+	float bestYaw, bestPitch;
+	for (size_t pitch = 0; pitch < 90; pitch+=10)
+	{
+		for (size_t yaw = 0; yaw < 360; yaw+=30)
+		{
+
+		}
+	}
+}
+
 void CPathGenarateComponent::optimize_nadir() {
 	obsRays.resize(proxyPoint->vertices.size());
 	seenSample.resize(cameraPosVector.size());
+	reconstructionScore.resize(proxyPoint->vertices.size());
 	vector<CMesh*> meshVector;
 	meshVector.push_back(proxyPoint);
 
@@ -129,12 +144,41 @@ void CPathGenarateComponent::optimize_nadir() {
 	for (int i = 0; i < proxyPoint->vertices.size(); ++i) {
 		updateRays(i);
 	}
+	//for (size_t i = 0; i < cameraPosVector.size(); i++)
+	//{
+	//	optimizeOrientation(i);
+	//}
+
+	std::function<float(glm::vec3)> func =
+		[&](glm::vec3 const & pos) -> float
+	{
+		for (size_t pointIndex = 0; pointIndex < proxyPoint->vertices.size(); pointIndex++)
+		{
+			if (glm::length(proxyPoint->vertices[pointIndex].Position - pos) > 15.0f)
+				continue;
+
+			float score;
+
+
+
+
+		}
+	};
+
+	for (int iter = 0; iter < 1000; ++iter) {
+		//downhillSimplex()
+	}
+
+	
+	
 }
 
 void CPathGenarateComponent::extraAlgorithm() {
 	generate_nadir();
 
 	optimize_nadir();
+
+
 	cout << "Extra Algorithm done" << endl;
 
 	cameraPosMesh->changeColor(glm::vec3(0, 0, 1), 0);
