@@ -210,6 +210,7 @@ void CPointCloudMesh::Draw(CShader* shader) {
 
 	if(!pointsIndexAdd.empty()) {
 		for (int i = 0; i < pointsColorAdd.size();++i) {
+			glBindBuffer(GL_ARRAY_BUFFER, VBO);
 			glBufferSubData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex) + sizeof(glm::vec3)*pointsIndexAdd[i]
 				, sizeof(glm::vec3), &pointsColorAdd[i]);
 		}

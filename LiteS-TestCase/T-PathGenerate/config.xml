@@ -9,6 +9,7 @@
     <!-- <RenderMode>Deffer</RenderMode> -->
     <!-- <Mesh>C:/Users/whatseven/source/repos/RESOURCES/scene/sponza/sponza.obj</Mesh> -->
     <PointCloud>C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_point.ply</PointCloud>
+    <!--<Mesh>C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_mesh.ply</Mesh>-->
     <!--<PointCloud>C:/repos/GRAPHICS/RENDERING/LiteS/point_before_sampling.ply</PointCloud>-->
     <!-- <Window></Window> -->
     <!--<Model>C:/Users/whatseven/source/repos/RESOURCES/scene/nanosuit/nanosuit.obj</Model>-->

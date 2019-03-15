@@ -27,12 +27,30 @@ enum ModelType {
 	Mesh, Window, PointCloud
 };
 
+inline int maxDimension(glm::vec3 v) {
+	return (v[0] > v[1]) ? ((v[0] > v[2]) ? 0 : 2) : ((v[1] > v[2]) ? 1 : 2);
+}
+
+inline float maxComponent(glm::vec3 v) {
+	return max(std::max(v[0],v[1]),v[2]);
+}
+
+inline glm::vec3 abs(glm::vec3 v) {
+	return glm::vec3(std::abs(v[0]), std::abs(v[1]), std::abs(v[2]));
+}
+
+inline glm::vec3 Permute(const glm::vec3 &p, int x, int y, int z) {
+	return glm::vec3(p[x], p[y], p[z]);
+}
+
 // Ray Declarations
 struct Ray {
 	// Ray Public Methods
 	Ray():tMax(INFINITY){}
 	Ray(const glm::vec3 &o, const glm::vec3 &d)
-		: o(o), d(d), tMax(INFINITY){}
+		: o(o), d(d), tMax(INFINITY) {
+		this->d = glm::normalize(d);
+	}
 	glm::vec3 operator()(float t) const { return o + d * t; }
 	friend std::ostream &operator<<(std::ostream &os, const Ray &r) {
 		os << "[o=" << glm::to_string(r.o)<< ", d=" << glm::to_string(r.d) << "]";
@@ -101,7 +119,7 @@ struct Bounds3f {
 		// Check for ray intersection against $x$ and $y$ slabs
 		float tMin = ((dirIsNeg[0]? pMax : pMin)[0] - ray.o[0]) * invDir[0];
 		float tMax = ((dirIsNeg[0] ? pMin : pMax)[0] - ray.o[0]) * invDir[0];
-		float tyMin = ((dirIsNeg[1] ? pMin : pMax)[1] - ray.o[1]) * invDir[1];
+		float tyMin = ((dirIsNeg[1] ? pMax : pMin)[1] - ray.o[1]) * invDir[1];
 		float tyMax = ((dirIsNeg[1] ? pMin : pMax)[1] - ray.o[1]) * invDir[1];
 
 		// Update _tMax_ and _tyMax_ to ensure robust bounds intersection
@@ -112,7 +130,7 @@ struct Bounds3f {
 		if (tyMax < tMax) tMax = tyMax;
 
 		// Check for ray intersection against $z$ slab
-		float tzMin = ((dirIsNeg[2] ? pMin : pMax)[2] - ray.o[2]) * invDir[2];
+		float tzMin = ((dirIsNeg[2] ? pMax: pMin)[2] - ray.o[2]) * invDir[2];
 		float tzMax = ((dirIsNeg[2] ? pMin : pMax)[2] - ray.o[2]) * invDir[2];
 
 		// Update _tzMax_ to ensure robust bounds intersection
@@ -150,7 +168,7 @@ struct Bounds3f {
 struct SurfaceInteraction {
 	glm::vec3 pHit;
 	float t;
-	SurfaceInteraction() {}
+	SurfaceInteraction() { t = 0; }
 	SurfaceInteraction(glm::vec3 pHit, float t):pHit(pHit),t(t){}
 };
 
@@ -185,17 +203,97 @@ struct MeshMaterial {
 	string name;
 };
 
-inline int maxDimension(glm::vec3 v) {
-	return (v[0] > v[1]) ? ((v[0] > v[2]) ? 0 : 2) : ((v[1] > v[2]) ? 1 : 2);
-}
+struct Tri {
+	Tri() {}
+	Tri(Vertex vVertex1, Vertex vVertex3, Vertex vVertex2):v1(vVertex1), v2(vVertex2), v3(vVertex3) {
+		glm::vec3 pmin=v1.Position, pmax=v1.Position;
+		pmin[0] = std::min(pmin[0], v2.Position[0]);
+		pmin[0] = std::min(pmin[0], v3.Position[0]);
+		pmin[1] = std::min(pmin[1], v2.Position[1]);
+		pmin[1] = std::min(pmin[1], v3.Position[1]);
+		pmin[2] = std::min(pmin[2], v2.Position[2]);
+		pmin[2] = std::min(pmin[2], v3.Position[2]);
 
-inline float maxComponent(glm::vec3 v) {
-	return max(std::max(v[0],v[1]),v[2]);
-}
+		pmax[0] = std::max(pmax[0], v2.Position[0]);
+		pmax[0] = std::max(pmax[0], v3.Position[0]);
+		pmax[1] = std::max(pmax[1], v2.Position[1]);
+		pmax[1] = std::max(pmax[1], v3.Position[1]);
+		pmax[2] = std::max(pmax[2], v2.Position[2]);
+		pmax[2] = std::max(pmax[2], v3.Position[2]);
+		bounds = Bounds3f();
+		bounds.pMin = pmin;
+		bounds.pMax = pmax;
+	}
 
-inline glm::vec3 abs(glm::vec3 v) {
-	return glm::vec3(std::abs(v[0]), std::abs(v[1]), std::abs(v[2]));
-}
+	Vertex v1;
+	Vertex v2;
+	Vertex v3;
+	Bounds3f bounds;
+
+	bool Intersect(Ray& ray, SurfaceInteraction* isect) {
+		// E1
+		glm::vec3 E1 = v2.Position - v1.Position;
+
+		// E2
+		glm::vec3 E2 = v3.Position - v1.Position;
+
+		// P
+		glm::vec3 P = glm::cross(ray.d,E2);
+
+		// determinant
+		float det = glm::dot(E1,P);
+
+		// keep det > 0, modify T accordingly
+		glm::vec3 T;
+		if (det > 0)
+		{
+			T = ray.o - v1.Position;
+		}
+		else
+		{
+			T = v1.Position - ray.o;
+			det = -det;
+		}
+
+		// If determinant is near zero, ray lies in plane of triangle
+		if (det < 0.0001f)
+			return false;
+
+		float u, v, t;
+		// Calculate u and make sure u <= 1
+		u = glm::dot(T,P);
+		if (u < 0.0f || u > det)
+			return false;
+
+		// Q
+		glm::vec3 Q = glm::cross(T,E1);
+
+		// Calculate v and make sure u + v <= 1
+		v = glm::dot(ray.d,Q);
+		if (v < 0.0f || u + v > det)
+			return false;
+
+		// Calculate t, scale parameters, ray intersects triangle
+		t = glm::dot(E2,Q);
+
+		float fInvDet = 1.0f / det;
+		t *= fInvDet;
+		u *= fInvDet;
+		v *= fInvDet;
+
+		if(abs(t)< abs(isect->t) || isect->t==0)
+			isect->t = t;
+		isect->pHit = ray.o + ray.d*t;
+
+
+		return true;
+
+		
+
+		return true;
+	}
+};
+
 
 class CMesh {
 public:
