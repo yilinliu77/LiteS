@@ -150,6 +150,7 @@ struct Bounds3f {
 struct SurfaceInteraction {
 	glm::vec3 pHit;
 	float t;
+	SurfaceInteraction() {}
 	SurfaceInteraction(glm::vec3 pHit, float t):pHit(pHit),t(t){}
 };
 
@@ -198,6 +199,7 @@ inline glm::vec3 abs(glm::vec3 v) {
 
 class CMesh {
 public:
+	CMesh();
 	virtual ~CMesh() = default;
 	/*  Mesh Data  */
 	vector<Vertex> vertices;
@@ -211,12 +213,6 @@ public:
 	unsigned int VBO, EBO;
 	glm::mat4 model;
 	static GLuint boundIndex[36];
-
-	/*  Functions  */
-	// constructor
-	CMesh() = default;
-
-	
 
 	virtual void Draw(CShader * shader) = 0;
 
