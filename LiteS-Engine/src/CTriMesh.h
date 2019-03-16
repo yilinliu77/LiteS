@@ -14,6 +14,7 @@ public:
 	void Draw(CShader* shader) override;
 	void Draw(CShader * shader, glm::mat4 & vModelMatrix) override;
 	void changeColor(glm::vec3 aColor, unsigned aIndex) override;
+	void changeVertex(glm::vec3 aVertexPosition, unsigned aIndex) override;
 };
 	
 

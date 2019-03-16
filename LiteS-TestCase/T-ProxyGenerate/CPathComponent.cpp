@@ -1,5 +1,6 @@
 #include "CPathComponent.h"
 #include "CPointCloudMesh.h"
+#include "CBVHACCEL.h"
 
 #include "util.h"
 #include <set>

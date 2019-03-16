@@ -105,6 +105,10 @@ struct Bounds3f {
 		return o;
 	}
 
+	bool inside(const glm::vec3& p) const {
+		return (p.x<pMax.x&&p.x>pMin.x&&p.y<pMax.y&&p.y>pMin.y&&p.z<pMax.z&&p.z>pMin.z);
+	}
+
 	glm::vec3 getCentroid() {
 		return (pMin + pMax) * 0.5f;
 	}
@@ -329,6 +333,7 @@ public:
 	virtual void setupMesh() {}
 
 	virtual void changeColor(glm::vec3 aColor, unsigned aIndex) = 0;
+	virtual void changeVertex(glm::vec3 vVertexPosition, unsigned aIndex) = 0;
 
 };
 

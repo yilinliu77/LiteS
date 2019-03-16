@@ -9,10 +9,10 @@ public:
 	~CPathGenarateComponent();
 	void generate_nadir();
 	void optimize_nadir();
+	void simplexPoint();
 	void extraAlgorithm() override;
 	void extraInit() override;
 
 private:
-	;
 };
 
