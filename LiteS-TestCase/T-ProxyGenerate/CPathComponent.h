@@ -11,6 +11,7 @@ public:
 	void fixDiscontinuecy(string vPath);
 	void addSafeSpace(string vPath);
 	void reconstructMesh(string vPath);
+	void simplexPoint();
 	void extraAlgorithm() override;
 	void extraInit() override;
 

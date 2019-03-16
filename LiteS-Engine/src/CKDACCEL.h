@@ -1,6 +1,6 @@
 #include <vector>
 #include <memory>
-#include "Mesh.h"
+#include "CMesh.h"
 
 struct KdAccelNode {
 	// KdAccelNode Methods
@@ -58,7 +58,7 @@ struct BoundEdge {
 class KdTreeAccel {
 public:
 	// KdTreeAccel Public Methods
-	KdTreeAccel(std::vector<std::shared_ptr<Mesh>> v_primitive,
+	KdTreeAccel(std::vector<std::shared_ptr<CMesh>> v_primitive,
 		int isectCost = 80, int traversalCost = 1,
 		float emptyBonus = 0.5, int maxPrims = 1, int maxDepth = -1) 
 	: isectCost(isectCost),
@@ -74,7 +74,7 @@ public:
 		// Compute bounds for kd-tree construction
 		std::vector<Bounds3f> primBounds;
 		primBounds.reserve(primitives.size());
-		for (const std::shared_ptr<Mesh> &prim : primitives) {
+		for (const std::shared_ptr<CMesh> &prim : primitives) {
 			Bounds3f b = prim->getBounds();
 			bounds = bounds.unionBounds(b);
 			primBounds.push_back(b);
@@ -105,7 +105,7 @@ public:
 		}
 
 		// Prepare to traverse kd-tree for ray
-		Eigen::Vector3f invDir(1 / ray.d[0], 1 / ray.d[1], 1 / ray.d[2]);
+		glm::vec3 invDir(1 / ray.d[0], 1 / ray.d[1], 1 / ray.d[2]);
 		const int maxTodo = 64;
 		KdToDo todo[maxTodo];
 		int todoPos = 0;
@@ -156,7 +156,7 @@ public:
 				// Check for intersections inside leaf node
 				int nPrimitives = node->nPrimitives();
 				if (nPrimitives == 1) {
-					const std::shared_ptr<Mesh> &p =
+					const std::shared_ptr<CMesh> &p =
 						primitives[node->onePrimitive];
 					// Check one primitive inside leaf node
 					if (p->Intersect(ray, isect)) hit = true;
@@ -165,7 +165,7 @@ public:
 					for (int i = 0; i < nPrimitives; ++i) {
 						int index =
 							primitiveIndices[node->primitiveIndicesOffset + i];
-						const std::shared_ptr<Mesh> &p = primitives[index];
+						const std::shared_ptr<CMesh> &p = primitives[index];
 						// Check one primitive inside leaf node
 						if (p->Intersect(ray, isect)) hit = true;
 					}
@@ -193,7 +193,7 @@ public:
 		}
 
 		// Prepare to traverse kd-tree for ray
-		Eigen::Vector3f invDir(1 / ray.d[0], 1 / ray.d[1], 1 / ray.d[2]);
+		glm::vec3 invDir(1 / ray.d[0], 1 / ray.d[1], 1 / ray.d[2]);
 		const int maxTodo = 64;
 		KdToDo todo[maxTodo];
 		int todoPos = 0;
@@ -203,7 +203,7 @@ public:
 				// Check for shadow ray intersections inside leaf node
 				int nPrimitives = node->nPrimitives();
 				if (nPrimitives == 1) {
-					const std::shared_ptr<Mesh> &p =
+					const std::shared_ptr<CMesh> &p =
 						primitives[node->onePrimitive];
 					if (p->IntersectP(ray)) {
 						return true;
@@ -213,7 +213,7 @@ public:
 					for (int i = 0; i < nPrimitives; ++i) {
 						int primitiveIndex =
 							primitiveIndices[node->primitiveIndicesOffset + i];
-						const std::shared_ptr<Mesh> &prim =
+						const std::shared_ptr<CMesh> &prim =
 							primitives[primitiveIndex];
 						if (prim->IntersectP(ray)) {
 							return true;
@@ -308,7 +308,7 @@ private:
 		float oldCost = isectCost * float(nPrimitives);
 		float totalSA = nodeBounds.SurfaceArea();
 		float invTotalSA = 1 / totalSA;
-		Eigen::Vector3f d = nodeBounds.pMax - nodeBounds.pMin;
+		glm::vec3 d = nodeBounds.pMax - nodeBounds.pMin;
 
 		// Choose which axis to split along
 		int axis = nodeBounds.MaximumExtent();
@@ -409,7 +409,7 @@ private:
 	// KdTreeAccel Private Data
 	const int isectCost, traversalCost, maxPrims;
 	const float emptyBonus;
-	std::vector<std::shared_ptr<Mesh>> primitives;
+	std::vector<std::shared_ptr<CMesh>> primitives;
 	std::vector<int> primitiveIndices;
 	KdAccelNode *nodes;
 	int nAllocedNodes, nextFreeNode;

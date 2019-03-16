@@ -79,14 +79,14 @@ void CEngine::runEngine() {
 			ImGui::End();
 		}
 
-		ImGui::Render();
-
+		
+		std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
 		this->m_Component->run();
-
+		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 		//Lock the target arrays
-		std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
+		
 		for (int i= toAddMeshes.size()-1;i>=0;--i)
 		{
 			toAddMeshes[i]->setupMesh();
