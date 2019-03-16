@@ -8,6 +8,7 @@
 #include <set>
 #include <random>
 #include <array>
+#include<fstream>
 
 #include <glm/gtc/matrix_access.hpp>
 
@@ -31,6 +32,8 @@ std::mutex eraseMutex;
 const int heightMapWidth = 32;
 const int heightMapHeight = 32;
 My8BitRGBImage airspace;
+
+std::ofstream fileFp;
 
 //Which camera can see an specific sample
 //( (Direction.x, Direction.y, Direction.z, cameraIndex), (Normal.x, Normal.y, Normal.z, distance) )
@@ -98,7 +101,7 @@ void initRays(int vi) {
 		//
 		if (bvhTree->Visible(cameraPosVector[j], proxyPoint->vertices[vi],1.0f))
 		{
-			localObsRays.push_back(std::make_pair(glm::vec4(direction,j), glm::vec4(sampleNormal,-1)));
+			localObsRays.push_back(std::make_pair(glm::vec4(direction,j), glm::vec4(-glm::normalize(cameraPosVector[j].Position),1)));
 			//seenSample[j].push_back(vi);
 		}
 
@@ -119,7 +122,7 @@ void updateRays(int vCameraIndex, glm::vec3 vNewPosition) {
 		bool visible = false;
 		glm::vec3 direction = proxyPoint->vertices[i].Position - vNewPosition;
 		float viewAngleCos = glm::dot(glm::normalize(direction), -glm::normalize(vNewPosition));
-		if (viewAngleCos < 0.7&&viewAngleCos>0)
+		if (viewAngleCos > 0.7)
 			visible = true;
 
 		if (visible) {
@@ -127,29 +130,18 @@ void updateRays(int vCameraIndex, glm::vec3 vNewPosition) {
 			t.Position = vNewPosition;
 			visible = bvhTree->Visible(t, proxyPoint->vertices[i], 1.0f);
 		}
-		bool foundReference = false;
-		for (size_t j = 0; j < obsRays[i].size(); ++j)
+		#pragma omp critical
 		{
-			if (obsRays[i][j].first.w == vCameraIndex)
-			{
-				if (visible) {
-					obsRays[i][j] = std::make_pair(glm::vec4(vNewPosition - proxyPoint->vertices[i].Position, vCameraIndex)
-						, glm::vec4(proxyPoint->vertices[i].Normal, -1));
-					foundReference = true;
-				}
-				else
-					obsRays[i][j].second.w = 0;
-			}
-		}
-		if (!foundReference) {
 			for (size_t j = 0; j < obsRays[i].size(); ++j)
 			{
-				if (obsRays[i][j].second.w == 0)
+				if (obsRays[i][j].first.w == vCameraIndex)
 				{
-					obsRays[i][j] = std::make_pair(glm::vec4(vNewPosition - proxyPoint->vertices[i].Position, vCameraIndex)
-						, glm::vec4(proxyPoint->vertices[i].Normal, -1));
-					break;
+					obsRays[i].erase(obsRays[i].begin() + j);
 				}
+			}
+			if (visible) {
+				obsRays[i].push_back(std::make_pair(glm::vec4(vNewPosition - proxyPoint->vertices[i].Position, vCameraIndex)
+					, glm::vec4(-glm::normalize(vNewPosition), 1)));
 			}
 		}
 	}
@@ -175,7 +167,8 @@ void CPathGenarateComponent::optimize_nadir() {
 	vector<CMesh*> meshVector;
 	meshVector.push_back(proxyPoint);
 
-	proxyModel = new CModel("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_mesh.ply", Mesh);
+	//proxyModel = new CModel("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_mesh.ply", Mesh);
+	proxyModel = new CModel("C:/repos/GRAPHICS/RENDERING/LiteS/proxy_mesh.ply", Mesh);
 	bvhTree = new BVHAccel(proxyModel->meshes);
 
 	//
@@ -188,10 +181,21 @@ void CPathGenarateComponent::optimize_nadir() {
 	{
 		airspace.data[i] = -9999999;
 	}
-	LinearBVHNode* nodes = bvhTree->getLinearNodes();
+
+	float xDim = proxyPoint->bounds.pMax[0] - proxyPoint->bounds.pMin[0];
+	float yDim = proxyPoint->bounds.pMax[1] - proxyPoint->bounds.pMin[1];
+
+	for (size_t i = 0; i < proxyPoint->vertices.size(); ++i)
+	{
+		int x = static_cast<int>((proxyPoint->vertices[i].Position.x - proxyPoint->bounds.pMin[0])/ xDim * heightMapWidth);
+		int y = static_cast<int>((proxyPoint->vertices[i].Position.y - proxyPoint->bounds.pMin[1]) /yDim*heightMapHeight);
+		if (airspace.data[y*heightMapWidth + x] < proxyPoint->vertices[i].Position.z)
+			airspace.data[y*heightMapWidth + x] = proxyPoint->vertices[i].Position.z;
+	}
+
+	/*LinearBVHNode* nodes = bvhTree->getLinearNodes();
 	vector<Tri*>& meshes = bvhTree->getOrderedTriangles();
-	float xDim = nodes->bounds.pMax[0] - nodes->bounds.pMin[0];
-	float yDim = nodes->bounds.pMax[1] - nodes->bounds.pMin[1];
+	
 	for (size_t i = 0; i < meshes.size(); ++i)
 	{
 		glm::vec3 v1 = meshes[i]->v1.Position;
@@ -215,7 +219,7 @@ void CPathGenarateComponent::optimize_nadir() {
 		{
 			airspace.data[y*heightMapWidth + x] = v3[2];
 		}
-	}
+	}*/
 
 	//update the obs rays
 	#pragma omp parallel for
@@ -247,8 +251,8 @@ void CPathGenarateComponent::optimize_nadir() {
 		//
 		// In airspace
 		//
-		int y = (vCameraPos[1] - nodes->bounds.pMin[1]) / yDim * heightMapHeight;
-		int x = (vCameraPos[0] - nodes->bounds.pMin[0]) / xDim * heightMapWidth;
+		int y = (vCameraPos[1] - proxyPoint->bounds.pMin[1]) / yDim * heightMapHeight;
+		int x = (vCameraPos[0] - proxyPoint->bounds.pMin[0]) / xDim * heightMapWidth;
 		if (vCameraPos[2]<airspace.data[heightMapWidth*y+x])
 		{
 			return -1;
@@ -262,13 +266,16 @@ void CPathGenarateComponent::optimize_nadir() {
 			//
 			glm::vec3 samplePosition = proxyPoint->vertices[pointIndex].Position;
 			bool visible = false;
-			for (auto & cameraItem : obsRays[pointIndex]) {
-				if (cameraItem.first.w == vCameraIndex && cameraItem.second.w!=0) {
-					visible = true;
-					break;
-				}
-			}
-			if (!visible) continue;;
+			//for (auto & cameraItem : obsRays[pointIndex]) {
+			//	if (cameraItem.first.w == vCameraIndex) {
+			//		visible = true;
+			//		break;
+			//	}
+			//}
+			Vertex t;
+			t.Position = vCameraPos;
+			visible = bvhTree->Visible(t, proxyPoint->vertices[pointIndex], 1.0f);
+			if (!visible) continue;
 
 			glm::vec3 sampleNormal = proxyPoint->vertices[pointIndex].Normal;
 			glm::vec3 sample2TargetCamera = vCameraPos - samplePosition;
@@ -403,24 +410,30 @@ void CPathGenarateComponent::optimize_nadir() {
 			}
 			updateRays(iCameraIndex, optimizeResult.first);
 
-			for (int pointInObsRays = 0; pointInObsRays < obsRays.size(); ++pointInObsRays) {
-			#pragma omp critical
-				{
-				for (int cameraInObsrays = 0; cameraInObsrays < obsRays[pointInObsRays].size(); ++cameraInObsrays) {
-					
-						if (obsRays[pointInObsRays][cameraInObsrays].second.w == 0) {
-							obsRays[pointInObsRays].erase(obsRays[pointInObsRays].begin() + cameraInObsrays);
-						}
-					}
-				}
-			}
+			//for (int pointInObsRays = 0; pointInObsRays < obsRays.size(); ++pointInObsRays) {
+			//#pragma omp critical
+			//	{
+			//	for (int cameraInObsrays = 0; cameraInObsrays < obsRays[pointInObsRays].size(); ++cameraInObsrays) {
+			//		
+			//			if (obsRays[pointInObsRays][cameraInObsrays].second.w == 0) {
+			//				obsRays[pointInObsRays].erase(obsRays[pointInObsRays].begin() + cameraInObsrays);
+			//			}
+			//		}
+			//	}
+			//}
 
 			cout << "No." << iter << " iter:" << optimizeResult.second << endl;
 		}
-
+		fileFp.open("camera_log", ios::out);
+		for (size_t iCameraIndex = 0; iCameraIndex < cameraPosVector.size(); iCameraIndex++) {
+			fileFp << cameraPosVector[iCameraIndex].Position.x
+				<<","<< cameraPosVector[iCameraIndex].Position.y
+				<<","<< cameraPosVector[iCameraIndex].Position.z << endl;
+		}
+		fileFp.close();
 	}
 
-	cameraAdjustMesh->changeColor(glm::vec3(0, 0, 1), 0);
+	cameraAdjustMesh->changeColor(glm::vec3(0, 0.5, 0.5), 0);
 	for (int i = 0; i < obsRays.size(); ++i)
 	{
 		for (int j = 0; j < obsRays[i].size(); ++j) {
