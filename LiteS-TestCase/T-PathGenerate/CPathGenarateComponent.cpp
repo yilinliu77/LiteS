@@ -12,7 +12,7 @@
 
 #include <glm/gtc/matrix_access.hpp>
 
-const float DMAX = 35;
+const float DMAX = 50;
 const float DMIN = 5;
 const float SIMPLEXINITIALIZESCALE = 3.0f;
 
@@ -161,15 +161,31 @@ void optimizeOrientation(int vCameraIndex) {
 void CPathGenarateComponent::optimize_nadir() {
 	cameraAdjustVector = vector<Vertex>(cameraPosVector);
 	obsRays.resize(proxyPoint->vertices.size());
+	for (size_t i = 0; i < obsRays.size();++i)
+		obsRays[i].reserve(cameraPosVector.size());
 	
 	seenSample.resize(cameraPosVector.size());
 	reconstructionScore.resize(proxyPoint->vertices.size(),0);
 	vector<CMesh*> meshVector;
 	meshVector.push_back(proxyPoint);
 
-	//proxyModel = new CModel("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_mesh.ply", Mesh);
-	proxyModel = new CModel("C:/repos/GRAPHICS/RENDERING/LiteS/proxy_mesh.ply", Mesh);
+	proxyModel = new CModel("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_mesh.ply", Mesh);
+	//proxyModel = new CModel("C:/repos/GRAPHICS/RENDERING/LiteS/proxy_mesh.ply", Mesh);
 	bvhTree = new BVHAccel(proxyModel->meshes);
+
+	//
+	// Visualize
+	//
+	vector<Vertex> cameraCandidate;
+	cameraCandidate.resize(cameraPosVector.size() * 4);
+	CMesh* cameraCandidateMesh = new CPointCloudMesh(cameraAdjustVector, glm::vec3(0.0f, 0.0f, 1.0f), 10);
+
+	CMesh* cameraAdjustMesh = new CPointCloudMesh(cameraAdjustVector, glm::vec3(0.0f, 1.0f, 0.0f), 20);
+	//Lock the target arrays
+	std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
+	CEngine::toAddMeshes.push_back(cameraAdjustMesh);
+	CEngine::toAddMeshes.push_back(cameraCandidateMesh);
+	lg.~lock_guard();
 
 	//
 	// Generate height map as free airspace
@@ -192,34 +208,6 @@ void CPathGenarateComponent::optimize_nadir() {
 		if (airspace.data[y*heightMapWidth + x] < proxyPoint->vertices[i].Position.z)
 			airspace.data[y*heightMapWidth + x] = proxyPoint->vertices[i].Position.z;
 	}
-
-	/*LinearBVHNode* nodes = bvhTree->getLinearNodes();
-	vector<Tri*>& meshes = bvhTree->getOrderedTriangles();
-	
-	for (size_t i = 0; i < meshes.size(); ++i)
-	{
-		glm::vec3 v1 = meshes[i]->v1.Position;
-		glm::vec3 v2 = meshes[i]->v2.Position;
-		glm::vec3 v3 = meshes[i]->v3.Position;
-		int y = (v1[1] - nodes->bounds.pMin[1]) / yDim * heightMapHeight;
-		int x = (v1[0] - nodes->bounds.pMin[0]) / xDim * heightMapWidth;
-		if (airspace.data[y*heightMapWidth + x] < v1[2])
-		{
-			airspace.data[y*heightMapWidth + x] = v1[2];
-		}
-		y = (v2[1] - nodes->bounds.pMin[1]) / yDim * heightMapHeight;
-		x = (v2[0] - nodes->bounds.pMin[0]) / xDim * heightMapWidth;
-		if (airspace.data[y*heightMapWidth + x] < v2[2])
-		{
-			airspace.data[y*heightMapWidth + x] = v2[2];
-		}
-		y = (v3[1] - nodes->bounds.pMin[1]) / yDim * heightMapHeight;
-		x = (v3[0] - nodes->bounds.pMin[0]) / xDim * heightMapWidth;
-		if (airspace.data[y*heightMapWidth + x] < v3[2])
-		{
-			airspace.data[y*heightMapWidth + x] = v3[2];
-		}
-	}*/
 
 	//update the obs rays
 	#pragma omp parallel for
@@ -342,22 +330,9 @@ void CPathGenarateComponent::optimize_nadir() {
 	};
 
 	//
-	// Visualize
-	//
-	vector<Vertex> cameraCandidate;
-	cameraCandidate.resize(cameraPosVector.size() * 4);
-	CMesh* cameraCandidateMesh = new CPointCloudMesh(cameraAdjustVector, glm::vec3(0.0f, 0.0f, 1.0f), 10);
-
-	CMesh* cameraAdjustMesh = new CPointCloudMesh(cameraAdjustVector, glm::vec3(0.0f, 1.0f, 0.0f), 20);
-	//Lock the target arrays
-	std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
-	CEngine::toAddMeshes.push_back(cameraAdjustMesh);
-	CEngine::toAddMeshes.push_back(cameraCandidateMesh);
-	lg.~lock_guard();
-	//
 	// Start iter
 	//
-	for (int iter = 0; iter < 100; ++iter) {
+	for (int iter = 0; iter < 10; ++iter) {
 		vector<size_t> targetCameraIndices;
 		//
 		// Select independent view to optimize parallel
@@ -446,6 +421,7 @@ void CPathGenarateComponent::optimize_nadir() {
 		}
 
 	}
+
 
 }
 
