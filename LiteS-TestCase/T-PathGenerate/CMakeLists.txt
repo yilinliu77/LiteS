@@ -10,6 +10,7 @@ find_package(assimp CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 FIND_PACKAGE(OpenMP REQUIRED)
+find_package(TBB CONFIG REQUIRED)
 
 if(OPENMP_FOUND)
 message("OPENMP FOUND")
@@ -35,5 +36,5 @@ include_directories (../../LiteS-Engine/src/)
 add_executable(T-PathGenerate ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_FILES})
 add_dependencies(T-PathGenerate LiteS)
 
-target_link_libraries(T-PathGenerate GLEW::GLEW glfw assimp::assimp imgui::imgui LiteS)
+target_link_libraries(T-PathGenerate GLEW::GLEW glfw assimp::assimp imgui::imgui LiteS TBB::tbb)
 

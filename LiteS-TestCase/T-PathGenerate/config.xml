@@ -8,14 +8,14 @@
     <Name>display</Name>
     <!-- <RenderMode>Deffer</RenderMode> -->
     <!-- <Mesh>C:/Users/whatseven/source/repos/RESOURCES/scene/sponza/sponza.obj</Mesh> -->
-    <!--<PointCloud>C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_point_simplex.ply</PointCloud>-->
+    <PointCloud>C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_point_simplex.ply</PointCloud>
     <!--<Mesh>C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_mesh.ply</Mesh>-->
-    <PointCloud>C:/repos/GRAPHICS/RENDERING/LiteS/proxy_point_simplex.ply</PointCloud>
+    <!--<PointCloud>C:/repos/GRAPHICS/RENDERING/LiteS/proxy_point_simplex.ply</PointCloud>-->
     <!-- <Window></Window> -->
     <!--<Model>C:/Users/whatseven/source/repos/RESOURCES/scene/nanosuit/nanosuit.obj</Model>-->
-    <!--<VertexShader>C:/Users/vcc/Documents/repo/RENDERING/LiteS/LiteS-Engine/resources/shaders/PointCloudVert.glsl</VertexShader>-->
-    <!--<FragmentShader>C:/Users/vcc/Documents/repo/RENDERING/LiteS/LiteS-Engine/resources/shaders/PointCloudFrag.glsl</FragmentShader>-->
-    <VertexShader>C:/repos/GRAPHICS/RENDERING/LiteS/LiteS-Engine/resources/shaders/PointCloudVert.glsl</VertexShader>
-    <FragmentShader>C:/repos/GRAPHICS/RENDERING/LiteS/LiteS-Engine/resources/shaders/PointCloudFrag.glsl</FragmentShader>
+    <VertexShader>C:/Users/vcc/Documents/repo/RENDERING/LiteS/LiteS-Engine/resources/shaders/PointCloudVert.glsl</VertexShader>
+    <FragmentShader>C:/Users/vcc/Documents/repo/RENDERING/LiteS/LiteS-Engine/resources/shaders/PointCloudFrag.glsl</FragmentShader>
+    <!--<VertexShader>C:/repos/GRAPHICS/RENDERING/LiteS/LiteS-Engine/resources/shaders/PointCloudVert.glsl</VertexShader>-->
+    <!--<FragmentShader>C:/repos/GRAPHICS/RENDERING/LiteS/LiteS-Engine/resources/shaders/PointCloudFrag.glsl</FragmentShader>-->
   </RenderPass>
 </config>
