@@ -7,6 +7,7 @@ class CPathGenarateComponent : public CPointCloudComponent {
 public:
 	CPathGenarateComponent(CScene * vScene);
 	~CPathGenarateComponent();
+	void visualizeCamera();
 	void generate_nadir();
 	void optimize_nadir();
 	void simplexPoint();

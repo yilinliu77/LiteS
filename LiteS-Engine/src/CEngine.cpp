@@ -343,9 +343,9 @@ void CEngine::__generateAxis() {
 
 bool CEngine::__readProperties(string configFile) {
 	stringstream stream;
-	XMLDocument doc;
+	tinyxml2::XMLDocument doc;
 	doc.LoadFile(configFile.c_str());
-	XMLNode *node = 0;
+	tinyxml2::XMLNode *node = 0;
 
 	node = doc.FirstChildElement("config")->FirstChildElement("Texture");//
 	while (node&&!strcmp(node->ToElement()->Value(), "Texture")) {
@@ -541,7 +541,7 @@ bool CEngine::__readProperties(string configFile) {
 		glBindFramebuffer(GL_FRAMEBUFFER, pass->m_FrameBuffer);
 
 		string OutTexture;
-		XMLElement* Element = node->FirstChildElement("OutTexture");
+		tinyxml2::XMLElement* Element = node->FirstChildElement("OutTexture");
 		while (Element) {
 			if(strcmp(Element->Name(),"OutTexture"))
 				break;
@@ -594,10 +594,10 @@ bool CEngine::__readProperties(string configFile) {
 bool CEngine::__initScene(string configFile) {
 	CEngine::m_Scene = new CScene();
 	stringstream stream;
-	XMLDocument doc;
-	XMLError errXml = doc.LoadFile(configFile.c_str());
-	if (XML_SUCCESS == errXml) {
-		XMLNode *node = 0;
+	tinyxml2::XMLDocument doc;
+	tinyxml2::XMLError errXml = doc.LoadFile(configFile.c_str());
+	if (tinyxml2::XML_SUCCESS == errXml) {
+		tinyxml2::XMLNode *node = 0;
 		node = doc.FirstChildElement("config")->FirstChild();//m_companionWindowWidth
 		if (!node) {
 			std::cout << "Read XML File Failed" << std::endl;

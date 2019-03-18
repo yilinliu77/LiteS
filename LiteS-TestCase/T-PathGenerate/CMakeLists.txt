@@ -12,18 +12,15 @@ find_package(glm CONFIG REQUIRED)
 FIND_PACKAGE(OpenMP REQUIRED)
 find_package(TBB CONFIG REQUIRED)
 
-if(OPENMP_FOUND)
-message("OPENMP FOUND")
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
-endif()
-
 include_directories (${GLFW3_INCLUDE_DIRS})
 include_directories (${GLEW_INCLUDE_DIRS})
 include_directories (${ASSIMP_INCLUDE_DIRS})
 include_directories (${GLM_INCLUDE_DIRS})
 include_directories (${IMGUI_INCLUDE_DIRS})
+include_directories (${TBB_INCLUDE_DIRS})
+
+link_directories(T-PathGenerate "d:/TOOL/vcpkg/packages/tbb_x64-windows/lib")
+
 
 # link_directories($ENV{OPENGL}/lib/x64)
 
@@ -36,5 +33,5 @@ include_directories (../../LiteS-Engine/src/)
 add_executable(T-PathGenerate ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_FILES})
 add_dependencies(T-PathGenerate LiteS)
 
-target_link_libraries(T-PathGenerate GLEW::GLEW glfw assimp::assimp imgui::imgui LiteS TBB::tbb)
+target_link_libraries(T-PathGenerate PRIVATE TBB::tbb GLEW::GLEW glfw assimp::assimp imgui::imgui LiteS)
 
