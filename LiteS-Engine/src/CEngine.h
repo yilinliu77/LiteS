@@ -10,7 +10,6 @@
 #include <mutex>
 
 using namespace std;
-using namespace tinyxml2;
 
 enum RenderMode {
 	debug,release

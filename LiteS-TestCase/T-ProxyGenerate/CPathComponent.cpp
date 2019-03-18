@@ -14,14 +14,6 @@
 
 const float insert_sample_density = 2;
 
-struct My8BitRGBImage
-{
-	int ncols;
-	int nrows;
-	float* data;
-
-};
-
 CPathComponent::CPathComponent(CScene * vScene) :CPointCloudComponent(vScene){ 
 	DisplayPass = this->m_Scene->m_Pass.at("display");
 }
@@ -88,11 +80,33 @@ void CPathComponent::sample_mesh(string vPath) {
 	saveMesh(outMesh, vPath);
 }
 
-void patch(My8BitRGBImage* img, int x, int y, float(*ptr)[3][3]) {
-	for (int i = 0; i <3; ++i) {
-		for (int j=0;j<3;++j)
+template<int N>
+void patch(My8BitRGBImage* img, int x, int y, float(*ptr)[N][N]) {
+	for (int i = 0; i < N; ++i) {
+		for (int j=0;j< N;++j)
 		{
 			(*ptr)[i][j] = img->data[(y - 1 + i)*img->ncols + (x - 1 + j)];
+		}
+	}
+}
+
+template<int N>
+void averageFilter(My8BitRGBImage* img, float vBound) {
+	for (size_t y = 0; y < img->nrows; ++y) {
+		for (size_t x = 0; x < img->ncols; ++x) {
+			if (y <= N || y >= img->nrows - N +1 || x <= N || x >= img->ncols - N +1) {
+				img->data[y*img->ncols + x] = vBound;
+				continue;
+			}
+
+			float heights[N*N];
+			patch<N>(img, x, y, (float(*)[N][N])&heights);
+			float sum = 0;
+			for (size_t i = 0; i < N*N; i++)
+			{
+				sum += heights[i] > vBound ? heights[i] : 0;
+			}
+			img->data[y*img->ncols + x] = sum / N / N;
 		}
 	}
 }
@@ -105,7 +119,7 @@ void CPathComponent::fixDiscontinuecy(string vPath){
 	// Generate height map
 	//
 	const float LOWEST = -99999.0f;
-	float resolution = 2.0f;
+	float resolution = 0.5;
 	int image_width = resolution * static_cast<int>(outMesh->bounds.pMax[0] - outMesh->bounds.pMin[0]+1);
 	int image_height = resolution * static_cast<int>(outMesh->bounds.pMax[1] - outMesh->bounds.pMin[1]+1);
 	My8BitRGBImage image;
@@ -129,21 +143,56 @@ void CPathComponent::fixDiscontinuecy(string vPath){
 	}
 
 	//
-	// Median Filter to the height map
+	//Median Filter to the height map
 	//
 	for (size_t y = 0; y < image_height; ++y) {
 		for (size_t x = 0; x < image_width; ++x) {
-			if (y <= 1 || y >= image_height - 2 || x <= 1 || x >= image_width - 2) {
+			if (y <= 2 || y >= image_height - 3 || x <= 2 || x >= image_width - 3) {
 				image.data[y*image_width + x] = LOWEST;
 				continue;
 			}
 
-			float heights[9];
-			patch(&image, x, y, (float(*)[3][3])&heights);
-			std::nth_element(heights, heights + (9 / 2), heights + 9);
-			image.data[y*image_width + x] = heights[9 / 2];
+			float heights[16];
+			patch<4>(&image, x, y, (float(*)[4][4])&heights);
+			std::nth_element(heights, heights + (16 / 2), heights + 16);
+			image.data[y*image_width + x] = heights[16 / 2];
 		}
 	}
+
+	//averageFilter<4>(&image, LOWEST);
+
+	/*bool holes = true;
+	int hole_filling_iters = 50;
+	while (holes && 0 < hole_filling_iters--) {
+		holes = false;
+
+		for (int y = 0; y < image_height; ++y) {
+			for (int x = 0; x < image_width; ++x) {
+				if (y <= 2 || y >= image_height - 3 || x <= 2 || x >= image_width - 3) {
+					image.data[y*image_width + x] = LOWEST;
+					continue;
+				}
+				else {
+					float heights[9];
+					patch<3>(&image, x, y, (float(*)[3][3])&heights);
+
+					float * end = std::remove(heights, heights + 9, LOWEST);
+
+					int n = std::distance(heights, end);
+
+					if (n >= 3) {
+						std::sort(heights, end);
+						image.data[y*image_width + x] = heights[n / 2];
+					}
+					else {
+						image.data[y*image_width + x] = LOWEST;
+						holes = true;
+					}
+				}
+			}
+		}
+
+	}*/
 
 	//
 	// Calculate ground
@@ -180,6 +229,14 @@ void CPathComponent::fixDiscontinuecy(string vPath){
 
 			float heights[3][3];
 			patch(&image, x, y, &heights);
+
+			
+			float * it = (float *)heights;
+			bool invalid = std::any_of(it, it + 9, [](float h) {
+				return h < 0;
+			});
+			if (invalid) continue;
+			
 
 			float gy =(heights[0][0] - heights[2][0])
 				+ 2.0f * (heights[0][1] - heights[2][1])
@@ -278,7 +335,7 @@ void CPathComponent::reconstructMesh(string vPath){
 
 void CPathComponent::extraAlgorithm() {
 	//sample_mesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/point_after_sampling.ply");
-	//fixDiscontinuecy("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_point.ply");
+	fixDiscontinuecy("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_point.ply");
 
 	//addSafeSpace("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_airspace.ply");
 
