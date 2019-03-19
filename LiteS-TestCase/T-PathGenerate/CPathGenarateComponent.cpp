@@ -17,7 +17,7 @@
 #include <glm/gtc/matrix_access.hpp>
 
 const float DMAX = 50;
-const float DMIN = 5;
+const float DMIN = 10;
 const float SIMPLEXINITIALIZESCALE = 3.0f;
 
 //
@@ -96,8 +96,12 @@ void CPathGenarateComponent::generate_nadir() {
 		cameraPos.y = proxyPoint->bounds.pMin.y;
 
 	}
-
-	cameraPosMesh = new CPointCloudMesh(cameraPosVector,glm::vec3(1.0f,0.0f,0.0f),30);
+	Vertex tt = cameraPosVector[0];
+	vector<Vertex> t;
+	t.push_back(tt);
+	tt.Position = glm::vec3(0, 0, 5);
+	t.push_back(tt);
+	cameraPosMesh = new CPointCloudMesh(t,glm::vec3(1.0f,0.0f,0.0f),30);
 	//Lock the target arrays
 	std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
 	CEngine::toAddMeshes.push_back(cameraPosMesh);
@@ -238,9 +242,9 @@ void initRays(int vi) {
 	}
 
 
-	//initRaysMutex.lock();
+	initRaysMutex.lock();
 	obsRays[vi].insert(obsRays[vi].end(), localObsRays.begin(), localObsRays.end());
-	//initRaysMutex.unlock();
+	initRaysMutex.unlock();
 	
 }
 
@@ -516,7 +520,7 @@ void CPathGenarateComponent::optimize_nadir() {
 	//
 	// Start iter
 	//
-	for (int iter = 0; iter < 100; ++iter) {
+	for (int iter = 0; iter < 10; ++iter) {
 		vector<size_t> targetCameraIndices;
 		//
 		// Select independent view to optimize parallel
@@ -546,9 +550,8 @@ void CPathGenarateComponent::optimize_nadir() {
 		{
 			optimize(i,targetCameraIndices,iter);
 		});
-
-		fileFp.open("C:/Users/vcc/Documents/repo/RENDERING/LiteS/camera_log", ios::out);
 		int photoID = 0;
+		fileFp.open("C:/Users/vcc/Documents/repo/RENDERING/LiteS/camera.log", ios::out);
 		char c[8];
 		sprintf(c, "%05d", photoID);
 		string photoName = string(c) + ".png,";
@@ -558,12 +561,13 @@ void CPathGenarateComponent::optimize_nadir() {
 				<<","<< cameraPosVector[iCameraIndex].Position.z << endl;
 
 			photoID += 1;
-			sprintf(c, "%05d", photoID);
-			string photoName = string(c) + ".png,";
+			char s[8];
+			sprintf(s, "%05d", photoID);
+			photoName = string(s) + ".png,";
 		}
 		fileFp.flush();
-		fileFp.close();
 	}
+		fileFp.close();
 
 	
 
@@ -598,7 +602,7 @@ void CPathGenarateComponent::extraAlgorithm() {
 
 	//simplexPoint();
 
-	optimize_nadir();
+	//optimize_nadir();
 
 	cout << "Extra Algorithm done" << endl;
 
