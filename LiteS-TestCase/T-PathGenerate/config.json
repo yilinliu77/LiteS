@@ -1,0 +1,31 @@
+{
+    "CompanionWindowWidth":1600,
+    "CompanionWindowHeight":900,
+    "CameraSpeed":30,
+
+    "Model":{
+        "proxy_point":{
+            "Path":"proxy_point.ply",
+            "Render":true
+        },
+        "proxy_mesh":{
+            "Path":"proxy_mesh.ply",
+            "Render":false
+        },
+        "proxy_simple":{
+            "Path":"proxy_point_simplex.ply",
+            "Render":false
+        }
+        
+    },
+
+    "RenderPass":{
+        "Name":"display",
+        "VertexShader":"LiteS-Engine/resources/shaders/PointCloudVert.glsl",
+        "FragmentShader":"LiteS-Engine/resources/shaders/PointCloudFrag.glsl"
+    },
+
+    "Arguments":{
+        "DMAX":50
+    }
+}

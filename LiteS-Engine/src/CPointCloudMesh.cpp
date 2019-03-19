@@ -220,24 +220,23 @@ void CPointCloudMesh::setupMesh()
 }
 
 void CPointCloudMesh::Draw(CShader* shader) {
-	//std::lock_guard<std::mutex> lock(m_VAOMutex);
-	m_VAOMutex.lock();
+	std::lock_guard<std::mutex> lock(m_VAOMutex);
 	// draw point cloud
 	glBindVertexArray(VAO);
 
-	if(!pointsIndexAdd.empty()) {
+	if(!pointsColorIndexAdd.empty()) {
 		for (int i = 0; i < pointsColorAdd.size();++i) {
 			glBindBuffer(GL_ARRAY_BUFFER, VBO);
-			glBufferSubData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex) + sizeof(glm::vec3)*pointsIndexAdd[i]
+			glBufferSubData(GL_ARRAY_BUFFER,  sizeof(Vertex) *pointsColorIndexAdd[i] + offsetof(Vertex,Color)
 				, sizeof(glm::vec3), &pointsColorAdd[i]);
 		}
 		pointsColorAdd.clear();
-		pointsIndexAdd.clear();
+		pointsColorIndexAdd.clear();
 	}
 	if (!pointsVertexIndexAdd.empty()) {
 		for (int i = 0; i < pointsVertexAdd.size(); ++i) {
 			glBindBuffer(GL_ARRAY_BUFFER, VBO);
-			glBufferSubData(GL_ARRAY_BUFFER, pointsVertexIndexAdd[i] * sizeof(Vertex)
+			glBufferSubData(GL_ARRAY_BUFFER, sizeof(Vertex) *pointsVertexIndexAdd[i] + offsetof(Vertex, Position)
 				, sizeof(glm::vec3), &pointsVertexAdd[i]);
 		}
 		pointsVertexAdd.clear();
@@ -247,41 +246,22 @@ void CPointCloudMesh::Draw(CShader* shader) {
 		glPointSize(this->pointSize);
 	glDrawArrays(GL_POINTS,0, vertices.size());
 	glBindVertexArray(0);
-	m_VAOMutex.unlock();
 }
 
 void CPointCloudMesh::Draw(CShader* shader, glm::mat4& vModelMatrix) {}
 
 void CPointCloudMesh::changeColor(glm::vec3 aColor, unsigned aIndex) {
+	this->vertices[aIndex].Color = aColor;
 	std::lock_guard<std::mutex> lock(m_VAOMutex);
 
-	/*glBindVertexArray(VAO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-
-	glBufferSubData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex) + sizeof(glm::vec3)*aIndex
-		, sizeof(glm::vec3), &aColor[0]);
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);*/
-
 	pointsColorAdd.push_back(aColor);
-	pointsIndexAdd.push_back(aIndex);
+	pointsColorIndexAdd.push_back(aIndex);
 }
 
 void CPointCloudMesh::changeVertex(glm::vec3 vVertexPosition, unsigned aIndex) {
 	this->vertices[aIndex].Position = vVertexPosition;
-	//std::lock_guard<std::mutex> lock(m_VAOMutex);
-	m_VAOMutex.lock();
-	/*glBindVertexArray(VAO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-
-	glBufferSubData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex) + sizeof(glm::vec3)*aIndex
-		, sizeof(glm::vec3), &aColor[0]);
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);*/
+	std::lock_guard<std::mutex> lock(m_VAOMutex);
 
 	pointsVertexAdd.push_back(vVertexPosition);
 	pointsVertexIndexAdd.push_back(aIndex);
-	m_VAOMutex.unlock();
 }
