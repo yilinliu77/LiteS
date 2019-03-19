@@ -4,7 +4,6 @@
 CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints, const vector<unsigned> &vIndices) {
 	this->vertices = vPoints;
 	this->indices = vIndices;
-	pointsColor.assign(vertices.size(), glm::vec3(0.0f, 0.0f, 0.0f));
 
 	glm::vec3 pmin(INFINITY, INFINITY, INFINITY);
 	glm::vec3 pmax(-INFINITY, -INFINITY, -INFINITY);
@@ -24,7 +23,6 @@ CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints, const vecto
 CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints)
 {
 	this->vertices = vPoints;
-	pointsColor.assign(vertices.size(), glm::vec3(0.0f, 0.0f, 0.0f));
 
 	glm::vec3 pmin(INFINITY, INFINITY, INFINITY);
 	glm::vec3 pmax(-INFINITY, -INFINITY, -INFINITY);
@@ -44,7 +42,8 @@ CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints)
 CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints, const glm::vec3 vColor)
 {
 	this->vertices = vPoints;
-	pointsColor.assign(vertices.size(), vColor);
+	for (auto &v : vertices)
+		v.Color = vColor;
 
 	glm::vec3 pmin(INFINITY, INFINITY, INFINITY);
 	glm::vec3 pmax(-INFINITY, -INFINITY, -INFINITY);
@@ -64,7 +63,8 @@ CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints, const glm::
 CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints, const glm::vec3 vColor,const int vPointSize):pointSize(vPointSize)
 {
 	this->vertices = vPoints;
-	pointsColor.assign(vertices.size(), vColor);
+	for (auto &v : vertices)
+		v.Color = vColor;
 
 	glm::vec3 pmin(INFINITY, INFINITY, INFINITY);
 	glm::vec3 pmax(-INFINITY, -INFINITY, -INFINITY);
@@ -136,7 +136,6 @@ void CPointCloudMesh::processPointCloudNode(aiNode *node, const aiScene *scene) 
 
 	this->vertices = vertices;
 	this->indices = indices;
-	pointsColor.assign(vertices.size(), glm::vec3(0.0f, 0.0f, 0.0f));
 
 	glm::vec3 pmin(INFINITY, INFINITY, INFINITY);
 	glm::vec3 pmax(-INFINITY, -INFINITY, -INFINITY);
@@ -164,10 +163,8 @@ void CPointCloudMesh::setupMeshWithIndex() {
 	// load data into vertex buffers
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
-	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex)+pointsColor.size()*sizeof(glm::vec3), nullptr, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), nullptr, GL_STATIC_DRAW);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(Vertex), &vertices[0]);
-	glBufferSubData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex)
-		, pointsColor.size() * sizeof(glm::vec3), &pointsColor[0]);
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), &indices[0], GL_STATIC_DRAW);
@@ -181,11 +178,11 @@ void CPointCloudMesh::setupMeshWithIndex() {
 	glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Normal));
 	// vertex texcoords
 	glEnableVertexAttribArray(2);
-	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Normal));
+	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, TexCoords));
 	// vertex color
 	glEnableVertexAttribArray(3);
-	glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec3)
-		, (void*)(vertices.size() * sizeof(Vertex)));
+	glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex)
+		, (void*)offsetof(Vertex, Color));
 	
 	glBindVertexArray(0);
 }
@@ -201,25 +198,23 @@ void CPointCloudMesh::setupMesh()
 	// load data into vertex buffers
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
-	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex) + pointsColor.size() * sizeof(glm::vec3), nullptr, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex) , nullptr, GL_STATIC_DRAW);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(Vertex), &vertices[0]);
-	glBufferSubData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex)
-		, pointsColor.size() * sizeof(glm::vec3), &pointsColor[0]);
 
 	// set the vertex attribute pointers
 	// vertex Positions
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Position));
 	// vertex normals
 	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Normal));
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Normal));
 	// vertex texcoords
 	glEnableVertexAttribArray(2);
-	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Normal));
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, TexCoords));
 	// vertex color
 	glEnableVertexAttribArray(3);
-	glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec3)
-		, (void*)(vertices.size() * sizeof(Vertex)));
+	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex)
+		, (void*)offsetof(Vertex, Color));
 
 	glBindVertexArray(0);
 }
@@ -258,7 +253,6 @@ void CPointCloudMesh::Draw(CShader* shader) {
 void CPointCloudMesh::Draw(CShader* shader, glm::mat4& vModelMatrix) {}
 
 void CPointCloudMesh::changeColor(glm::vec3 aColor, unsigned aIndex) {
-	this->pointsColor[aIndex] = aColor;
 	std::lock_guard<std::mutex> lock(m_VAOMutex);
 
 	/*glBindVertexArray(VAO);

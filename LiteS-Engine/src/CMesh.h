@@ -180,6 +180,10 @@ struct Vertex {
 	glm::vec3 Position;
 	glm::vec3 Normal;
 	glm::vec2 TexCoords;
+	glm::vec3 Color;
+
+	Vertex():Position(glm::vec3(0,0,0)), Normal(glm::vec3(0, 0, 0))
+		, TexCoords(glm::vec2(0, 0)), Color(glm::vec3(0.5, 0.5, 0.5)){}
 };
 
 struct Texture {
