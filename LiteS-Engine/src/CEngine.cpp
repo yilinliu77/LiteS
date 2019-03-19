@@ -9,6 +9,11 @@
 #include <imgui.h>
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
+#include <rapidjson/istreamwrapper.h>
+#include<fstream>
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
@@ -80,12 +85,12 @@ void CEngine::runEngine() {
 		}
 
 		
-		std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
 		this->m_Component->run();
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 		//Lock the target arrays
+		std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
 		
 		for (int i= toAddMeshes.size()-1;i>=0;--i)
 		{
@@ -593,6 +598,25 @@ bool CEngine::__readProperties(string configFile) {
 
 bool CEngine::__initScene(string configFile) {
 	CEngine::m_Scene = new CScene();
+
+	ifstream ifs("test.json");
+	if (ifs.fail()) {
+		std::cout << "Read XML File Failed" << std::endl;
+		return false;
+	}
+	rapidjson::IStreamWrapper isw(ifs);
+
+	rapidjson::Document d;
+	d.ParseStream(isw);
+
+	try {
+		CEngine::m_Scene->m_WindowWidth = d["CompanionWindowWidth"].GetInt();
+		CEngine::m_Scene->m_WindowHeight = d["CompanionWindowHeight"].GetInt();
+
+		CEngine::m_Scene->m_Camera = new CCamera(d["CameraSpeed"].GetInt()
+			, glm::vec3(0, 0, 3));
+	}
+
 	stringstream stream;
 	tinyxml2::XMLDocument doc;
 	tinyxml2::XMLError errXml = doc.LoadFile(configFile.c_str());

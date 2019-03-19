@@ -26,7 +26,7 @@ public:
 
 	std::mutex m_VAOMutex;
 	vector<glm::vec3> pointsColorAdd;
-	vector<unsigned> pointsIndexAdd;
+	vector<unsigned> pointsColorIndexAdd;
 
 	vector<glm::vec3> pointsVertexAdd;
 	vector<unsigned> pointsVertexIndexAdd;

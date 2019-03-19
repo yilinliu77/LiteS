@@ -602,7 +602,7 @@ void CPathGenarateComponent::extraAlgorithm() {
 
 	//simplexPoint();
 
-	//optimize_nadir();
+	optimize_nadir();
 
 	cout << "Extra Algorithm done" << endl;
 

@@ -20,6 +20,7 @@ include_directories (${IMGUI_INCLUDE_DIRS})
 include_directories (${TBB_INCLUDE_DIRS})
 
 link_directories(T-PathGenerate "d:/TOOL/vcpkg/packages/tbb_x64-windows/lib")
+link_directories(T-PathGenerate "C:\\SDK\\vcpkg\\packages\\tbb_x64-windows\\lib")
 
 
 # link_directories($ENV{OPENGL}/lib/x64)
