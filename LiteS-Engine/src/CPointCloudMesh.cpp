@@ -81,23 +81,6 @@ CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints, const glm::
 	bounds.pMax = pmax;
 }
 
-CPointCloudMesh::__setupNormal()
-{
-	vector<Vertex> AxisPoint;
-	for (float i = 0; i < 3.0f; i += 0.01f) {
-		Vertex v;
-		v.Position = glm::vec3(i, 0, 0);
-		AxisPoint.push_back(v);
-		v.Position = glm::vec3(0, i, 0);
-		AxisPoint.push_back(v);
-		v.Position = glm::vec3(0, 0, i);
-		AxisPoint.push_back(v);
-	}
-	CMesh* AxisMesh = new CPointCloudMesh(AxisPoint, glm::vec3(0, 1, 0));
-	AxisMesh->setupMesh();
-	CEngine::m_Scene->m_SystemModel->meshes.push_back(AxisMesh);
-}
-
 CPointCloudMesh::CPointCloudMesh(const std::string & vPath)
 {
 	Assimp::Importer importer;
@@ -109,6 +92,51 @@ CPointCloudMesh::CPointCloudMesh(const std::string & vPath)
 		throw string("ERROR::ASSIMP:: ") + importer.GetErrorString();
 
 	processPointCloudNode(scene->mRootNode, scene);
+}
+
+void CPointCloudMesh::setupNormal()
+{
+
+	
+	for (float i = 0; i < 3.0f; i += 0.01f) {
+		Vertex v;
+		v.Position = glm::vec3(i, 0, 0);
+		NormalPoint.push_back(v);
+	}
+	for (float i = 2.0f; i < 3.0f; i += 0.01f) {
+		for (float j = -3.0f / i; j < 3.0f / i; j += 0.01f) {
+			Vertex v;
+			v.Position = glm::vec3(i, j, 0);
+			NormalPoint.push_back(v);
+		}
+	}
+	// create buffers/arrays
+	glGenVertexArrays(1, &NormalVAO);
+	glGenBuffers(1, &NormalVBO);
+
+	glBindVertexArray(NormalVAO);
+	// load data into vertex buffers
+	glBindBuffer(GL_ARRAY_BUFFER, NormalVBO);
+
+	glBufferData(GL_ARRAY_BUFFER, NormalPoint.size() * sizeof(Vertex), nullptr, GL_STATIC_DRAW);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, NormalPoint.size() * sizeof(Vertex), &NormalPoint[0]);
+
+	// set the vertex attribute pointers
+	// vertex Positions
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Position));
+	// vertex normals
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Normal));
+	// vertex texcoords
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, TexCoords));
+	// vertex color
+	glEnableVertexAttribArray(3);
+	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex)
+		, (void*)offsetof(Vertex, Color));
+
+	glBindVertexArray(0);
 }
 
 void CPointCloudMesh::processPointCloudNode(aiNode *node, const aiScene *scene) {
@@ -263,8 +291,16 @@ void CPointCloudMesh::Draw(CShader* shader) {
 	if(this->pointSize!=-1)
 		glPointSize(this->pointSize);
 	glDrawArrays(GL_POINTS,0, static_cast<GLsizei>(vertices.size()));
-	glPointSize(nowPointSize);
 	glBindVertexArray(0);
+
+	if (this->isRenderNormal) {
+		glBindVertexArray(NormalVAO);
+		glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(this->NormalPoint.size()));
+		glPointSize(nowPointSize);
+		glBindVertexArray(0);
+	}
+
+	glPointSize(nowPointSize);
 }
 
 void CPointCloudMesh::Draw(CShader* shader, glm::mat4& vModelMatrix) {}
