@@ -27,7 +27,7 @@ link_directories(T-PathGenerate "C:\\SDK\\vcpkg\\packages\\tbb_x64-windows\\lib"
 
 file(GLOB SOURCE_FILES ./*.cpp)
 file(GLOB HEADER_FILES ./*.h)
-file(GLOB RESOURCES_FILES ./config.xml ../../LiteS-Engine/resources/shaders/* ../../LiteS-Engine/resources/*)
+file(GLOB RESOURCES_FILES ./config.json ../../LiteS-Engine/resources/shaders/* ../../LiteS-Engine/resources/*)
 include_directories (../../LiteS-Engine/resources/)
 include_directories (../../LiteS-Engine/src/)
 

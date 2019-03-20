@@ -4,8 +4,7 @@ project (LiteS)
 # Compiler and Linker options
 # Platform independent
 if(${CMAKE_GENERATOR} MATCHES ".*Visual Studio.*|.*Ninja.*")
-    #add_compile_options(/MD /Zi /GL /Od)
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} /MD /Zi /GL /Od")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} /MD /Zi /Od")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} /MD")
 
     SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /Profile /LTCG")

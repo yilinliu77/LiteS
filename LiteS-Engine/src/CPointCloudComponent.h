@@ -1,11 +1,12 @@
 #ifndef CPOINTCLOUDCOMPONENT_H
 #define CPOINTCLOUDCOMPONENT_H
 #include "CComponent.h"
+#include "CPass.h"
 #include <mutex>
 
 class CPointCloudComponent:public CComponent {
 public:
-	CPointCloudComponent(CScene * vScene);
+	CPointCloudComponent(const map<string, CPass*>& vPass, CScene * vScene);
 
 	void extraAlgorithm() override = 0;
 	void stepExtraAlgorithm() override;

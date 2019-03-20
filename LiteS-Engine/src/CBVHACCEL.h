@@ -136,63 +136,58 @@ public:
 		int nodesToVisit[64];
 		while (true) {
 			const LinearBVHNode *node = &nodes[currentNodeIndex];
-			// Check ray against BVH node
-			if (node->bounds.inside(vPoint)) {
-				if (node->nObject > 0) {
-					for (int i = 0; i < node->nObject; ++i) {
-						float length1 = glm::length(orderedTriangles[node->objectOffset + i]->v1.Position - vPoint);
-						float length2 = glm::length(orderedTriangles[node->objectOffset + i]->v2.Position - vPoint);
-						float length3 = glm::length(orderedTriangles[node->objectOffset + i]->v3.Position - vPoint);
-						if (length1 < closetLength)
-						{
-							closetLength = length1;
-							closetPoint = orderedTriangles[node->objectOffset + i]->v1.Position;
-						}
-						if (length2 < closetLength)
-						{
-							closetLength = length2;
-							closetPoint = orderedTriangles[node->objectOffset + i]->v2.Position;
-						}
-						if (length3 < closetLength)
-						{
-							closetLength = length3;
-							closetPoint = orderedTriangles[node->objectOffset + i]->v3.Position;
-						}
+			if (node->nObject > 0) {
+				for (int i = 0; i < node->nObject; ++i) {
+					float length1 = glm::length(orderedTriangles[node->objectOffset + i]->v1.Position - vPoint);
+					float length2 = glm::length(orderedTriangles[node->objectOffset + i]->v2.Position - vPoint);
+					float length3 = glm::length(orderedTriangles[node->objectOffset + i]->v3.Position - vPoint);
+					if (length1 < closetLength)
+					{
+						closetLength = length1;
+						closetPoint = orderedTriangles[node->objectOffset + i]->v1.Position;
 					}
-					if (toVisitOffset == 0) break;
-					currentNodeIndex = nodesToVisit[--toVisitOffset];
+					if (length2 < closetLength)
+					{
+						closetLength = length2;
+						closetPoint = orderedTriangles[node->objectOffset + i]->v2.Position;
+					}
+					if (length3 < closetLength)
+					{
+						closetLength = length3;
+						closetPoint = orderedTriangles[node->objectOffset + i]->v3.Position;
+					}
+				}
+				break;
+			}
+			else {
+				if (glm::length(nodes[currentNodeIndex+1].bounds.getCentroid() - vPoint)
+					< glm::length(nodes[node->secondChildOffset].bounds.getCentroid() - vPoint)) {
+					currentNodeIndex = currentNodeIndex + 1;
 				}
 				else {
-					nodesToVisit[toVisitOffset++] = currentNodeIndex + 1;
 					currentNodeIndex = node->secondChildOffset;
 				}
 			}
-			else {
-				if (toVisitOffset == 0) break;
-				currentNodeIndex = nodesToVisit[--toVisitOffset];
-			}
 		}
+		assert(closetLength < 99999999);
 		return { closetLength,closetPoint };
 	}
 
-	bool BVHAccel::Visible(Vertex vOberveVertex, Vertex vVertex, float margin = 0) {
+	bool BVHAccel::Visible(glm::vec3 vOberveVertex, glm::vec3 vVertex, float margin = 0) {
 		if (margin > 0) {
-			Vertex temp = vVertex;
-			float tempAdd = 1;
-			temp.Position.z += tempAdd;
-			if (vOberveVertex.Position.x > 0)
-				temp.Position.x += tempAdd;
+			vVertex.z += margin;
+			if (vOberveVertex.x > 0)
+				vVertex.x += margin;
 			else
-				temp.Position.x += -tempAdd;
-			if (vOberveVertex.Position.y > 0)
-				temp.Position.y += tempAdd;
+				vVertex.x += -margin;
+			if (vOberveVertex.y > 0)
+				vVertex.y += margin;
 			else
-				temp.Position.y += -tempAdd;
-			vVertex = temp;
+				vVertex.y += -margin;
 		}
 
-		Ray ray(vOberveVertex.Position, vVertex.Position - vOberveVertex.Position);
-		float current_t =glm::length(vVertex.Position - vOberveVertex.Position);
+		Ray ray(vOberveVertex, vVertex - vOberveVertex);
+		float current_t =glm::length(vVertex - vOberveVertex);
 		SurfaceInteraction isect;
 		if (!Intersect(ray, &isect))
 			return false;

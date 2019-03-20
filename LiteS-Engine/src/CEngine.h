@@ -3,12 +3,11 @@
 #ifndef CENGINE_H
 #define CENGINE_H
 
-#include"tinyxml2.h"
 #include"CComponent.h"
 #include"CScene.h"
 #include <GLFW/glfw3.h>
 #include <mutex>
-
+#include "CPass.h"
 using namespace std;
 
 enum RenderMode {
@@ -28,15 +27,20 @@ public:
 
 	static CScene* m_Scene;
 
+	static map<string, CPass*> m_Pass;
+
 	//Post Process
 	static std::mutex m_addMeshMutex;
-	static std::vector<CMesh*> toAddMeshes;
+	static std::vector<std::pair<std::string, CModel*>> CEngine::toAddModels;
 
 	CComponent* m_Component;
+
+	std::thread *extraAlgorithm;
 
 	CEngine();
 	~CEngine();
 	bool initEngine(string configFile);
+	void renderingLoop();
 	void runEngine();
 	bool isClicked(GLFWwindow* window, unsigned key);
 	void handleInput(GLFWwindow* window);

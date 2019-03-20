@@ -4,6 +4,7 @@
 
 #include"CShader.h"
 #include"CModel.h"
+#include "CScene.h"
 #include <GL/glew.h>
 
 using namespace std;
@@ -22,13 +23,13 @@ public:
 	}
 
 	void beginPass();
-	void endPass();
+	void endPass(CScene * vScene);
 
-	void endPass(vector<glm::mat4>& vModelMatrix);
+	void endPass(CScene * vScene,vector<glm::mat4>& vModelMatrix);
 
 	GLuint m_FrameBuffer;
 	bool m_IsTargetTexture;
-	vector<CModel*> m_Models;
+	
 	unsigned int m_Width;
 	unsigned int m_Height;
 

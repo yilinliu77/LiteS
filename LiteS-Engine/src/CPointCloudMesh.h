@@ -10,7 +10,7 @@ public:
 
 	CPointCloudMesh(const std::vector<Vertex>& vPoints, const glm::vec3 vColor);
 
-	CPointCloudMesh(const std::vector<Vertex>& vPoints, const glm::vec3 vColor, const int vPointSize);
+	CPointCloudMesh(const std::vector<Vertex>& vPoints, const glm::vec3 vColor, const float vPointSize);
 
 	CPointCloudMesh(const std::string& vPath);
 
@@ -31,7 +31,7 @@ public:
 	vector<glm::vec3> pointsVertexAdd;
 	vector<unsigned> pointsVertexIndexAdd;
 
-	int pointSize = -1;
+	float pointSize = -1;
 
 };
 

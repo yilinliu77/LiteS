@@ -60,7 +60,7 @@ CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints, const glm::
 	bounds.pMax = pmax;
 }
 
-CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints, const glm::vec3 vColor,const int vPointSize):pointSize(vPointSize)
+CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints, const glm::vec3 vColor,const float vPointSize):pointSize(vPointSize)
 {
 	this->vertices = vPoints;
 	for (auto &v : vertices)
@@ -172,16 +172,16 @@ void CPointCloudMesh::setupMeshWithIndex() {
 	// set the vertex attribute pointers
 	// vertex Positions
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
 	// vertex normals
 	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Normal));
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Normal));
 	// vertex texcoords
 	glEnableVertexAttribArray(2);
-	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, TexCoords));
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, TexCoords));
 	// vertex color
 	glEnableVertexAttribArray(3);
-	glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex)
+	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex)
 		, (void*)offsetof(Vertex, Color));
 	
 	glBindVertexArray(0);
@@ -242,9 +242,12 @@ void CPointCloudMesh::Draw(CShader* shader) {
 		pointsVertexAdd.clear();
 		pointsVertexIndexAdd.clear();
 	}
+	float nowPointSize;
+	glGetFloatv(GL_POINT_SIZE, &nowPointSize);
 	if(this->pointSize!=-1)
 		glPointSize(this->pointSize);
-	glDrawArrays(GL_POINTS,0, vertices.size());
+	glDrawArrays(GL_POINTS,0, static_cast<GLsizei>(vertices.size()));
+	glPointSize(nowPointSize);
 	glBindVertexArray(0);
 }
 

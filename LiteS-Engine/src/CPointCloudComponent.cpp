@@ -1,8 +1,8 @@
 #include "CPointCloudComponent.h"
 
 
-CPointCloudComponent::CPointCloudComponent(CScene* vScene) : CComponent(vScene)
-	, DisplayPass(nullptr){
+CPointCloudComponent::CPointCloudComponent(const map<string, CPass*>& vPass, CScene * vScene) : CComponent(vPass,vScene)
+, DisplayPass(nullptr) {
 
 }
 
@@ -59,5 +59,5 @@ void CPointCloudComponent::run() {
 	DisplayPass->getShader()->setMat4("view", viewMatrix);
 
 	this->m_Scene->m_SystemModel->draw(DisplayPass->getShader());
-	DisplayPass->endPass();
+	DisplayPass->endPass(this->m_Scene);
 }

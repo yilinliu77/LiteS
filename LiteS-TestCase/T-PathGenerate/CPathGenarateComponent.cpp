@@ -11,7 +11,8 @@
 #include<fstream>
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
-#include <tbb/mutex.h>
+#include <tbb/spin_mutex.h>
+#include <tbb/task_scheduler_init.h>
 #include <iostream>
 
 #include <glm/gtc/matrix_access.hpp>
@@ -19,64 +20,60 @@
 const float DMAX = 50;
 const float DMIN = 10;
 const float SIMPLEXINITIALIZESCALE = 3.0f;
+const int heightMapWidth = 32;
+const int heightMapHeight = 32;
 
-//
 // Input Mesh
-//
 CMesh* proxyPoint;
-CModel* proxyModel;
 BVHAccel* bvhTree;
 
-CMesh* cameraPosMesh;
-vector<Vertex> cameraPosVector;
-vector<Vertex> cameraAdjustVector;
+CMesh* cameraMesh;
+vector<Vertex> cameraVertexVector;
 CMesh* cameraCandidateMesh;
+
+My8BitRGBImage airspace;
+tbb::spin_mutex initRaysMutex;
+std::ofstream fileFp;
+
+//For Reconstruction
 vector<float> reconstructionScore;
 std::vector<std::vector<glm::vec3>> simplexes;
 vector<size_t> cameraInitializeTimes;
 CMesh* cameraAdjustMesh;
-std::mutex eraseMutex;
-
-const int heightMapWidth = 32;
-const int heightMapHeight = 32;
-My8BitRGBImage airspace;
-
-tbb::mutex initRaysMutex;
-
-std::ofstream fileFp;
 
 //Which camera can see an specific sample
 //( (Direction.x, Direction.y, Direction.z, cameraIndex), (Normal.x, Normal.y, Normal.z, distance) )
 vector<vector<std::pair<glm::vec4, glm::vec4>>> obsRays;
-vector<vector<int>> seenSample;
 
-CPathGenarateComponent::CPathGenarateComponent(CScene * vScene) :CPointCloudComponent(vScene){ 
-	DisplayPass = this->m_Scene->m_Pass.at("display");
+CPathGenarateComponent::CPathGenarateComponent(const map<string, CPass*>& vPass, CScene * vScene) :CPointCloudComponent(vPass,vScene){
+	DisplayPass = this->m_Pass.at("display");
 }
 
 CPathGenarateComponent::~CPathGenarateComponent() = default;
 
-void CPathGenarateComponent::visualizeCamera() {
-	cameraAdjustMesh->changeColor(glm::vec3(0, 0.5, 0.5), 0);
+void CPathGenarateComponent::visualizeCamera(size_t vCameraIndex) {
+	cout << "start visualize" << endl;
+	cameraAdjustMesh->changeColor(glm::vec3(0, 0.5, 0.5), vCameraIndex);
 	for (int i = 0; i < obsRays.size(); ++i)
 	{
 		for (int j = 0; j < obsRays[i].size(); ++j) {
-			if (obsRays[i][j].first.w == 0)
+			if (obsRays[i][j].first.w == vCameraIndex)
 			{
 				proxyPoint->changeColor(glm::vec3(0.0f, 0.0f, 1.0f), i);
 				cout << "change " << i << " point color to blue" << endl;
 			}
-			this->waitForStepSignal();
 		}
-
 	}
+	cout << "done visualize" << endl;
+	this->waitForStepSignal();
+	cameraAdjustMesh->changeColor(glm::vec3(0, 1,0), vCameraIndex);
 }
 
 void CPathGenarateComponent::generate_nadir() {
-	proxyPoint = DisplayPass->m_Models[0]->meshes[0];
+	proxyPoint = this->m_Scene->m_Models.at("proxy_point")->meshes[0];
 
 	glm::vec3 mesh_dim = proxyPoint->bounds.pMax - proxyPoint->bounds.pMin;
-	float max_height = proxyPoint->bounds.pMax[2] + 10;
+	float max_height = proxyPoint->bounds.pMax[2] + 20;
 
 	float step = 15;
 
@@ -89,39 +86,42 @@ void CPathGenarateComponent::generate_nadir() {
 			Vertex v;
 			v.Position = cameraPos;
 			v.Normal = glm::normalize(-cameraPos);
-			cameraPosVector.push_back(v);
+			cameraVertexVector.push_back(v);
 			cameraPos.y += step;
 		}
 		cameraPos.x += step;
 		cameraPos.y = proxyPoint->bounds.pMin.y;
 
 	}
-	Vertex tt = cameraPosVector[0];
-	vector<Vertex> t;
-	t.push_back(tt);
-	tt.Position = glm::vec3(0, 0, 5);
-	t.push_back(tt);
-	cameraPosMesh = new CPointCloudMesh(t,glm::vec3(1.0f,0.0f,0.0f),30);
+
+	cameraMesh = new CPointCloudMesh(cameraVertexVector,glm::vec3(1.0f,0.0f,0.0f),30);
+	cameraAdjustMesh = new CPointCloudMesh(cameraVertexVector, glm::vec3(0.0f, 1.0f, 0.0f), 30);
+	vector<Vertex> cameraCandidate;
+	cameraCandidate.resize(cameraVertexVector.size() * 4);
+	cameraCandidateMesh = new CPointCloudMesh(cameraCandidate, glm::vec3(0.0f, 0.0f, 1.0f), 10);
+	CModel* cameraModel = new CModel;
+	cameraModel->isRender = true;
+	cameraModel->meshes.push_back(cameraMesh);
+	cameraModel->meshes.push_back(cameraAdjustMesh);
+	cameraModel->meshes.push_back(cameraCandidateMesh);
 	//Lock the target arrays
 	std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
-	CEngine::toAddMeshes.push_back(cameraPosMesh);
+	CEngine::toAddModels.push_back(std::make_pair("camera", cameraModel));
 }
 
 //Camera Pos, Camera Direction, Camera Index
 std::function<float(glm::vec3, glm::vec3, size_t)> func =
 [&](glm::vec3 const & vCameraPos, glm::vec3 vCameraDirection, size_t vCameraIndex) -> float
 {
-	//
 	// Return -1 if to close to mesh or ground
-	//
 	if (vCameraPos.z < DMIN || bvhTree->KNearest(vCameraPos).first < DMIN)
 		return -1;
 
-	//
 	// In airspace
-	//
 	int y = (vCameraPos[1] - proxyPoint->bounds.pMin[1]) / (proxyPoint->bounds.pMax[1] -proxyPoint->bounds.pMin[1]) * heightMapHeight;
 	int x = (vCameraPos[0] - proxyPoint->bounds.pMin[0]) / (proxyPoint->bounds.pMax[0] - proxyPoint->bounds.pMin[0]) * heightMapWidth;
+	x = (x >= heightMapWidth ? heightMapWidth - 1 : x);
+	y = (y >= heightMapHeight ? heightMapWidth - 1 : y);
 	if (vCameraPos[2] < airspace.data[heightMapWidth*y + x])
 	{
 		return -1;
@@ -130,34 +130,15 @@ std::function<float(glm::vec3, glm::vec3, size_t)> func =
 	float totalScore = 0;
 	for (size_t pointIndex = 0; pointIndex < proxyPoint->vertices.size(); pointIndex++)
 	{
-		//
 		// Break if point invisible
-		//
 		glm::vec3 samplePosition = proxyPoint->vertices[pointIndex].Position;
 		bool visible = false;
-		//for (auto & cameraItem : obsRays[pointIndex]) {
-		//	if (cameraItem.first.w == vCameraIndex) {
-		//		visible = true;
-		//		break;
-		//	}
-		//}
-		Vertex t;
-		t.Position = vCameraPos;
-		visible = bvhTree->Visible(t, proxyPoint->vertices[pointIndex], 1.0f);
+
+		visible = strongVisible(vCameraPos, vCameraDirection, samplePosition,bvhTree,DMAX);
 		if (!visible) continue;
 
 		glm::vec3 sampleNormal = proxyPoint->vertices[pointIndex].Normal;
 		glm::vec3 sample2TargetCamera = vCameraPos - samplePosition;
-
-		//
-		// Break Inside the frustum
-		//
-		if (glm::length(samplePosition - vCameraPos) > DMAX)
-			continue;
-		// 0.087f ~ cos(85.0f / 180.0f * pi)
-		float viewAngleCos = glm::dot(-glm::normalize(sample2TargetCamera), -glm::normalize(vCameraPos));
-		if (viewAngleCos < 0.7 && viewAngleCos>0)
-			continue;
 
 		float score = 0;
 		int foundReference = 0;
@@ -168,8 +149,8 @@ std::function<float(glm::vec3, glm::vec3, size_t)> func =
 				continue;
 			}
 
-			glm::vec3 camera1Pos = cameraPosVector[cameraItem.first.w].Position;
-			glm::vec3 camera1Direction = cameraPosVector[cameraItem.first.w].Normal;
+			glm::vec3 camera1Pos = cameraVertexVector[cameraItem.first.w].Position;
+			glm::vec3 camera1Direction = cameraVertexVector[cameraItem.first.w].Normal;
 			glm::vec3 sample2Camera1 = camera1Pos - samplePosition;
 
 			float camera1Distance = glm::length(sample2Camera1);
@@ -181,8 +162,6 @@ std::function<float(glm::vec3, glm::vec3, size_t)> func =
 
 			float viewAngleCos = glm::dot(glm::normalize(sample2Camera1), glm::normalize(sample2TargetCamera));
 			float viewAngle = std::acos(viewAngleCos);
-
-
 
 			// w1 = 1 / ( 1 + exp( -k1 * ( alpha - alpha1 ) ) )
 			float w1 = 1 / (1 + (std::exp(-32 * (viewAngle - glm::pi<float>() / 16))));
@@ -216,52 +195,34 @@ void initRays(int vi) {
 
 	//Used for parallel
 	vector<std::pair<glm::vec4, glm::vec4>> localObsRays;
-	//vector<int> localSeenSample;
+	vector<int> localSeenSample;
 
-	for (int j=0;j<cameraPosVector.size();++j)
+	for (int j=0;j<cameraVertexVector.size();++j)
 	{
-		glm::vec3 direction = cameraPosVector[j].Position - samplePos;
-		//
-		// Inside the frustum
-		//
-		// 0.087f ~ cos(85.0f / 180.0f * pi)
-		float viewAngleCos = glm::dot(-glm::normalize(direction), -glm::normalize(cameraPosVector[j].Position));
-		if(viewAngleCos <0.7 && viewAngleCos>0)
-			continue;
+		glm::vec3 direction = cameraVertexVector[j].Position - samplePos;
 		
-		//
 		// Not occluded
-		//
-		if (bvhTree->Visible(cameraPosVector[j], proxyPoint->vertices[vi],1.0f))
+		if (strongVisible(cameraVertexVector[j].Position
+			, -cameraVertexVector[j].Position, samplePos, bvhTree, DMAX))
 		{
-			localObsRays.push_back(std::make_pair(glm::vec4(direction,j), glm::vec4(-glm::normalize(cameraPosVector[j].Position),1)));
-			//seenSample[j].push_back(vi);
+			localObsRays.push_back(std::make_pair(glm::vec4(direction,j)
+				, glm::vec4(-glm::normalize(cameraVertexVector[j].Position),1)));
 		}
 
-		
 	}
 
-
-	initRaysMutex.lock();
 	obsRays[vi].insert(obsRays[vi].end(), localObsRays.begin(), localObsRays.end());
-	initRaysMutex.unlock();
-	
 }
 
-void updateRays(int vCameraIndex, glm::vec3 vNewPosition) {
+void CPathGenarateComponent::updateRays(int vCameraIndex, glm::vec3 vNewPosition) {
 	for (int i = 0; i < obsRays.size(); i++)
 	{
 		bool visible = false;
 		glm::vec3 direction = proxyPoint->vertices[i].Position - vNewPosition;
-		float viewAngleCos = glm::dot(glm::normalize(direction), -glm::normalize(vNewPosition));
-		if (viewAngleCos > 0.7)
-			visible = true;
+		
+		visible = strongVisible(vNewPosition, -vNewPosition
+			, proxyPoint->vertices[i].Position, bvhTree, DMAX);
 
-		if (visible) {
-			Vertex t;
-			t.Position = vNewPosition;
-			visible = bvhTree->Visible(t, proxyPoint->vertices[i], 1.0f);
-		}
 		initRaysMutex.lock();
 		{
 			for (size_t j = 0; j < obsRays[i].size(); ++j)
@@ -277,11 +238,10 @@ void updateRays(int vCameraIndex, glm::vec3 vNewPosition) {
 			}
 		}
 		initRaysMutex.unlock();
-
 	}
 }
 
-glm::vec3 optimizeOrientation(glm::vec3 vCameraPosition,int vCameraIndex) {
+glm::vec3 CPathGenarateComponent::optimizeOrientation(glm::vec3 vCameraPosition,int vCameraIndex) {
 	float bestYaw, bestPitch;
 	glm::vec3 bestDirection;
 	float bestScore = -2;
@@ -306,17 +266,17 @@ glm::vec3 optimizeOrientation(glm::vec3 vCameraPosition,int vCameraIndex) {
 	return bestDirection;
 }
 
-std::pair<glm::vec3, float> downhillSimplex(std::vector<glm::vec3>* solution, size_t vCameraIndex, std::function<float(glm::vec3, glm::vec3, size_t)> const & func) {
-	//
+std::pair<glm::vec3, float> CPathGenarateComponent::downhillSimplex(std::vector<glm::vec3>* solution, size_t vCameraIndex
+	, std::function<float(glm::vec3, glm::vec3, size_t)> const & func) {
 	// Evaluate the 4 candidate
-	//
 	float myValues[4];
 	glm::vec3 cameraDirections[4];
 	for (size_t i = 0; i < solution->size(); i++)
 	{
-		//cameraDirections[i] = optimizeOrientation(solution->at(i),vCameraIndex);
+		cameraDirections[i] = -solution->at(i);
+		//cameraDirections[i] = optimizeOrientation(solution->at(i), vCameraIndex);
 		//myValues[i] = func(solution->at(i), cameraDirections[i], vCameraIndex);
-		myValues[i] = func(solution->at(i), -solution->at(i), vCameraIndex);
+		myValues[i] = func(solution->at(i), cameraDirections[i], vCameraIndex);
 	}
 
 
@@ -333,7 +293,8 @@ std::pair<glm::vec3, float> downhillSimplex(std::vector<glm::vec3>* solution, si
 			lousy_idx = i;
 	}
 
-
+	//update the camera orientation
+	cameraVertexVector[vCameraIndex].Normal = cameraDirections[best_idx];
 
 	float best_value = myValues[best_idx];
 	float lousy_value = myValues[lousy_idx];
@@ -421,27 +382,33 @@ std::pair<glm::vec3, float> downhillSimplex(std::vector<glm::vec3>* solution, si
 	}
 }
 
-void optimize(int i, vector<size_t>  m_TargetCameraIndices,int vIter) {
-	size_t iCameraIndex = m_TargetCameraIndices[i];
-	//
+void CPathGenarateComponent::optimize(size_t vCameraIndex,int vIter) {
+	size_t iCameraIndex = vCameraIndex;
+	
 	// Optimize, if downhill failed(return 0), increase scale and reinitialize
-	//
 	std::pair<glm::vec3, float> optimizeResult = downhillSimplex(&(simplexes[iCameraIndex]), iCameraIndex, func);
-	if (optimizeResult.second == 0) {
+	if (optimizeResult.second <= 0) {
 		cameraInitializeTimes[iCameraIndex] += 1;
 		initializeSimplexes(SIMPLEXINITIALIZESCALE * cameraInitializeTimes[iCameraIndex]
-			, cameraPosVector[iCameraIndex].Position
-			, simplexes[iCameraIndex]);
+			, cameraVertexVector[iCameraIndex].Position
+			, simplexes[iCameraIndex], iCameraIndex);
 		for (int m = 0; m < simplexes[iCameraIndex].size(); ++m)
 		{
 			cameraCandidateMesh->changeVertex(simplexes[iCameraIndex][m], 4 * iCameraIndex + m);
 		}
+		//Turn the original mesh orange
+		cameraMesh->changeColor(glm::vec3(1.0f, 0.75f, 0.3f), iCameraIndex);
 	}
 	else {
 		cameraInitializeTimes[iCameraIndex] = 1;
-		cameraPosVector[iCameraIndex].Position = optimizeResult.first;
-		cameraAdjustVector[iCameraIndex].Position = optimizeResult.first;
+		cameraVertexVector[iCameraIndex].Position = optimizeResult.first;
 		cameraAdjustMesh->changeVertex(optimizeResult.first, iCameraIndex);
+		for (int m = 0; m < simplexes[iCameraIndex].size(); ++m)
+		{
+			cameraCandidateMesh->changeVertex(glm::vec3(0), 4 * iCameraIndex + m);
+		}
+		//Turn the original mesh red
+		cameraMesh->changeColor(glm::vec3(1.0f, 0.0f, 0.0f), iCameraIndex);
 	}
 	updateRays(iCameraIndex, optimizeResult.first);
 
@@ -449,33 +416,12 @@ void optimize(int i, vector<size_t>  m_TargetCameraIndices,int vIter) {
 }
 
 void CPathGenarateComponent::optimize_nadir() {
-	cameraAdjustVector = vector<Vertex>(cameraPosVector);
 	obsRays.resize(proxyPoint->vertices.size());
 	for (size_t i = 0; i < obsRays.size();++i)
-		obsRays[i].reserve(cameraPosVector.size());
+		obsRays[i].reserve(cameraVertexVector.size());
 	
-	seenSample.resize(cameraPosVector.size());
 	reconstructionScore.resize(proxyPoint->vertices.size(),0);
-	vector<CMesh*> meshVector;
-	meshVector.push_back(proxyPoint);
-
-	proxyModel = new CModel("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_mesh.ply", Mesh);
-	//proxyModel = new CModel("C:/repos/GRAPHICS/RENDERING/LiteS/proxy_mesh.ply", Mesh);
-	bvhTree = new BVHAccel(proxyModel->meshes);
-
-	//
-	// Visualize
-	//
-	vector<Vertex> cameraCandidate;
-	cameraCandidate.resize(cameraPosVector.size() * 4);
-	cameraCandidateMesh = new CPointCloudMesh(cameraAdjustVector, glm::vec3(0.0f, 0.0f, 1.0f), 10);
-
-	cameraAdjustMesh = new CPointCloudMesh(cameraAdjustVector, glm::vec3(0.0f, 1.0f, 0.0f), 20);
-	//Lock the target arrays
-	std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
-	CEngine::toAddMeshes.push_back(cameraAdjustMesh);
-	CEngine::toAddMeshes.push_back(cameraCandidateMesh);
-	lg.~lock_guard();
+	bvhTree = new BVHAccel(this->m_Scene->m_Models.at("proxy_mesh")->meshes);
 
 	//
 	// Generate height map as free airspace
@@ -493,45 +439,42 @@ void CPathGenarateComponent::optimize_nadir() {
 
 	for (size_t i = 0; i < proxyPoint->vertices.size(); ++i)
 	{
-		int x = static_cast<int>((proxyPoint->vertices[i].Position.x - proxyPoint->bounds.pMin[0])/ xDim * heightMapWidth);
-		int y = static_cast<int>((proxyPoint->vertices[i].Position.y - proxyPoint->bounds.pMin[1]) /yDim*heightMapHeight);
+		int x = floor((proxyPoint->vertices[i].Position.x - proxyPoint->bounds.pMin[0])/ xDim * heightMapWidth);
+		int y = floor((proxyPoint->vertices[i].Position.y - proxyPoint->bounds.pMin[1]) /yDim*heightMapHeight);
+		x = (x >= heightMapWidth ? heightMapWidth-1 : x);
+		y = (y >= heightMapHeight ? heightMapWidth-1 : y);
+		
 		if (airspace.data[y*heightMapWidth + x] < proxyPoint->vertices[i].Position.z)
 			airspace.data[y*heightMapWidth + x] = proxyPoint->vertices[i].Position.z;
 	}
 
+	tbb::task_scheduler_init init();
 	//update the obs rays
-
-	tbb::parallel_for(size_t(0), proxyPoint->vertices.size()
-		, [=](size_t i)
+	tbb::parallel_for(size_t(0),proxyPoint->vertices.size()
+		, [=](const size_t vi)
 	{
-		initRays(i);
+		initRays(vi);
 	});
-
-	//
 	// Initialize Simplexes
-	//
-	simplexes.resize(cameraPosVector.size());
-	for (size_t i = 0; i < cameraPosVector.size(); ++i)
+	simplexes.resize(cameraVertexVector.size());
+	for (size_t i = 0; i < cameraVertexVector.size(); ++i)
 	{
-		initializeSimplexes(SIMPLEXINITIALIZESCALE, cameraPosVector[i].Position, simplexes[i]);
+		initializeSimplexes(SIMPLEXINITIALIZESCALE, cameraVertexVector[i].Position, simplexes[i],i);
 	}
-	cameraInitializeTimes.resize(cameraPosVector.size(), 1);
+	cameraInitializeTimes.resize(cameraVertexVector.size(), 1);
 
-	//
 	// Start iter
-	//
-	for (int iter = 0; iter < 10; ++iter) {
+	for (int iter = 0; iter < 100; ++iter) {
 		vector<size_t> targetCameraIndices;
-		//
+
 		// Select independent view to optimize parallel
-		//
-		for (int iCameraIndex=0;iCameraIndex<cameraPosVector.size();++iCameraIndex)
+		for (int iCameraIndex=0;iCameraIndex<cameraVertexVector.size();++iCameraIndex)
 		{
 			bool toClose = true;
 			for (auto& iiTargetCamera:targetCameraIndices)
 			{
-				if (glm::length(cameraPosVector[iiTargetCamera].Position 
-					- cameraPosVector[iCameraIndex].Position)<-1)
+				if (glm::length(cameraVertexVector[iiTargetCamera].Position 
+					- cameraVertexVector[iCameraIndex].Position)<-1)
 				{
 					toClose=false;
 					break;
@@ -541,24 +484,25 @@ void CPathGenarateComponent::optimize_nadir() {
 				targetCameraIndices.push_back(iCameraIndex);
 		}
 
-		//
 		// Downhill simplex
-		//
-
 		tbb::parallel_for(size_t(0), targetCameraIndices.size()
 			, [=](size_t i)
 		{
-			optimize(i,targetCameraIndices,iter);
+			optimize(targetCameraIndices[i],iter);
 		});
 		int photoID = 0;
 		fileFp.open("C:/Users/vcc/Documents/repo/RENDERING/LiteS/camera.log", ios::out);
 		char c[8];
 		sprintf(c, "%05d", photoID);
 		string photoName = string(c) + ".png,";
-		for (size_t iCameraIndex = 0; iCameraIndex < cameraPosVector.size(); iCameraIndex++) {
-			fileFp << photoName << cameraPosVector[iCameraIndex].Position.x
-				<<","<< cameraPosVector[iCameraIndex].Position.y
-				<<","<< cameraPosVector[iCameraIndex].Position.z << endl;
+		for (size_t iCameraIndex = 0; iCameraIndex < cameraVertexVector.size(); iCameraIndex++) {
+			fileFp << photoName << cameraVertexVector[iCameraIndex].Position.x
+				<<","<< cameraVertexVector[iCameraIndex].Position.y
+				<< "," << cameraVertexVector[iCameraIndex].Position.z
+				<< "," << cameraVertexVector[iCameraIndex].Normal.x
+				<< "," << cameraVertexVector[iCameraIndex].Normal.y
+				<< "," << cameraVertexVector[iCameraIndex].Normal.z
+				<< endl;
 
 			photoID += 1;
 			char s[8];
@@ -567,18 +511,13 @@ void CPathGenarateComponent::optimize_nadir() {
 		}
 		fileFp.flush();
 	}
-		fileFp.close();
-
-	
-
-
+	fileFp.close();
 }
 
 void CPathGenarateComponent::simplexPoint() {
 	obsRays.resize(proxyPoint->vertices.size());
 
-	proxyModel = new CModel("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_mesh.ply", Mesh);
-	bvhTree = new BVHAccel(proxyModel->meshes);
+	bvhTree = new BVHAccel(this->m_Scene->m_Models.at("proxy_mesh")->meshes);
 
 	//update the obs rays
 	tbb::parallel_for(size_t(0), proxyPoint->vertices.size()
