@@ -1,5 +1,4 @@
 #include "CComponent.h"
 
-CComponent::CComponent(CScene * vScene) :m_Scene(vScene)
-	, m_shouldStep(false)
-	, m_shouldContinue(false) {  }
+CComponent::CComponent(const map<string, CPass*>& vPass, CScene * vScene) : m_shouldStep(false)
+	, m_shouldContinue(false),m_Pass(vPass),m_Scene(vScene) {  }

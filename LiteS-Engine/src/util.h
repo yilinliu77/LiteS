@@ -2,6 +2,8 @@
 #define LITE_UTIL_H
 #include <glm/glm.hpp>
 #include <glm/gtx/norm.hpp>
+#include<glm/gtc/random.hpp>
+#include<glm/ext.hpp>
 
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
@@ -78,20 +80,36 @@ void saveMesh(const CMesh* v_mesh,string v_outName) {
 	return;
 }
 
-void initializeSimplexes(float scale,glm::vec3 vPosition, std::vector<glm::vec3>& solution) {
-	// 
+void initializeSimplexes(float scale,glm::vec3 vPosition
+	, std::vector<glm::vec3>& solution,size_t randomGenerator) {
 	// Initialize the simplexes
-	//
+	srand(std::time(nullptr)/(randomGenerator+1));
 	solution.resize(4);
-	glm::mat3 myIdentity(scale);
-	myIdentity[2][2] = -scale;
 	solution[0] = vPosition;
 	for (size_t i = 1; i < solution.size(); i++)
 	{
-		solution[i] = solution[0] + myIdentity[i - 1];
+		solution[i] = solution[0] + glm::linearRand(glm::vec3(-1.0f), glm::vec3(1.0f))*scale;
 	}
 }
 
+bool strongVisible(glm::vec3 vCameraPos, glm::vec3 vCameraOrientation
+	, glm::vec3 vSamplePosition, BVHAccel* vBVH, float vDMAX) {
+	glm::vec3 sampleToCamera = vCameraPos - vSamplePosition;
+	// Inside the frustum
+	// 0.6f ~ cos(53.0f / 180.0f * pi)
+	float viewAngleCos = glm::dot(-glm::normalize(sampleToCamera), glm::normalize(vCameraOrientation));
+	if (!abs(viewAngleCos>0.85))
+		return false;
+
+	if (glm::length(vSamplePosition - vCameraPos) > vDMAX)
+		return false;
+
+	//Not occluded
+	if (!vBVH->Visible(vCameraPos, vSamplePosition, 1.0f))
+		return false;
+
+	return true;
+}
 
 void shrink(std::vector<glm::vec3>* vSolution, glm::vec3 vPosition) {
 	for (int i = 0; i < 4; ++i) {

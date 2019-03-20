@@ -4,7 +4,6 @@
 
 #include"CModel.h"
 #include"CCamera.h"
-#include"CPass.h"
 #include<map>
 
 using namespace std;
@@ -19,9 +18,10 @@ public:
 	CCamera *m_Camera;
 
 	map<string, GLuint> m_Texture;
-	map<string, CPass*> m_Pass;
 
 	CModel* m_SystemModel;
+	
+	map<string, CModel*> m_Models;
 };
 
 #endif

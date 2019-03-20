@@ -9,37 +9,41 @@ using namespace std;
 
 unsigned int TextureFromFile(const char *path, const string &directory);
 
-CModel::CModel(string const &path, ModelType v_type) : gammaCorrection(false), m_modelType(v_type){
+CModel::CModel(string const &path, ModelType v_type,bool isRender) : 
+	gammaCorrection(false), m_modelType(v_type)
+	, isRender(isRender){
 	
 	//this->meshes.push_back(new CMesh());
 	if (v_type == Window)
-		throw "unsupport window";
+		throw "unsupported window";
 	else if (v_type == PointCloud) 
 		loadPointCloud(path);
 	else
 		loadModel(path);
 }
 
-CModel::CModel(){}
+CModel::CModel() { 
+	isRender = false;
+}
 
 /*
  * Draw object
  */
 void CModel::draw(CShader * vShader) {
-	size_t Count = this->meshes.size();
-	for (size_t i = 0; i < Count; ++i)
-		this->meshes[i]->Draw(vShader);
+	if (this->isRender) {
+		size_t Count = this->meshes.size();
+		for (size_t i = 0; i < Count; ++i)
+			this->meshes[i]->Draw(vShader);
+	}
 }
 
 void CModel::draw(CShader * vShader, glm::mat4& vModelMatrix) {
-	size_t Count = this->meshes.size();
-	for (size_t i = 0; i < Count; ++i)
-		this->meshes[i]->Draw(vShader,vModelMatrix);
+	if (this->isRender) {
+		size_t Count = this->meshes.size();
+		for (size_t i = 0; i < Count; ++i)
+			this->meshes[i]->Draw(vShader, vModelMatrix);
+	}
 }
-
-/*
- * Load Point Ploud Model using assimp
- */
 
 void CModel::loadPointCloud(string const &path) {
 	CMesh* pm = new CPointCloudMesh(path);
@@ -47,9 +51,6 @@ void CModel::loadPointCloud(string const &path) {
 	meshes.push_back(pm);
 }
 
-/*
- * Load Mesh Model using assimp
- */
 void CModel::loadModel(string const &path) {
 	Assimp::Importer importer;
 	const aiScene* scene;

@@ -22,19 +22,19 @@ void CPass::beginPass() {
 	//this->m_Component->updateUniforms();
 }
 
-void CPass::endPass() {
+void CPass::endPass(CScene * vScene) {
 	CShader* Shader = this->getShader();
-	for (unsigned int i = 0; i < this->m_Models.size(); ++i) 
-		this->m_Models[i]->draw(Shader);
+	for (std::pair<std::string,CModel*> model: vScene->m_Models)
+		model.second->draw(Shader);
 	
 	glUseProgram(0);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void CPass::endPass(vector<glm::mat4>& vModelMatrix) {
+void CPass::endPass(CScene * vScene,vector<glm::mat4>& vModelMatrix) {
 	CShader* Shader = this->getShader();
-	for (unsigned int i = 0; i < this->m_Models.size(); ++i) 
-		this->m_Models[i]->draw(Shader, vModelMatrix[i]);
+	for (std::pair<std::string, CModel*> model : vScene->m_Models)
+		model.second->draw(Shader);
 
 	glUseProgram(0);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);

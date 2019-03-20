@@ -40,11 +40,15 @@ bool CEngine::initEngine(string configFile) {
 	return true;
 }
 
+void CEngine::renderingLoop() {
+
+}
+
 void CEngine::runEngine() {
 	this->m_Component->extraInit();
 	//this->m_Component->extraAlgorithm();
-	std::thread initThread(&CComponent::extraAlgorithm,this->m_Component);
-	initThread.detach();
+	extraAlgorithm=new std::thread(&CComponent::extraAlgorithm,this->m_Component);
+	//initThread.detach();
 	std::cout << "done" << std::endl;
 
 	while (!glfwWindowShouldClose(this->m_Window)) {
@@ -52,8 +56,6 @@ void CEngine::runEngine() {
 		m_deltaTime = currentFrame - m_lastFrame;
 		m_lastFrame = currentFrame;
 		handleInput(m_Window);
-
-		glPointSize(pointSize);
 
 		// Start the Dear ImGui frame
 		ImGui_ImplOpenGL3_NewFrame();
@@ -84,7 +86,7 @@ void CEngine::runEngine() {
 			ImGui::End();
 		}
 
-		
+		glPointSize(pointSize);
 		this->m_Component->run();
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -92,18 +94,22 @@ void CEngine::runEngine() {
 		//Lock the target arrays
 		std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
 		
-		for (int i= toAddMeshes.size()-1;i>=0;--i)
+		for (size_t i= toAddModels.size();i>0;--i)
 		{
-			toAddMeshes[i]->setupMesh();
-			this->m_Component->m_Scene->m_Pass["display"]->m_Models[0]->meshes.push_back(toAddMeshes[i]);
-			toAddMeshes.pop_back();
+			CEngine::m_Scene->m_Models.insert(std::make_pair(toAddModels[i-1].first,
+				toAddModels[i-1].second));
+			for (auto* mesh : this->m_Scene->m_Models[toAddModels[i-1].first]->meshes) {
+				mesh->setupMesh();
+			}
+			toAddModels.pop_back();
 		}
 		
 
 		glfwSwapBuffers(m_Window);
 		glfwPollEvents();
 	}
-	
+	//extraAlgorithm->~thread();
+	//this->m_Component->~CComponent();
 	
 }
 
@@ -116,6 +122,8 @@ bool CEngine::isClicked(GLFWwindow * window,unsigned key) {
 		keyPreesed[key] = false;
 		return true;
 	}
+	else
+		return false;
 }
 
 void CEngine::handleInput(GLFWwindow * window) {
@@ -142,12 +150,10 @@ void CEngine::handleInput(GLFWwindow * window) {
 	if (isClicked(window, GLFW_KEY_EQUAL))
 		glPointSize(pointSize += 1);
 	if (isClicked(window, GLFW_KEY_MINUS)) {
+		if (pointSize < 2)
+			pointSize = 2;
 		glPointSize(pointSize -= 1);
-		if (pointSize < 1)
-			pointSize = 1;
 	}
-
-
 }
 
 void CEngine::switchMode(RenderMode v_mode) { m_mode = v_mode; }
@@ -332,7 +338,7 @@ bool CEngine::__initDLL() {
 
 void CEngine::__generateAxis() {
 	vector<Vertex> AxisPoint;
-	for (float i = 0; i < 100; i += 0.1) {
+	for (float i = 0; i < 100.0f; i += 0.1f) {
 		Vertex v;
 		v.Position = glm::vec3(i, 0, 0);
 		AxisPoint.push_back(v);
@@ -347,246 +353,257 @@ void CEngine::__generateAxis() {
 }
 
 bool CEngine::__readProperties(string configFile) {
-	stringstream stream;
-	tinyxml2::XMLDocument doc;
-	doc.LoadFile(configFile.c_str());
-	tinyxml2::XMLNode *node = 0;
+	ifstream ifs(configFile);
+	if (ifs.fail()) {
+		std::cout << "Read XML File Failed" << std::endl;
+		return false;
+	}
+	rapidjson::IStreamWrapper isw(ifs);
 
-	node = doc.FirstChildElement("config")->FirstChildElement("Texture");//
-	while (node&&!strcmp(node->ToElement()->Value(), "Texture")) {
-		stream << node->FirstChildElement("Name")->GetText();
-		string name;
-		stream >> name;
-		stream.clear();
-		stream.str("");
+	rapidjson::Document d;
+	d.ParseStream(isw);
 
-		GLuint tex = 0;
-		glGenTextures(1, &tex);
+	try {
+		//Model support
+		const rapidjson::Value& models = d["Model"];
+		assert(models.IsArray());
+		for (rapidjson::SizeType i = 0; i < models.Size(); i++)
+		{
+			string modelName = models[i]["Name"].GetString();
+			string path = models[i]["Path"].GetString();
+			string modelType = models[i]["Type"].GetString();
+			bool isRender = models[i]["Render"].GetBool();
 
-		//Source
-		if (!node->FirstChildElement("File")) {
-			//Texture Target
-			const char* InternalFormatChar = node->FirstChildElement("INTERNAL_FORMAT")->GetText();
-			int InternalFormatInt = -1;
-			if (!strcmp(InternalFormatChar, "RGBA"))
-				InternalFormatInt = GL_RGBA;
-			else if (!strcmp(InternalFormatChar, "RGB"))
-				InternalFormatInt = GL_RGB;
-			else if (!strcmp(InternalFormatChar, "R"))
-				InternalFormatInt = GL_RED;
-			else {
-				cout << "Can't resolve texture internal format" << endl;
+			if ("Mesh" == modelType)
+				CEngine::m_Scene->m_Models.insert(std::make_pair(modelName
+					, new CModel(path, Mesh, isRender)));
+			else if ("PointCloud" == modelType)
+				CEngine::m_Scene->m_Models.insert(std::make_pair(modelName
+					, new CModel(path, PointCloud, isRender)));
+			else if ("Window" == modelType)
+				CEngine::m_Scene->m_Models.insert(std::make_pair(modelName
+					, new CModel("", Window, isRender)));
+		}
+
+		//TODO Texture support
+
+		//Render Pass support
+		const rapidjson::Value& renderPasses = d["RenderPass"];
+		assert(renderPasses.IsArray());
+		for (rapidjson::SizeType i = 0; i < renderPasses.Size(); i++)
+		{
+			CPass* pass;
+			pass = new CPass();
+			string passName = renderPasses[i]["Name"].GetString();
+			int width = CEngine::m_Scene->m_WindowWidth;
+			int height = CEngine::m_Scene->m_WindowHeight;
+			if (renderPasses[i].HasMember("Width"))
+				width = renderPasses[i]["Width"].GetInt();
+			if (renderPasses[i].HasMember("Height"))
+				height = renderPasses[i]["Height"].GetInt();
+			
+			pass->m_Width = width;
+			pass->m_Height = height;
+
+			//Shader
+			const char* VertFile = renderPasses[i]["VertexShader"].GetString();
+			const char* FragFile = renderPasses[i]["FragmentShader"].GetString();
+			if (!pass->setShader(VertFile, FragFile)) {
+				std::cout << "Shader for " << passName << " init failed" << std::endl;
+				return false;
+			}
+			
+			//Initialize buffer
+			glGenFramebuffers(1, &pass->m_FrameBuffer);
+
+			int TargetCount = 0;
+			glBindFramebuffer(GL_FRAMEBUFFER, pass->m_FrameBuffer);
+
+			//TODO Out Texture
+			/*string OutTexture;
+			tinyxml2::XMLElement* Element = node->FirstChildElement("OutTexture");
+			while (Element) {
+				if (strcmp(Element->Name(), "OutTexture"))
+					break;
+				pass->m_IsTargetTexture = true;
+				stream << Element->GetText();
+				stream >> OutTexture;
+				stream.clear();
+				stream.str("");
+
+				glFramebufferTexture2D(GL_FRAMEBUFFER, (GL_COLOR_ATTACHMENT0 + TargetCount), GL_TEXTURE_2D, CEngine::m_Scene->m_Texture.at(OutTexture), 0);
+
+				++TargetCount;
+				Element = Element->NextSiblingElement();
+			}*/
+			if (TargetCount > 0) {
+				GLenum *Draws;
+				Draws = (GLenum*)malloc(sizeof(GLenum)*TargetCount);
+				for (int i = 0; i < TargetCount; i++)
+					Draws[i] = GL_COLOR_ATTACHMENT0 + i;
+				glDrawBuffers(TargetCount, Draws);
+			}
+			GLuint DepthRenderBuffer;
+			glGenRenderbuffers(1, &DepthRenderBuffer);
+			glBindRenderbuffer(GL_RENDERBUFFER, DepthRenderBuffer);
+			glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, pass->m_Width, pass->m_Height); // use a single renderbuffer object for both a depth AND stencil buffer.
+			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, DepthRenderBuffer); // now actually attach it
+			//glBindRenderbuffer(GL_RENDERBUFFER, 0);
+			if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+				cout << "FrameBuffer false" << endl;
 				return false;
 			}
 
-			//Format
-			int FormatInt = -1;
-			if (node->FirstChildElement("FORMAT")) {
-				const char* FormatChar = node->FirstChildElement("FORMAT")->GetText();
-				if (!strcmp(FormatChar, "RGBA_16F"))
-					FormatInt = GL_RGBA16F;
-				else if (!strcmp(FormatChar, "RGB_16F"))
-					FormatInt = GL_RGB16F;
-				else if (!strcmp(FormatChar, "R_16F"))
-					FormatInt = GL_R16F;
-				else {
-					cout << "Can't resolve texture format" << endl;
-					return false;
-				}
-			}
-			else {
-				FormatInt = InternalFormatInt;
-			}
-			
-
-			//Width and Height
-			int RenderWidth, RenderHeight;
-			stream << node->FirstChildElement("WIDTH")->GetText();
-			stream >> RenderWidth;
-			stream.clear();
-			stream.str("");
-			stream << node->FirstChildElement("HEIGHT")->GetText();
-			stream >> RenderHeight;
-			stream.clear();
-			stream.str("");
-
-			//Init the Texture
-			glBindTexture(GL_TEXTURE_2D, tex);
-			glTexImage2D(GL_TEXTURE_2D, 0, FormatInt, RenderWidth, RenderHeight, 0, InternalFormatInt, GL_UNSIGNED_BYTE, NULL);
-
-			//Wrap
-			if (node->FirstChildElement("WARP")) {
-				const char* WarpOptions = node->FirstChildElement("WARP")->GetText();
-				if (!strcmp(WarpOptions, "REPEAT")) {
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-				}
-				else if (!strcmp(WarpOptions, "CLAMP_TO_EDGE")) {
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-				}
-				else {
-					cout << "Can't resolve texture wrap type" << endl;
-					return false;
-				}
-			}
-			else {
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-			}
-
-			//Filter
-			if (node->FirstChildElement("FILTER")) {
-				const char* FilterOptions = node->FirstChildElement("FILTER")->GetText();
-				if (!strcmp(FilterOptions, "NEAREST")) {
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-				} else if (!strcmp(FilterOptions, "LINEAR")) {
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-				} else {
-					cout << "Can't resolve texture filter type" << endl;
-					return false;
-				}
-			} else {
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-			}
-			
-			glBindTexture(GL_TEXTURE_2D, 0);
-		} else {
-			stream << node->FirstChildElement("File")->GetText();
-			string filename;
-			stream >> filename;
-			stream.clear();
-			stream.str("");
-
-			int width, height, nrComponents;
-
-			unsigned char *data = stbi_load(filename.c_str(), &width, &height, &nrComponents, 0);
-			if (data) {
-				GLenum format;
-				if (nrComponents == 1)
-					format = GL_RED;
-				else if (nrComponents == 3)
-					format = GL_RGB;
-				else if (nrComponents == 4)
-					format = GL_RGBA;
-
-				glBindTexture(GL_TEXTURE_2D, tex);
-				glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-				glGenerateMipmap(GL_TEXTURE_2D);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-				glBindTexture(GL_TEXTURE_2D, 0);
-				stbi_image_free(data);
-			} else {
-				std::cout << "Texture failed to load at path " << std::endl;
-				stbi_image_free(data);
-			}
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			this->m_Pass.insert(pair<string, CPass*>(passName, pass));
 		}
-		CEngine::m_Scene->m_Texture.insert(pair<string, GLuint>(name, tex));
-		node = node->NextSibling();
+		
 	}
-
-	node = doc.FirstChildElement("config")->FirstChildElement("RenderPass");//m_companionWindowWidth
-	while (node&&!strcmp(node->ToElement()->Value(), "RenderPass")) {
-		CPass* pass;
-		if (node->FirstChildElement("RenderMode")
-			&& strcmp(node->FirstChildElement("RenderMode")->ToElement()->GetText(), "Deffer")) {
-			pass = new CDifferPass();
-		}
-		else
-			pass = new CPass();
-
-		stream << node->FirstChildElement("Name")->GetText();
-		string Name;
-		stream >> Name;
-		stream.clear();
-		stream.str("");
-
-		//Width 
-		if (node->FirstChildElement("Width")) {
-			pass->m_Width = atoi(node->FirstChildElement("Width")->GetText());
-			pass->m_Height = atoi(node->FirstChildElement("Height")->GetText());
-		}
-		else {
-			pass->m_Width = this->m_Scene->m_WindowWidth;
-			pass->m_Height = this->m_Scene->m_WindowHeight;
-		}
-
-		//Model
-		if(node->FirstChildElement("Mesh")) {
-			const char* ModelPath = node->FirstChildElement("Mesh")->GetText();
-			pass->m_Models.push_back(new CModel(ModelPath, Mesh));
-		}
-
-		if (node->FirstChildElement("PointCloud")) {
-			const char* PointCloudPath = node->FirstChildElement("PointCloud")->GetText();
-			pass->m_Models.push_back(new CModel(PointCloudPath, PointCloud));
-		}
-
-		if (node->FirstChildElement("Window")) {
-			pass->m_Models.push_back(new CModel("", Window));
-
-		}
-
-		//Shader
-		const char* VertFile = node->FirstChildElement("VertexShader")->GetText();
-		const char* FragFile = node->FirstChildElement("FragmentShader")->GetText();
-		if (!pass->setShader(VertFile, FragFile)) {
-			std::cout << "Shader for " << Name << " init failed" << std::endl;
-			return false;
-		}
-
-		glGenFramebuffers(1, &pass->m_FrameBuffer);
-
-		int TargetCount = 0;
-		glBindFramebuffer(GL_FRAMEBUFFER, pass->m_FrameBuffer);
-
-		string OutTexture;
-		tinyxml2::XMLElement* Element = node->FirstChildElement("OutTexture");
-		while (Element) {
-			if(strcmp(Element->Name(),"OutTexture"))
-				break;
-			pass->m_IsTargetTexture = true;
-			stream << Element->GetText();
-			stream >> OutTexture;
-			stream.clear();
-			stream.str("");
-
-			glFramebufferTexture2D(GL_FRAMEBUFFER, (GL_COLOR_ATTACHMENT0 + TargetCount), GL_TEXTURE_2D, CEngine::m_Scene->m_Texture.at(OutTexture), 0);
-
-			++TargetCount;
-			Element = Element->NextSiblingElement();
-		}
-		if (TargetCount > 0) {
-			GLenum *Draws;
-			Draws = (GLenum*)malloc(sizeof(GLenum)*TargetCount);
-			for (int i = 0; i < TargetCount; i++)
-				Draws[i] = GL_COLOR_ATTACHMENT0 + i;
-			glDrawBuffers(TargetCount, Draws);
-		}
-		GLuint DepthRenderBuffer;
-		glGenRenderbuffers(1, &DepthRenderBuffer);
-		glBindRenderbuffer(GL_RENDERBUFFER, DepthRenderBuffer);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, pass->m_Width, pass->m_Height); // use a single renderbuffer object for both a depth AND stencil buffer.
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, DepthRenderBuffer); // now actually attach it
-		//glBindRenderbuffer(GL_RENDERBUFFER, 0);
-		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-			cout << "FrameBuffer false" << endl;
-			return false;
-		}
-
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		CEngine::m_Scene->m_Pass.insert(pair<string, CPass*>(Name, pass));
-
-		node = node->NextSibling();
-		if (node == NULL)
-			break;
+	catch (std::exception e) {
+		cout << e.what() << std::endl;
+		return false;
 	}
-	
+	ifs.close();
+
+
+	//node = doc.FirstChildElement("config")->FirstChildElement("Texture");//
+	//while (node&&!strcmp(node->ToElement()->Value(), "Texture")) {
+	//	stream << node->FirstChildElement("Name")->GetText();
+	//	string name;
+	//	stream >> name;
+	//	stream.clear();
+	//	stream.str("");
+
+	//	GLuint tex = 0;
+	//	glGenTextures(1, &tex);
+
+	//	//Source
+	//	if (!node->FirstChildElement("File")) {
+	//		//Texture Target
+	//		const char* InternalFormatChar = node->FirstChildElement("INTERNAL_FORMAT")->GetText();
+	//		int InternalFormatInt = -1;
+	//		if (!strcmp(InternalFormatChar, "RGBA"))
+	//			InternalFormatInt = GL_RGBA;
+	//		else if (!strcmp(InternalFormatChar, "RGB"))
+	//			InternalFormatInt = GL_RGB;
+	//		else if (!strcmp(InternalFormatChar, "R"))
+	//			InternalFormatInt = GL_RED;
+	//		else {
+	//			cout << "Can't resolve texture internal format" << endl;
+	//			return false;
+	//		}
+
+	//		//Format
+	//		int FormatInt = -1;
+	//		if (node->FirstChildElement("FORMAT")) {
+	//			const char* FormatChar = node->FirstChildElement("FORMAT")->GetText();
+	//			if (!strcmp(FormatChar, "RGBA_16F"))
+	//				FormatInt = GL_RGBA16F;
+	//			else if (!strcmp(FormatChar, "RGB_16F"))
+	//				FormatInt = GL_RGB16F;
+	//			else if (!strcmp(FormatChar, "R_16F"))
+	//				FormatInt = GL_R16F;
+	//			else {
+	//				cout << "Can't resolve texture format" << endl;
+	//				return false;
+	//			}
+	//		}
+	//		else {
+	//			FormatInt = InternalFormatInt;
+	//		}
+	//		
+
+	//		//Width and Height
+	//		int RenderWidth, RenderHeight;
+	//		stream << node->FirstChildElement("WIDTH")->GetText();
+	//		stream >> RenderWidth;
+	//		stream.clear();
+	//		stream.str("");
+	//		stream << node->FirstChildElement("HEIGHT")->GetText();
+	//		stream >> RenderHeight;
+	//		stream.clear();
+	//		stream.str("");
+
+	//		//Init the Texture
+	//		glBindTexture(GL_TEXTURE_2D, tex);
+	//		glTexImage2D(GL_TEXTURE_2D, 0, FormatInt, RenderWidth, RenderHeight, 0, InternalFormatInt, GL_UNSIGNED_BYTE, NULL);
+
+	//		//Wrap
+	//		if (node->FirstChildElement("WARP")) {
+	//			const char* WarpOptions = node->FirstChildElement("WARP")->GetText();
+	//			if (!strcmp(WarpOptions, "REPEAT")) {
+	//				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	//				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	//			}
+	//			else if (!strcmp(WarpOptions, "CLAMP_TO_EDGE")) {
+	//				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	//				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	//			}
+	//			else {
+	//				cout << "Can't resolve texture wrap type" << endl;
+	//				return false;
+	//			}
+	//		}
+	//		else {
+	//			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	//			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	//		}
+
+	//		//Filter
+	//		if (node->FirstChildElement("FILTER")) {
+	//			const char* FilterOptions = node->FirstChildElement("FILTER")->GetText();
+	//			if (!strcmp(FilterOptions, "NEAREST")) {
+	//				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	//				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	//			} else if (!strcmp(FilterOptions, "LINEAR")) {
+	//				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	//				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	//			} else {
+	//				cout << "Can't resolve texture filter type" << endl;
+	//				return false;
+	//			}
+	//		} else {
+	//			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	//			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	//		}
+	//		
+	//		glBindTexture(GL_TEXTURE_2D, 0);
+	//	} else {
+	//		stream << node->FirstChildElement("File")->GetText();
+	//		string filename;
+	//		stream >> filename;
+	//		stream.clear();
+	//		stream.str("");
+
+	//		int width, height, nrComponents;
+
+	//		unsigned char *data = stbi_load(filename.c_str(), &width, &height, &nrComponents, 0);
+	//		if (data) {
+	//			GLenum format;
+	//			if (nrComponents == 1)
+	//				format = GL_RED;
+	//			else if (nrComponents == 3)
+	//				format = GL_RGB;
+	//			else if (nrComponents == 4)
+	//				format = GL_RGBA;
+
+	//			glBindTexture(GL_TEXTURE_2D, tex);
+	//			glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+	//			glGenerateMipmap(GL_TEXTURE_2D);
+	//			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	//			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	//			glBindTexture(GL_TEXTURE_2D, 0);
+	//			stbi_image_free(data);
+	//		} else {
+	//			std::cout << "Texture failed to load at path " << std::endl;
+	//			stbi_image_free(data);
+	//		}
+	//	}
+	//	CEngine::m_Scene->m_Texture.insert(pair<string, GLuint>(name, tex));
+	//	node = node->NextSibling();
+	//}
+
 	//
 	//Generate System Wide Mesh
 	//
@@ -599,7 +616,7 @@ bool CEngine::__readProperties(string configFile) {
 bool CEngine::__initScene(string configFile) {
 	CEngine::m_Scene = new CScene();
 
-	ifstream ifs("test.json");
+	ifstream ifs(configFile);
 	if (ifs.fail()) {
 		std::cout << "Read XML File Failed" << std::endl;
 		return false;
@@ -613,48 +630,20 @@ bool CEngine::__initScene(string configFile) {
 		CEngine::m_Scene->m_WindowWidth = d["CompanionWindowWidth"].GetInt();
 		CEngine::m_Scene->m_WindowHeight = d["CompanionWindowHeight"].GetInt();
 
-		CEngine::m_Scene->m_Camera = new CCamera(d["CameraSpeed"].GetInt()
-			, glm::vec3(0, 0, 3));
-	}
-
-	stringstream stream;
-	tinyxml2::XMLDocument doc;
-	tinyxml2::XMLError errXml = doc.LoadFile(configFile.c_str());
-	if (tinyxml2::XML_SUCCESS == errXml) {
-		tinyxml2::XMLNode *node = 0;
-		node = doc.FirstChildElement("config")->FirstChild();//m_companionWindowWidth
-		if (!node) {
-			std::cout << "Read XML File Failed" << std::endl;
-			return false;
-		}
-		stream << node->ToElement()->GetText();
-		stream >> CEngine::m_Scene->m_WindowWidth;
-		stream.clear();
-		stream.str("");
-		node = node->NextSibling();
-		stream << node->ToElement()->GetText();
-		stream >> CEngine::m_Scene->m_WindowHeight;
-		stream.clear();
-		stream.str("");
-
 		float CameraSpeed = 10.0f;
-		node = doc.FirstChildElement("config")->FirstChildElement("cameraSpeed");
-		if (node) {
-			stream << node->ToElement()->GetText();
-			stream >> CameraSpeed;
-		}
-		
+		if (d.HasMember("CameraSpeed"))
+			CameraSpeed = d["CameraSpeed"].GetFloat();
+		CEngine::m_Scene->m_Camera = new CCamera(CameraSpeed, glm::vec3(0, 0, 20));
 
 		CEngine::m_lastX = CEngine::m_Scene->m_WindowWidth / 2.0f;
 		CEngine::m_lastY = CEngine::m_Scene->m_WindowHeight / 2.0f;
-
-		CEngine::m_Scene->m_Camera = new CCamera(CameraSpeed,glm::vec3(0, 0, 3));
-
-		return true;
-	} else {
-		cout << "XML file can't open" << endl;
+	}
+	catch (std::exception e) {
+		cout << e.what() << std::endl;
 		return false;
 	}
+	ifs.close();
+	return true;
 }
 
 CScene* CEngine::m_Scene = NULL;
@@ -665,4 +654,5 @@ float CEngine::m_deltaTime = 0;
 float CEngine::m_lastFrame = 0;
 bool CEngine::m_mouseClicked = false;
 std::mutex CEngine::m_addMeshMutex;
-std::vector<CMesh*> CEngine::toAddMeshes;
+std::vector<std::pair<std::string,CModel*>> CEngine::toAddModels;
+map<string, CPass*> CEngine::m_Pass;

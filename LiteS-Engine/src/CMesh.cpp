@@ -230,4 +230,5 @@ bool CMesh::IntersectP(const Ray& ray) {
 
 		return true;
 	}
+	return false;
 }

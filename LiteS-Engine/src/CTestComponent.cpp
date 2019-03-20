@@ -1,11 +1,11 @@
 #include "CTestComponent.h"
 
-CTestComponent::CTestComponent(CScene * vScene) :CComponent(vScene) {};
+CTestComponent::CTestComponent(const map<string, CPass*>& vPass, CScene * vScene) :CComponent(vPass,vScene) {};
 
 CTestComponent::~CTestComponent() {}
 
 void CTestComponent::run() {
-	CPass* DisplayPass = this->m_Scene->m_Pass.at("display");
+	CPass* DisplayPass = this->m_Pass.at("display");
 	DisplayPass->beginPass();
 
 	glm::mat4 projectionMatrix = glm::perspective(glm::radians(this->m_Scene->m_Camera->Zoom),
@@ -20,6 +20,6 @@ void CTestComponent::run() {
 	//DisplayPass->getShader()->setMat4("matrix", projectionMatrix*viewMatrix*modelMatrix);
 	DisplayPass->getShader()->setVec3("viewPos", this->m_Scene->m_Camera->Position);
 
-	DisplayPass->endPass();
+	DisplayPass->endPass(this->m_Scene);
 
 }

@@ -11,10 +11,11 @@ public:
 	vector<CMesh*> meshes;
 	string directory;
 	bool gammaCorrection;
+	bool isRender;
 
 	/*  Functions   */
 	// constructor, expects a filepath to a 3D model.
-	CModel(string const &path, ModelType v_type);
+	CModel(string const &path, ModelType v_type, bool isRender);
 
 	CModel();
 

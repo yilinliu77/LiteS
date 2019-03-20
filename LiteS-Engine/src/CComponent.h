@@ -2,14 +2,12 @@
 #ifndef CCOMPONENT_H
 #define CCOMPONENT_H
 #include"CScene.h"
+#include "CPass.h"
 
 class CComponent {
 public:
 
-	CComponent(CScene * vScene);
-
-
-	CScene * m_Scene;
+	CComponent(const map<string, CPass*>& vPass,CScene * vScene);
 
 	virtual ~CComponent() = default;
 	virtual void run() = 0;
@@ -23,5 +21,8 @@ public:
 
 	bool m_shouldContinue;
 	bool m_shouldStep;
+
+	map<string, CPass*> m_Pass;
+	CScene * m_Scene;
 };
 #endif
