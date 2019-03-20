@@ -312,13 +312,18 @@ public:
 	vector<unsigned int> indices;
 	MeshMaterial material;
 	vector<Texture> textures;
-	unsigned int VAO;
 
 	/*  Render data  */
 	Bounds3f bounds;
+	unsigned int VAO;
 	unsigned int VBO, EBO;
+
+	unsigned int NormalVAO;
+	unsigned int NormalVBO;
 	glm::mat4 model;
 	static GLuint boundIndex[36];
+	vector<Vertex> NormalPoint;
+	bool isRenderNormal;
 
 	virtual void Draw(CShader * shader) = 0;
 
@@ -338,6 +343,7 @@ public:
 
 	virtual void changeColor(glm::vec3 aColor, unsigned aIndex) = 0;
 	virtual void changeVertex(glm::vec3 vVertexPosition, unsigned aIndex) = 0;
+
 
 };
 
