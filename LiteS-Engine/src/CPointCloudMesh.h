@@ -14,6 +14,8 @@ public:
 
 	CPointCloudMesh(const std::string& vPath);
 
+	void setupNormal();
+
 	void processPointCloudNode(aiNode * node, const aiScene * scene);
 
 	void setupMeshWithIndex() override;

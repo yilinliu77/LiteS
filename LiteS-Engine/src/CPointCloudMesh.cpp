@@ -81,6 +81,22 @@ CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints, const glm::
 	bounds.pMax = pmax;
 }
 
+CPointCloudMesh::__setupNormal()
+{
+	vector<Vertex> AxisPoint;
+	for (float i = 0; i < 3.0f; i += 0.01f) {
+		Vertex v;
+		v.Position = glm::vec3(i, 0, 0);
+		AxisPoint.push_back(v);
+		v.Position = glm::vec3(0, i, 0);
+		AxisPoint.push_back(v);
+		v.Position = glm::vec3(0, 0, i);
+		AxisPoint.push_back(v);
+	}
+	CMesh* AxisMesh = new CPointCloudMesh(AxisPoint, glm::vec3(0, 1, 0));
+	AxisMesh->setupMesh();
+	CEngine::m_Scene->m_SystemModel->meshes.push_back(AxisMesh);
+}
 
 CPointCloudMesh::CPointCloudMesh(const std::string & vPath)
 {
