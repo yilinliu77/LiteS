@@ -3,6 +3,7 @@
 #define CSIFT_H
 
 #include"CImage.h"
+#include<vector>
 
 struct SIFTParams {
 	int nOctave=8;
@@ -17,7 +18,9 @@ class CSIFT {
 public:
 
 	void scalespaceCompute(const CImage* vImage){
-		
+		float delta = this->param.delta_min;
+		float sigma = this->param.sigma_min;
+
 		for (size_t iOctave = 0; iOctave < param.nOctave; iOctave++) {
 			for (size_t iScale = 0; iScale < param.imagesPerOctave; iScale++)
 			{
@@ -27,13 +30,14 @@ public:
 					//First image in the first octave, needs upsample
 					if (0 == iOctave)
 					{
-						CImage* imageAfterUpSampling = upsample(vImage);
-						
+						CImage* imageAfterUpSampling = upsample(vImage,delta);
+						CImage* imageAfterBlur = gassianBlur(imageAfterUpSampling, sigma);
 					}
 					//First image in the other octave, needs downsample
 					else
 					{
-
+						CImage* imageAfterUpSampling = downsampleBy2(vImage);
+						CImage* imageAfterBlur = gassianBlur(imageAfterUpSampling, sigma);
 					}
 				}
 				
@@ -55,7 +59,7 @@ public:
 
 	SIFTParams param;
 
-	vector<CImage*> images;
+	std::vector<CImage*> images;
 };
 
 #endif // 
