@@ -253,10 +253,7 @@ void CTriMesh::Draw(CShader* shader, glm::mat4 &vModelMatrix) {
 	glBindVertexArray(0);
 }
 
-void CTriMesh::changeColor(glm::vec3 aColor, unsigned aIndex) {
-}
-
-void CTriMesh::changeVertex(glm::vec3 aVertexPosition, unsigned aIndex)
+void CTriMesh::changeVertex(Vertex aVertexPosition, unsigned aIndex)
 {
 }
 

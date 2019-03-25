@@ -184,6 +184,10 @@ struct Vertex {
 
 	Vertex():Position(glm::vec3(0,0,0)), Normal(glm::vec3(0, 0, 0))
 		, TexCoords(glm::vec2(0, 0)), Color(glm::vec3(0.5, 0.5, 0.5)){}
+
+	Vertex(glm::vec3 vPosition, glm::vec3 vNormal, glm::vec3 vColor) 
+		:Position(vPosition), Normal(vNormal)
+		, TexCoords(glm::vec2(0, 0)), Color(vColor) {}
 };
 
 struct Texture {
@@ -318,12 +322,9 @@ public:
 	unsigned int VAO;
 	unsigned int VBO, EBO;
 
-	unsigned int NormalVAO;
-	unsigned int NormalVBO;
 	glm::mat4 model;
 	static GLuint boundIndex[36];
 	vector<Vertex> NormalPoint;
-	bool isRenderNormal;
 
 	virtual void Draw(CShader * shader) = 0;
 
@@ -341,10 +342,13 @@ public:
 	virtual void setupMeshWithIndex() {}
 	virtual void setupMesh() {}
 
-	virtual void changeColor(glm::vec3 aColor, unsigned aIndex) = 0;
-	virtual void changeVertex(glm::vec3 vVertexPosition, unsigned aIndex) = 0;
+	virtual void changeVertex(Vertex vVertex, unsigned aIndex){}
 
+	virtual void changePos(glm::vec3 vNewPos, unsigned aIndex){}
 
+	virtual void changeColor(glm::vec3 vNewColor, unsigned aIndex){}
+
+	virtual void changeNormal(glm::vec3 vNewNormal, unsigned aIndex){}
 };
 
 #endif

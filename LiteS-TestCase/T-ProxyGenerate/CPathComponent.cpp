@@ -1,6 +1,7 @@
 #include "CPathComponent.h"
 #include "CPointCloudMesh.h"
 #include "CBVHACCEL.h"
+#include <CEngine.h>
 
 #include "util.h"
 #include <set>
@@ -13,17 +14,21 @@
 #include <mve/mesh_io_ply.h>
 
 const float insert_sample_density = 2;
+const float samples_num = 0.3;
 
-CPathComponent::CPathComponent(CScene * vScene) :CPointCloudComponent(vScene){ 
-	DisplayPass = this->m_Scene->m_Pass.at("display");
+vector<Vertex> cameraVertexVector;
+CMesh* proxyPoint;
+
+CPathComponent::CPathComponent(const map<string, CPass*>& vPass, CScene * vScene) 
+	:CPointCloudComponent(vPass, vScene){
+	DisplayPass = this->m_Pass.at("display");
 }
 
 CPathComponent::~CPathComponent() = default;
 
 void CPathComponent::sample_mesh(string vPath) {
-	CMesh* mesh = DisplayPass->m_Models[0]->meshes[0];
-
-	int samples_num = 4;
+	cout << "Start Sample" << endl;
+	CMesh* mesh = this->m_Scene->m_Models["ny_proxy"]->meshes[0];
 
 	vector<Vertex> &in_vertexs = mesh->vertices;
 	vector<unsigned int> &in_indices = mesh->indices;
@@ -39,10 +44,8 @@ void CPathComponent::sample_mesh(string vPath) {
 	}
 
 	std::vector<Vertex> out_samples;
-	out_samples.reserve(static_cast<size_t>(samples_num*total_surface_area));
-	//
+	//out_samples.reserve(static_cast<size_t>(samples_num*total_surface_area));
 	// Random sample point in each face of the mesh
-	//
 	std::uniform_real_distribution<float> dist(0.0f, 1.0f);
 	for (size_t i = 0; i < in_indices.size(); i += 3)
 	{
@@ -51,12 +54,16 @@ void CPathComponent::sample_mesh(string vPath) {
 		glm::vec3 vertex2 = in_vertexs[in_indices[i + 2]].Position;
 
 		float item_surface_area = triangleArea(vertex0, vertex1, vertex2);
-		size_t local_sample_num = static_cast<size_t>(item_surface_area * samples_num);
+		float face_sample = item_surface_area * samples_num;
+		size_t local_sample_num = static_cast<size_t>(face_sample);
 
 		std::mt19937 gen;
 		gen.seed(static_cast<unsigned int>(i));
 
-		glm::vec3 face_normal = glm::normalize(glm::cross(vertex2-vertex1, vertex2 - vertex0));
+		if (dist(gen) < (face_sample - local_sample_num))
+			local_sample_num += 1;
+
+		glm::vec3 face_normal = glm::normalize(glm::cross(vertex2 - vertex0,vertex2-vertex1));
 
 		for (size_t j=0;j< local_sample_num;++j)
 		{
@@ -78,6 +85,7 @@ void CPathComponent::sample_mesh(string vPath) {
 
 	CMesh* outMesh = new CPointCloudMesh(out_samples);
 	saveMesh(outMesh, vPath);
+	cout << "End Sample" << endl;
 }
 
 template<int N>
@@ -108,6 +116,61 @@ void averageFilter(My8BitRGBImage* img, float vBound) {
 			}
 			img->data[y*img->ncols + x] = sum / N / N;
 		}
+	}
+}
+
+
+void CPathComponent::generate_nadir() {
+	proxyPoint = this->m_Scene->m_Models.at("ny_proxy")->meshes[0];
+
+	glm::vec3 mesh_dim = proxyPoint->bounds.pMax - proxyPoint->bounds.pMin;
+	float max_height = proxyPoint->bounds.pMax[2] + 40;
+
+	float step = 3;
+
+	glm::vec3 cameraPos = proxyPoint->bounds.pMin;
+	cameraPos.z = max_height;
+	while (cameraPos.x <= proxyPoint->bounds.pMax.x)
+	{
+		while (cameraPos.y <= proxyPoint->bounds.pMax.y)
+		{
+			Vertex v;
+			v.Position = cameraPos;
+			v.Normal = glm::vec3(0,0,-1.0f);
+			cameraVertexVector.push_back(v);
+			cameraPos.y += step;
+		}
+		cameraPos.x += step;
+		cameraPos.y = proxyPoint->bounds.pMin.y;
+	}
+
+	CMesh* cameraMesh = new CPointCloudMesh(cameraVertexVector, glm::vec3(1.0f, 0.0f, 0.0f), 30);
+	CModel* cameraModel = new CModel;
+	cameraModel->isRender = true;
+	cameraModel->meshes.push_back(cameraMesh);
+	cameraModel->isRenderNormal = true;
+	//Lock the target arrays
+	std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
+	CEngine::toAddModels.push_back(std::make_pair("camera", cameraModel));
+
+	int photoID = 0;
+	ofstream fileFp("C:/Users/vcc/Desktop/NY-1/my_ny1_nadir.log", ios::out);
+	char c[8];
+	sprintf(c, "%05d", photoID);
+	string photoName = string(c);
+	for (size_t iCameraIndex = 0; iCameraIndex < cameraVertexVector.size(); iCameraIndex++) {
+		fileFp << photoName <<","<< -cameraVertexVector[iCameraIndex].Position.x * 100
+			<< "," << cameraVertexVector[iCameraIndex].Position.y * 100
+			<< "," << cameraVertexVector[iCameraIndex].Position.z * 100
+			<< "," << 90
+			<< "," << 0
+			<< "," << 0
+			<< endl;
+
+		photoID += 1;
+		char s[8];
+		sprintf(s, "%05d", photoID);
+		photoName = string(s);
 	}
 }
 
@@ -219,7 +282,7 @@ void CPathComponent::fixDiscontinuecy(string vPath){
 	}
 
 	//
-	// Detect the height discontinuecy, generate new points
+	// Detect the height discontinuance, generate new points
 	//
 	std::vector<Vertex> proxy_vertexes;
 
@@ -334,12 +397,14 @@ void CPathComponent::reconstructMesh(string vPath){
 }
 
 void CPathComponent::extraAlgorithm() {
-	//sample_mesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/point_after_sampling.ply");
-	fixDiscontinuecy("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_point.ply");
+	//generate_nadir();
+
+	sample_mesh("../../../ny1-test/point_after_sampling.ply");
+	//fixDiscontinuecy("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_point.ply");
 
 	//addSafeSpace("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_airspace.ply");
 
-	reconstructMesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_mesh.ply");
+	//reconstructMesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_mesh.ply");
 
 	return;
 	

@@ -19,7 +19,7 @@ include_directories (${IMGUI_INCLUDE_DIRS})
 
 file(GLOB SOURCE_FILES ./*.cpp)
 file(GLOB HEADER_FILES ./*.h)
-file(GLOB RESOURCES_FILES ./config.xml ../../LiteS-Engine/resources/shaders/* ../../LiteS-Engine/resources/*)
+file(GLOB RESOURCES_FILES ./config.json ../../LiteS-Engine/resources/shaders/* ../../LiteS-Engine/resources/*)
 include_directories (../../LiteS-Engine/resources/)
 include_directories (../../LiteS-Engine/src/)
 

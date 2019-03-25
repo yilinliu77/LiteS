@@ -1,8 +1,9 @@
 #include "CPass.h"
 #include <GL/glew.h>
 
-CPass::CPass() {
+CPass::CPass(bool isNormal) {
 	m_IsTargetTexture = false; 
+	m_IsNormal = isNormal;
 }
 
 CPass::~CPass() {}
@@ -25,7 +26,7 @@ void CPass::beginPass() {
 void CPass::endPass(CScene * vScene) {
 	CShader* Shader = this->getShader();
 	for (std::pair<std::string,CModel*> model: vScene->m_Models)
-		model.second->draw(Shader);
+		model.second->draw(Shader,this->m_IsNormal);
 	
 	glUseProgram(0);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -34,7 +35,7 @@ void CPass::endPass(CScene * vScene) {
 void CPass::endPass(CScene * vScene,vector<glm::mat4>& vModelMatrix) {
 	CShader* Shader = this->getShader();
 	for (std::pair<std::string, CModel*> model : vScene->m_Models)
-		model.second->draw(Shader);
+		model.second->draw(Shader,false);
 
 	glUseProgram(0);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);

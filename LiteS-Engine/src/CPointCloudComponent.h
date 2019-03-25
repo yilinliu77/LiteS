@@ -15,6 +15,10 @@ public:
 	void waitForStepSignal() override;
 	void run() override;
 
+	bool __generateRenderNormalPass();
+
+	bool isRenderNormal;
+
 	std::mutex m_shouldStepMutex;
 	std::condition_variable m_shouldStepCV;
 
@@ -23,6 +27,7 @@ public:
 
 	CPass* DisplayPass;
 
+	CPass* normalRenderPass;
 
 };
 

@@ -11,7 +11,7 @@ unsigned int TextureFromFile(const char *path, const string &directory);
 
 CModel::CModel(string const &path, ModelType v_type,bool isRender) : 
 	gammaCorrection(false), m_modelType(v_type)
-	, isRender(isRender){
+	, isRender(isRender), isRenderNormal(false){
 	
 	//this->meshes.push_back(new CMesh());
 	if (v_type == Window)
@@ -24,12 +24,15 @@ CModel::CModel(string const &path, ModelType v_type,bool isRender) :
 
 CModel::CModel() { 
 	isRender = false;
+	isRenderNormal = false;
 }
 
 /*
  * Draw object
  */
-void CModel::draw(CShader * vShader) {
+void CModel::draw(CShader * vShader, bool vIsNormal) {
+	if ((!this->isRenderNormal)&&vIsNormal)
+		return;
 	if (this->isRender) {
 		size_t Count = this->meshes.size();
 		for (size_t i = 0; i < Count; ++i)

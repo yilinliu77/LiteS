@@ -14,7 +14,7 @@ public:
 
 	CPointCloudMesh(const std::string& vPath);
 
-	void setupNormal();
+	vector<glm::mat4> normalMatrixes;
 
 	void processPointCloudNode(aiNode * node, const aiScene * scene);
 
@@ -23,15 +23,18 @@ public:
 	void Draw(CShader* shader) override;
 	void Draw(CShader* shader, glm::mat4& vModelMatrix) override;
 
-	void changeColor(glm::vec3 aColor, unsigned aIndex) override;
-	void changeVertex(glm::vec3 vVertex, unsigned aIndex) override;
+	void changePos(glm::vec3 vNewPos, unsigned aIndex) override;
+
+	void changeColor(glm::vec3 vNewColor, unsigned aIndex) override;
+
+	void changeNormal(glm::vec3 vNewNormal, unsigned aIndex) override;
+
+	void changeVertex(Vertex vVertex, unsigned aIndex) override;
 
 	std::mutex m_VAOMutex;
-	vector<glm::vec3> pointsColorAdd;
-	vector<unsigned> pointsColorIndexAdd;
 
-	vector<glm::vec3> pointsVertexAdd;
-	vector<unsigned> pointsVertexIndexAdd;
+	vector<Vertex> pointsVertexChange;
+	vector<unsigned> pointsVertexChangeIndex;
 
 	float pointSize = -1;
 

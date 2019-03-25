@@ -2,7 +2,6 @@
 #include "CPointCloudMesh.h"
 #include <CEngine.h>
 #include "CBVHACCEL.h"
-#include <algorithm>
 #include <numeric>
 #include "util.h"
 #include <set>
@@ -13,7 +12,9 @@
 #include <tbb/blocked_range.h>
 #include <tbb/spin_mutex.h>
 #include <tbb/task_scheduler_init.h>
+#include <tbb/concurrent_vector.h>
 #include <iostream>
+#include <algorithm>
 
 #include <glm/gtc/matrix_access.hpp>
 
@@ -22,6 +23,9 @@ const float DMIN = 10;
 const float SIMPLEXINITIALIZESCALE = 3.0f;
 const int heightMapWidth = 32;
 const int heightMapHeight = 32;
+
+const string fileLogPath = "C:/Users/vcc/Documents/repo/RENDERING/LiteS/ny1-test/camera.log";
+const int totalCameraNums = 500;
 
 // Input Mesh
 CMesh* proxyPoint;
@@ -36,7 +40,7 @@ tbb::spin_mutex initRaysMutex;
 std::ofstream fileFp;
 
 //For Reconstruction
-vector<float> reconstructionScore;
+tbb::concurrent_vector<float> reconstructionScore;
 std::vector<std::vector<glm::vec3>> simplexes;
 vector<size_t> cameraInitializeTimes;
 CMesh* cameraAdjustMesh;
@@ -45,7 +49,8 @@ CMesh* cameraAdjustMesh;
 //( (Direction.x, Direction.y, Direction.z, cameraIndex), (Normal.x, Normal.y, Normal.z, distance) )
 vector<vector<std::pair<glm::vec4, glm::vec4>>> obsRays;
 
-CPathGenarateComponent::CPathGenarateComponent(const map<string, CPass*>& vPass, CScene * vScene) :CPointCloudComponent(vPass,vScene){
+CPathGenarateComponent::CPathGenarateComponent(const map<string, CPass*>& vPass, CScene * vScene) 
+	:CPointCloudComponent(vPass,vScene){
 	DisplayPass = this->m_Pass.at("display");
 }
 
@@ -73,9 +78,10 @@ void CPathGenarateComponent::generate_nadir() {
 	proxyPoint = this->m_Scene->m_Models.at("proxy_point")->meshes[0];
 
 	glm::vec3 mesh_dim = proxyPoint->bounds.pMax - proxyPoint->bounds.pMin;
-	float max_height = proxyPoint->bounds.pMax[2] + 20;
+	float max_height = proxyPoint->bounds.pMax[2] + 5;
 
-	float step = 15;
+	float stepx = mesh_dim[0] / std::sqrt(totalCameraNums);
+	float stepy = mesh_dim[1] / std::sqrt(totalCameraNums);
 
 	glm::vec3 cameraPos = proxyPoint->bounds.pMin;
 	cameraPos.z = max_height;
@@ -85,47 +91,54 @@ void CPathGenarateComponent::generate_nadir() {
 		{
 			Vertex v;
 			v.Position = cameraPos;
-			v.Normal = glm::normalize(-cameraPos);
+			v.Normal = glm::normalize(glm::vec3(0,0,-1));
 			cameraVertexVector.push_back(v);
-			cameraPos.y += step;
+			cameraPos.y += stepy;
 		}
-		cameraPos.x += step;
+		cameraPos.x += stepx;
 		cameraPos.y = proxyPoint->bounds.pMin.y;
 
 	}
 
-	cameraMesh = new CPointCloudMesh(cameraVertexVector,glm::vec3(1.0f,0.0f,0.0f),30);
-	cameraAdjustMesh = new CPointCloudMesh(cameraVertexVector, glm::vec3(0.0f, 1.0f, 0.0f), 30);
+	cameraMesh = new CPointCloudMesh(cameraVertexVector,glm::vec3(1.0f,0.0f,0.0f),10);
+	cameraAdjustMesh = new CPointCloudMesh(cameraVertexVector, glm::vec3(0.0f, 1.0f, 0.0f), 20);
 	vector<Vertex> cameraCandidate;
 	cameraCandidate.resize(cameraVertexVector.size() * 4);
 	cameraCandidateMesh = new CPointCloudMesh(cameraCandidate, glm::vec3(0.0f, 0.0f, 1.0f), 10);
 	CModel* cameraModel = new CModel;
 	cameraModel->isRender = true;
-	cameraModel->meshes.push_back(cameraMesh);
+	//cameraModel->meshes.push_back(cameraMesh);
 	cameraModel->meshes.push_back(cameraAdjustMesh);
 	cameraModel->meshes.push_back(cameraCandidateMesh);
+	cameraModel->isRenderNormal = true;
 	//Lock the target arrays
 	std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
 	CEngine::toAddModels.push_back(std::make_pair("camera", cameraModel));
+}
+
+float isValidPosition(glm::vec3 vCameraPos) {
+	// Return 0 if to close to mesh or ground, -1 if vailed, >0 if the building is higher than the position and return the height
+	if (vCameraPos.z < DMIN || bvhTree->KNearest(vCameraPos).first < DMIN)
+		return 0;
+
+	// In airspace
+	int y = (vCameraPos[1] - proxyPoint->bounds.pMin[1]) / (proxyPoint->bounds.pMax[1] - proxyPoint->bounds.pMin[1]) * heightMapHeight;
+	int x = (vCameraPos[0] - proxyPoint->bounds.pMin[0]) / (proxyPoint->bounds.pMax[0] - proxyPoint->bounds.pMin[0]) * heightMapWidth;
+	x = (x >= heightMapWidth ? heightMapWidth - 1 : x);
+	y = (y >= heightMapHeight ? heightMapWidth - 1 : y);
+	if (vCameraPos[2] < airspace.data[heightMapWidth*y + x])
+	{
+		return airspace.data[heightMapWidth*y + x];
+	}
+	return -1;
 }
 
 //Camera Pos, Camera Direction, Camera Index
 std::function<float(glm::vec3, glm::vec3, size_t)> func =
 [&](glm::vec3 const & vCameraPos, glm::vec3 vCameraDirection, size_t vCameraIndex) -> float
 {
-	// Return -1 if to close to mesh or ground
-	if (vCameraPos.z < DMIN || bvhTree->KNearest(vCameraPos).first < DMIN)
+	if (isValidPosition(vCameraPos)>=0)
 		return -1;
-
-	// In airspace
-	int y = (vCameraPos[1] - proxyPoint->bounds.pMin[1]) / (proxyPoint->bounds.pMax[1] -proxyPoint->bounds.pMin[1]) * heightMapHeight;
-	int x = (vCameraPos[0] - proxyPoint->bounds.pMin[0]) / (proxyPoint->bounds.pMax[0] - proxyPoint->bounds.pMin[0]) * heightMapWidth;
-	x = (x >= heightMapWidth ? heightMapWidth - 1 : x);
-	y = (y >= heightMapHeight ? heightMapWidth - 1 : y);
-	if (vCameraPos[2] < airspace.data[heightMapWidth*y + x])
-	{
-		return -1;
-	}
 
 	float totalScore = 0;
 	for (size_t pointIndex = 0; pointIndex < proxyPoint->vertices.size(); pointIndex++)
@@ -137,7 +150,7 @@ std::function<float(glm::vec3, glm::vec3, size_t)> func =
 		visible = strongVisible(vCameraPos, vCameraDirection, samplePosition,bvhTree,DMAX);
 		if (!visible) continue;
 
-		glm::vec3 sampleNormal = proxyPoint->vertices[pointIndex].Normal;
+		glm::vec3 sampleNormal = glm::normalize(proxyPoint->vertices[pointIndex].Normal);
 		glm::vec3 sample2TargetCamera = vCameraPos - samplePosition;
 
 		float score = 0;
@@ -160,7 +173,7 @@ std::function<float(glm::vec3, glm::vec3, size_t)> func =
 			if (maxDistance > DMAX)
 				continue;
 
-			float viewAngleCos = glm::dot(glm::normalize(sample2Camera1), glm::normalize(sample2TargetCamera));
+			float viewAngleCos = min(glm::dot(glm::normalize(sample2Camera1), glm::normalize(sample2TargetCamera)),0.9999f);
 			float viewAngle = std::acos(viewAngleCos);
 
 			// w1 = 1 / ( 1 + exp( -k1 * ( alpha - alpha1 ) ) )
@@ -173,19 +186,30 @@ std::function<float(glm::vec3, glm::vec3, size_t)> func =
 			float w3 = 1 - 1 / (1 + std::exp(-8 * (viewAngle - glm::pi<float>() / 4)));
 
 			glm::vec3 viewPlaneNormal = glm::normalize(glm::cross(sample2Camera1, sample2TargetCamera));
-			float sinTheta = glm::dot(viewPlaneNormal, sampleNormal);
+			float sinTheta =std::clamp(glm::dot(viewPlaneNormal, sampleNormal),-1.0f,1.0f);
 
 			score += w1 * w2 * w3 * std::sqrt(1 - sinTheta * sinTheta);
-
+			assert(score >= 0);
 		}
 
-		//reconstructionScore[pointIndex] = score;
-
-		// 1 prevent divide by 0
+		reconstructionScore[pointIndex] += score;
 		// Last element encourage seen the less seen point
-		float pointSeen = ((obsRays[pointIndex].size()) > 0 ? (obsRays[pointIndex].size()) : 1);
-		totalScore += (score / pointSeen) * (1 / pointSeen);
+		float punish = 1 / max(reconstructionScore[pointIndex], 0.1f);
+
+		
+		// 1 prevent divide by 0
+		totalScore += (score / max(float(obsRays[pointIndex].size()), 1.0f));
+		//totalScore += score;
+
+		if (obsRays[pointIndex].size() < 10)
+		{
+			reconstructionScore[pointIndex] += 1.0f ;
+			totalScore += 100.0f ;
+		}
+
+		assert(totalScore >= 0);
 	}
+
 	return totalScore;
 };
 
@@ -206,7 +230,7 @@ void initRays(int vi) {
 			, -cameraVertexVector[j].Position, samplePos, bvhTree, DMAX))
 		{
 			localObsRays.push_back(std::make_pair(glm::vec4(direction,j)
-				, glm::vec4(-glm::normalize(cameraVertexVector[j].Position),1)));
+				, glm::vec4(glm::normalize(glm::vec3(0,0,-1)),1)));
 		}
 
 	}
@@ -220,7 +244,7 @@ void CPathGenarateComponent::updateRays(int vCameraIndex, glm::vec3 vNewPosition
 		bool visible = false;
 		glm::vec3 direction = proxyPoint->vertices[i].Position - vNewPosition;
 		
-		visible = strongVisible(vNewPosition, -vNewPosition
+		visible = strongVisible(vNewPosition, cameraVertexVector[vCameraIndex].Normal
 			, proxyPoint->vertices[i].Position, bvhTree, DMAX);
 
 		initRaysMutex.lock();
@@ -249,9 +273,10 @@ glm::vec3 CPathGenarateComponent::optimizeOrientation(glm::vec3 vCameraPosition,
 	{
 		float directionZ =sin(glm::radians(iPitch));
 		float horizenElement = cos(glm::radians(iPitch));
-		for (float iYaw = 0; iYaw < 360; iYaw+=40)
+		for (float iYaw = 0; iYaw < 360; iYaw+=39)
 		{
-			glm::vec3 direction(horizenElement*cos(iYaw), horizenElement*sin(iYaw), -directionZ);
+			glm::vec3 direction(horizenElement*cos(glm::radians(iYaw))
+				, horizenElement*sin(glm::radians(iYaw)), -directionZ);
 			if (glm::length(direction) - 1.0f > 1e-5)
 				throw "lalala";
 			float score = func(vCameraPosition, direction, vCameraIndex);
@@ -270,13 +295,13 @@ std::pair<glm::vec3, float> CPathGenarateComponent::downhillSimplex(std::vector<
 	, std::function<float(glm::vec3, glm::vec3, size_t)> const & func) {
 	// Evaluate the 4 candidate
 	float myValues[4];
-	glm::vec3 cameraDirections[4];
+	//glm::vec3 cameraDirection[4];
+	glm::vec3 cameraDirection = optimizeOrientation(solution->at(0), vCameraIndex);
 	for (size_t i = 0; i < solution->size(); i++)
 	{
-		cameraDirections[i] = -solution->at(i);
-		//cameraDirections[i] = optimizeOrientation(solution->at(i), vCameraIndex);
+		//cameraDirection[i] = optimizeOrientation(solution->at(i), vCameraIndex);
 		//myValues[i] = func(solution->at(i), cameraDirections[i], vCameraIndex);
-		myValues[i] = func(solution->at(i), cameraDirections[i], vCameraIndex);
+		myValues[i] = func(solution->at(i), cameraDirection, vCameraIndex);
 	}
 
 
@@ -294,7 +319,7 @@ std::pair<glm::vec3, float> CPathGenarateComponent::downhillSimplex(std::vector<
 	}
 
 	//update the camera orientation
-	cameraVertexVector[vCameraIndex].Normal = cameraDirections[best_idx];
+	cameraVertexVector[vCameraIndex].Normal = cameraDirection;
 
 	float best_value = myValues[best_idx];
 	float lousy_value = myValues[lousy_idx];
@@ -312,12 +337,12 @@ std::pair<glm::vec3, float> CPathGenarateComponent::downhillSimplex(std::vector<
 	glm::vec3 refl = medianPosition + (medianPosition - solution->at(worst_idx));
 
 	//float refl_value = func(refl, optimizeOrientation(refl, vCameraIndex), vCameraIndex);
-	float refl_value = func(refl, -refl, vCameraIndex);
+	float refl_value = func(refl, cameraDirection, vCameraIndex);
 
 	if (refl_value > best_value) {
 		glm::vec3 exp = refl + (refl - medianPosition);
 		//float exp_value = func(exp, optimizeOrientation(exp, vCameraIndex), vCameraIndex);
-		float exp_value = func(exp, -exp, vCameraIndex);
+		float exp_value = func(exp, cameraDirection, vCameraIndex);
 
 		if (exp_value > best_value) {
 			/* Expansion */
@@ -341,7 +366,7 @@ std::pair<glm::vec3, float> CPathGenarateComponent::downhillSimplex(std::vector<
 				/* Outside contraction */
 				glm::vec3 con = medianPosition + (medianPosition - solution->at(worst_idx)) * 0.5f;
 				//float con_value = func(con, optimizeOrientation(con,vCameraIndex), vCameraIndex);
-				float con_value = func(con, -con, vCameraIndex);
+				float con_value = func(con, cameraDirection, vCameraIndex);
 
 				if (con_value > worst_value) {
 					solution->at(worst_idx) = con;
@@ -362,7 +387,7 @@ std::pair<glm::vec3, float> CPathGenarateComponent::downhillSimplex(std::vector<
 		else {
 			/* Inside contraction */
 			glm::vec3 con = medianPosition - (medianPosition - solution->at(worst_idx)) * 0.5f;
-			float con_value = func(con, -con, vCameraIndex);
+			float con_value = func(con, cameraDirection, vCameraIndex);
 
 			if (con_value > worst_value) {
 				solution->at(worst_idx) = con;
@@ -385,35 +410,90 @@ std::pair<glm::vec3, float> CPathGenarateComponent::downhillSimplex(std::vector<
 void CPathGenarateComponent::optimize(size_t vCameraIndex,int vIter) {
 	size_t iCameraIndex = vCameraIndex;
 	
+	std::vector<int> ranks(obsRays.size());
+	std::iota(ranks.begin(), ranks.end(), 0);
+	std::sort(ranks.begin(), ranks.end(),
+		[&](std::size_t a, std::size_t b) {
+		return obsRays[a].size() < obsRays[b].size();
+	}
+	);
+	std::uniform_int_distribution<> dist(0, ranks[ranks.size()/2]);
+	std::random_device rd;
+	std::mt19937 gen(rd());
+
 	// Optimize, if downhill failed(return 0), increase scale and reinitialize
 	std::pair<glm::vec3, float> optimizeResult = downhillSimplex(&(simplexes[iCameraIndex]), iCameraIndex, func);
-	if (optimizeResult.second <= 0) {
-		cameraInitializeTimes[iCameraIndex] += 1;
+	if (optimizeResult.second <= 0 || optimizeResult.first == simplexes[iCameraIndex][0]) {
+		//Adjust the scale of the initialization and initialize
+		if(cameraInitializeTimes[iCameraIndex]<5)
+			cameraInitializeTimes[iCameraIndex] += 1;
+		else {
+			cameraInitializeTimes[iCameraIndex] = 1;
+			
+			size_t magicIndex = ranks[dist(gen)];
+
+			glm::vec3 newPosition = proxyPoint->vertices[magicIndex].Position
+				+ (DMIN + 1)*glm::normalize(proxyPoint->vertices[magicIndex].Normal);
+
+			int y = (newPosition[1] - proxyPoint->bounds.pMin[1]) / (proxyPoint->bounds.pMax[1] - proxyPoint->bounds.pMin[1]) * heightMapHeight;
+			int x = (newPosition[0] - proxyPoint->bounds.pMin[0]) / (proxyPoint->bounds.pMax[0] - proxyPoint->bounds.pMin[0]) * heightMapWidth;
+			x = (x >= heightMapWidth ? heightMapWidth - 1 : x);
+			y = (y >= heightMapHeight ? heightMapWidth - 1 : y);
+			if (newPosition[2] < airspace.data[heightMapWidth*y + x] 
+				|| newPosition[2]<DMIN) {
+				newPosition[2] += airspace.data[heightMapWidth*y + x]+DMIN;
+			}
+
+
+			cameraVertexVector[iCameraIndex].Position = newPosition;
+			cameraVertexVector[iCameraIndex].Normal = glm::normalize(-newPosition);
+			cameraAdjustMesh->changeVertex(Vertex(cameraVertexVector[iCameraIndex].Position
+				, cameraVertexVector[iCameraIndex].Normal
+				, glm::vec3(0.0f, 1.0f, 0.0f)), iCameraIndex);
+		}
 		initializeSimplexes(SIMPLEXINITIALIZESCALE * cameraInitializeTimes[iCameraIndex]
 			, cameraVertexVector[iCameraIndex].Position
 			, simplexes[iCameraIndex], iCameraIndex);
+		//Visualize the candidate
 		for (int m = 0; m < simplexes[iCameraIndex].size(); ++m)
-		{
-			cameraCandidateMesh->changeVertex(simplexes[iCameraIndex][m], 4 * iCameraIndex + m);
-		}
+			cameraCandidateMesh->changePos(simplexes[iCameraIndex][m], 4 * iCameraIndex + m);
 		//Turn the original mesh orange
 		cameraMesh->changeColor(glm::vec3(1.0f, 0.75f, 0.3f), iCameraIndex);
 	}
 	else {
 		cameraInitializeTimes[iCameraIndex] = 1;
 		cameraVertexVector[iCameraIndex].Position = optimizeResult.first;
-		cameraAdjustMesh->changeVertex(optimizeResult.first, iCameraIndex);
+		cameraVertexVector[iCameraIndex].Normal 
+			= optimizeOrientation(cameraVertexVector[iCameraIndex].Position, iCameraIndex);
+
 		for (int m = 0; m < simplexes[iCameraIndex].size(); ++m)
-		{
-			cameraCandidateMesh->changeVertex(glm::vec3(0), 4 * iCameraIndex + m);
-		}
+			cameraCandidateMesh->changePos(glm::vec3(0), 4 * iCameraIndex + m);
 		//Turn the original mesh red
 		cameraMesh->changeColor(glm::vec3(1.0f, 0.0f, 0.0f), iCameraIndex);
+
+		//cameraAdjustMesh->changePos(optimizeResult.first, iCameraIndex);
+		//cameraAdjustMesh->changeNormal(cameraVertexVector[iCameraIndex].Normal, iCameraIndex);
+		cameraAdjustMesh->changeVertex(Vertex(optimizeResult.first
+			, cameraVertexVector[iCameraIndex].Normal
+			, glm::vec3(0.0f, 1.0f, 0.0f)), iCameraIndex);
 	}
 	updateRays(iCameraIndex, optimizeResult.first);
-
-	cout << "No." << vIter << " iter:" << optimizeResult.second << endl;
+	//if (0 == iCameraIndex)
+	//	visualizeCamera(iCameraIndex);
+	//cout << "No." << vIter << " iter:" << optimizeResult.second << endl;
 }
+
+void CPathGenarateComponent::visulizeScoreResult() {
+	cout << "start visualize score" << endl;
+	float maxScore = *std::max_element(reconstructionScore.begin(), reconstructionScore.end());
+	float minScore = *std::min_element(reconstructionScore.begin(), reconstructionScore.end());
+	for (size_t i = 0; i < obsRays.size(); i++)
+	{
+		proxyPoint->changeColor(glm::vec3((reconstructionScore[i] - minScore) / (maxScore - minScore)), i);
+	}
+	cout << "done visualize score" << endl;
+}
+
 
 void CPathGenarateComponent::optimize_nadir() {
 	obsRays.resize(proxyPoint->vertices.size());
@@ -447,6 +527,38 @@ void CPathGenarateComponent::optimize_nadir() {
 		if (airspace.data[y*heightMapWidth + x] < proxyPoint->vertices[i].Position.z)
 			airspace.data[y*heightMapWidth + x] = proxyPoint->vertices[i].Position.z;
 	}
+	bool hole = true;
+	while (hole)
+	{
+		hole = false;
+		for (size_t y = 0; y < heightMapHeight; y++) {
+			for (size_t x = 0; x < heightMapWidth; x++) {
+				if (airspace.data[y*heightMapWidth + x] == -9999999)
+				{
+					hole = true;
+					if (x > 1) {
+						if (airspace.data[y*heightMapWidth + x - 1] != -9999999)
+							airspace.data[y*heightMapWidth + x] = airspace.data[y*heightMapWidth + x - 1];
+						else if (y > 1)
+							airspace.data[y*heightMapWidth + x] = airspace.data[(y - 1)*heightMapWidth + x];
+						else
+							airspace.data[y*heightMapWidth + x] = airspace.data[(y + 1)*heightMapWidth + x];
+
+					}
+					else {
+						if (airspace.data[y*heightMapWidth + x + 1] != -9999999)
+							airspace.data[y*heightMapWidth + x] = airspace.data[y*heightMapWidth + x + 1];
+						else if (y > 1)
+							airspace.data[y*heightMapWidth + x] = airspace.data[(y - 1)*heightMapWidth + x];
+						else
+							airspace.data[y*heightMapWidth + x] = airspace.data[(y + 1)*heightMapWidth + x];
+
+					}
+				}
+			}
+		}
+	}
+	
 
 	tbb::task_scheduler_init init();
 	//update the obs rays
@@ -456,6 +568,7 @@ void CPathGenarateComponent::optimize_nadir() {
 		initRays(vi);
 	});
 	// Initialize Simplexes
+	srand(std::time(nullptr));
 	simplexes.resize(cameraVertexVector.size());
 	for (size_t i = 0; i < cameraVertexVector.size(); ++i)
 	{
@@ -464,24 +577,28 @@ void CPathGenarateComponent::optimize_nadir() {
 	cameraInitializeTimes.resize(cameraVertexVector.size(), 1);
 
 	// Start iter
-	for (int iter = 0; iter < 100; ++iter) {
+	std::uniform_int_distribution<> dist(0, cameraVertexVector.size()-1);
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	for (int iter = 0; iter < 100000; ++iter) {
 		vector<size_t> targetCameraIndices;
-
+		srand(std::time(nullptr));
 		// Select independent view to optimize parallel
-		for (int iCameraIndex=0;iCameraIndex<cameraVertexVector.size();++iCameraIndex)
+		for (int iCameraIndex=0;iCameraIndex<cameraVertexVector.size()*2;++iCameraIndex)
 		{
 			bool toClose = true;
+			size_t nowCameraIndex = dist(gen);
 			for (auto& iiTargetCamera:targetCameraIndices)
 			{
 				if (glm::length(cameraVertexVector[iiTargetCamera].Position 
-					- cameraVertexVector[iCameraIndex].Position)<-1)
+					- cameraVertexVector[nowCameraIndex].Position)<5)
 				{
 					toClose=false;
 					break;
 				}
 			}
 			if(toClose)
-				targetCameraIndices.push_back(iCameraIndex);
+				targetCameraIndices.push_back(nowCameraIndex);
 		}
 
 		// Downhill simplex
@@ -490,8 +607,19 @@ void CPathGenarateComponent::optimize_nadir() {
 		{
 			optimize(targetCameraIndices[i],iter);
 		});
+
+		//Get the result
+		visulizeScoreResult();
+		float averageScore = 0;
+		for (auto &p : reconstructionScore)
+		{
+			averageScore += p;
+		}
+		cout << "Average Score in "<<iter<<" : " << averageScore / reconstructionScore.size() << endl << endl;
+		reconstructionScore.resize(proxyPoint->vertices.size(), 0);
+
 		int photoID = 0;
-		fileFp.open("C:/Users/vcc/Documents/repo/RENDERING/LiteS/camera.log", ios::out);
+		fileFp.open(fileLogPath, ios::out);
 		char c[8];
 		sprintf(c, "%05d", photoID);
 		string photoName = string(c) + ".png,";
@@ -509,9 +637,9 @@ void CPathGenarateComponent::optimize_nadir() {
 			sprintf(s, "%05d", photoID);
 			photoName = string(s) + ".png,";
 		}
-		fileFp.flush();
+		//fileFp.flush();
+		fileFp.close();
 	}
-	fileFp.close();
 }
 
 void CPathGenarateComponent::simplexPoint() {
