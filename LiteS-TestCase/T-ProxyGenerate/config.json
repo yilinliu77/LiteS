@@ -1,0 +1,26 @@
+{
+    "CompanionWindowWidth":1600,
+    "CompanionWindowHeight":900,
+    "CameraSpeed":30,
+
+  "Model": [
+    {
+      "Name": "ny_proxy",
+      "Path": "../../../ny1-test/gt_proxy.ply",
+      "Type": "Mesh",
+      "Render": true
+    }
+  ],
+
+  "RenderPass": [
+    {
+      "Name": "display",
+      "VertexShader": "../../../LiteS-Engine/resources/shaders/PointCloudVert.glsl",
+      "FragmentShader": "../../../LiteS-Engine/resources/shaders/PointCloudFrag.glsl"
+    }
+  ],
+
+    "Arguments":{
+        "DMAX":50
+    }
+}

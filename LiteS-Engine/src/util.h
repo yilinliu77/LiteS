@@ -83,7 +83,6 @@ void saveMesh(const CMesh* v_mesh,string v_outName) {
 void initializeSimplexes(float scale,glm::vec3 vPosition
 	, std::vector<glm::vec3>& solution,size_t randomGenerator) {
 	// Initialize the simplexes
-	srand(std::time(nullptr)/(randomGenerator+1));
 	solution.resize(4);
 	solution[0] = vPosition;
 	for (size_t i = 1; i < solution.size(); i++)

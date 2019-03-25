@@ -6,23 +6,25 @@
     "Model":[
         {
             "Name":"proxy_point",
-            "Path":"../resources/proxy_point_simplex.ply",
+            "Path":"../../../ny1-test/point_after_sampling.ply",
             "Type":"PointCloud",
             "Render":true
         },
         {
             "Name":"proxy_mesh",
-            "Path":"../resources/proxy_mesh.ply",
+            "Path":"../../../ny1-test/gt_proxy.ply",
             "Type":"Mesh",
             "Render":false
         }
     ],
 
-    "RenderPass":[{
-        "Name":"display",
-        "VertexShader":"../../../LiteS-Engine/resources/shaders/PointCloudVert.glsl",
-        "FragmentShader":"../../../LiteS-Engine/resources/shaders/PointCloudFrag.glsl"
-    }],
+  "RenderPass": [
+    {
+      "Name": "display",
+      "VertexShader": "../../../LiteS-Engine/resources/shaders/PointCloudVert.glsl",
+      "FragmentShader": "../../../LiteS-Engine/resources/shaders/PointCloudFrag.glsl"
+    }
+  ],
 
     "Arguments":{
         "DMAX":50

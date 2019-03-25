@@ -4,12 +4,12 @@ project (LiteS)
 # Compiler and Linker options
 # Platform independent
 if(${CMAKE_GENERATOR} MATCHES ".*Visual Studio.*|.*Ninja.*")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} /MD /Zi /Od")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} /MD /Zi /Od /std:c++latest")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} /MD")
 
     SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /Profile /LTCG")
 elseif(${CMAKE_GENERATOR} MATCHES ".*Unix.*")
-    SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -O0 -Wall -g -ggdb")
+    SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -O0 -Wall -g -ggdb /std:c++latest")
     SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -Wall")
 else()
     message(FATAL_ERROR "Unsurpported generator")

@@ -2,11 +2,12 @@
 
 out vec4 FragColor;
 
-in vec3 Normal;
-in vec2 TexCoords;
-in vec3 Color;
+in VS_OUT {
+    vec3 Normal;
+    vec3 Color;  
+} gs_in;
 
 void main()
 {
-	FragColor = vec4(Color, 1.0);
+	FragColor = vec4(gs_in.Color, 1.0);
 }

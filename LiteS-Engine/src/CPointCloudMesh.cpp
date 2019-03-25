@@ -1,7 +1,8 @@
 #include "CPointCloudMesh.h"
 
 
-CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints, const vector<unsigned> &vIndices) {
+CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints
+	, const vector<unsigned> &vIndices):CMesh() {
 	this->vertices = vPoints;
 	this->indices = vIndices;
 
@@ -20,7 +21,7 @@ CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints, const vecto
 	bounds.pMax = pmax;
 }
 
-CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints)
+CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints) :CMesh()
 {
 	this->vertices = vPoints;
 
@@ -39,28 +40,8 @@ CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints)
 	bounds.pMax = pmax;
 }
 
-CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints, const glm::vec3 vColor)
-{
-	this->vertices = vPoints;
-	for (auto &v : vertices)
-		v.Color = vColor;
-
-	glm::vec3 pmin(INFINITY, INFINITY, INFINITY);
-	glm::vec3 pmax(-INFINITY, -INFINITY, -INFINITY);
-	for (int i = 0; i < vPoints.size(); ++i) {
-		pmin[0] = std::min(pmin[0], vPoints[i].Position[0]);
-		pmin[1] = std::min(pmin[1], vPoints[i].Position[1]);
-		pmin[2] = std::min(pmin[2], vPoints[i].Position[2]);
-		pmax[0] = std::max(pmax[0], vPoints[i].Position[0]);
-		pmax[1] = std::max(pmax[1], vPoints[i].Position[1]);
-		pmax[2] = std::max(pmax[2], vPoints[i].Position[2]);
-	}
-	bounds = Bounds3f();
-	bounds.pMin = pmin;
-	bounds.pMax = pmax;
-}
-
-CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints, const glm::vec3 vColor,const float vPointSize):pointSize(vPointSize)
+CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints
+	, const glm::vec3 vColor) :CMesh()
 {
 	this->vertices = vPoints;
 	for (auto &v : vertices)
@@ -81,7 +62,29 @@ CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints, const glm::
 	bounds.pMax = pmax;
 }
 
-CPointCloudMesh::CPointCloudMesh(const std::string & vPath)
+CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints
+	, const glm::vec3 vColor,const float vPointSize) :CMesh(),pointSize(vPointSize)
+{
+	this->vertices = vPoints;
+	for (auto &v : vertices)
+		v.Color = vColor;
+
+	glm::vec3 pmin(INFINITY, INFINITY, INFINITY);
+	glm::vec3 pmax(-INFINITY, -INFINITY, -INFINITY);
+	for (int i = 0; i < vPoints.size(); ++i) {
+		pmin[0] = std::min(pmin[0], vPoints[i].Position[0]);
+		pmin[1] = std::min(pmin[1], vPoints[i].Position[1]);
+		pmin[2] = std::min(pmin[2], vPoints[i].Position[2]);
+		pmax[0] = std::max(pmax[0], vPoints[i].Position[0]);
+		pmax[1] = std::max(pmax[1], vPoints[i].Position[1]);
+		pmax[2] = std::max(pmax[2], vPoints[i].Position[2]);
+	}
+	bounds = Bounds3f();
+	bounds.pMin = pmin;
+	bounds.pMax = pmax;
+}
+
+CPointCloudMesh::CPointCloudMesh(const std::string & vPath) :CMesh()
 {
 	Assimp::Importer importer;
 	const aiScene* scene;
@@ -92,51 +95,6 @@ CPointCloudMesh::CPointCloudMesh(const std::string & vPath)
 		throw string("ERROR::ASSIMP:: ") + importer.GetErrorString();
 
 	processPointCloudNode(scene->mRootNode, scene);
-}
-
-void CPointCloudMesh::setupNormal()
-{
-
-	
-	for (float i = 0; i < 3.0f; i += 0.01f) {
-		Vertex v;
-		v.Position = glm::vec3(i, 0, 0);
-		NormalPoint.push_back(v);
-	}
-	for (float i = 2.0f; i < 3.0f; i += 0.01f) {
-		for (float j = -3.0f / i; j < 3.0f / i; j += 0.01f) {
-			Vertex v;
-			v.Position = glm::vec3(i, j, 0);
-			NormalPoint.push_back(v);
-		}
-	}
-	// create buffers/arrays
-	glGenVertexArrays(1, &NormalVAO);
-	glGenBuffers(1, &NormalVBO);
-
-	glBindVertexArray(NormalVAO);
-	// load data into vertex buffers
-	glBindBuffer(GL_ARRAY_BUFFER, NormalVBO);
-
-	glBufferData(GL_ARRAY_BUFFER, NormalPoint.size() * sizeof(Vertex), nullptr, GL_STATIC_DRAW);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, NormalPoint.size() * sizeof(Vertex), &NormalPoint[0]);
-
-	// set the vertex attribute pointers
-	// vertex Positions
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Position));
-	// vertex normals
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Normal));
-	// vertex texcoords
-	glEnableVertexAttribArray(2);
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, TexCoords));
-	// vertex color
-	glEnableVertexAttribArray(3);
-	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex)
-		, (void*)offsetof(Vertex, Color));
-
-	glBindVertexArray(0);
 }
 
 void CPointCloudMesh::processPointCloudNode(aiNode *node, const aiScene *scene) {
@@ -170,7 +128,7 @@ void CPointCloudMesh::processPointCloudNode(aiNode *node, const aiScene *scene) 
 
 		vertices.push_back(vertex);
 	}
-	// now wak through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.
+	// now wake through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.
 	for (unsigned int i = 0; i < aiMesh->mNumFaces; i++) {
 		aiFace face = aiMesh->mFaces[i];
 		// retrieve all indices of the face and store them in the indices vector
@@ -268,55 +226,55 @@ void CPointCloudMesh::Draw(CShader* shader) {
 	// draw point cloud
 	glBindVertexArray(VAO);
 
-	if(!pointsColorIndexAdd.empty()) {
-		for (int i = 0; i < pointsColorAdd.size();++i) {
+	if (!pointsVertexChangeIndex.empty()) {
+		for (int i = 0; i < pointsVertexChange.size(); ++i) {
 			glBindBuffer(GL_ARRAY_BUFFER, VBO);
-			glBufferSubData(GL_ARRAY_BUFFER,  sizeof(Vertex) *pointsColorIndexAdd[i] + offsetof(Vertex,Color)
-				, sizeof(glm::vec3), &pointsColorAdd[i]);
+			glBufferSubData(GL_ARRAY_BUFFER, sizeof(Vertex) *pointsVertexChangeIndex[i]
+				, sizeof(Vertex), &pointsVertexChange[i]);
 		}
-		pointsColorAdd.clear();
-		pointsColorIndexAdd.clear();
-	}
-	if (!pointsVertexIndexAdd.empty()) {
-		for (int i = 0; i < pointsVertexAdd.size(); ++i) {
-			glBindBuffer(GL_ARRAY_BUFFER, VBO);
-			glBufferSubData(GL_ARRAY_BUFFER, sizeof(Vertex) *pointsVertexIndexAdd[i] + offsetof(Vertex, Position)
-				, sizeof(glm::vec3), &pointsVertexAdd[i]);
-		}
-		pointsVertexAdd.clear();
-		pointsVertexIndexAdd.clear();
+		pointsVertexChange.clear();
+		pointsVertexChangeIndex.clear();
 	}
 	float nowPointSize;
 	glGetFloatv(GL_POINT_SIZE, &nowPointSize);
-	if(this->pointSize!=-1)
+	if (this->pointSize != -1)
 		glPointSize(this->pointSize);
-	glDrawArrays(GL_POINTS,0, static_cast<GLsizei>(vertices.size()));
+	shader->setBool("renderNormal", false);
+	glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(vertices.size()));
 	glBindVertexArray(0);
-
-	if (this->isRenderNormal) {
-		glBindVertexArray(NormalVAO);
-		glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(this->NormalPoint.size()));
-		glPointSize(nowPointSize);
-		glBindVertexArray(0);
-	}
 
 	glPointSize(nowPointSize);
 }
 
 void CPointCloudMesh::Draw(CShader* shader, glm::mat4& vModelMatrix) {}
 
-void CPointCloudMesh::changeColor(glm::vec3 aColor, unsigned aIndex) {
-	this->vertices[aIndex].Color = aColor;
-	std::lock_guard<std::mutex> lock(m_VAOMutex);
-
-	pointsColorAdd.push_back(aColor);
-	pointsColorIndexAdd.push_back(aIndex);
+void CPointCloudMesh::changePos(glm::vec3 vNewPos, unsigned aIndex){
+	Vertex t;
+	t.Position = vNewPos;
+	t.Normal = this->vertices[aIndex].Normal;
+	t.Color= this->vertices[aIndex].Color;
+	this->changeVertex(t, aIndex);
 }
 
-void CPointCloudMesh::changeVertex(glm::vec3 vVertexPosition, unsigned aIndex) {
-	this->vertices[aIndex].Position = vVertexPosition;
+void CPointCloudMesh::changeColor(glm::vec3 vNewColor, unsigned aIndex) {
+	Vertex t;
+	t.Position = this->vertices[aIndex].Position;
+	t.Normal = this->vertices[aIndex].Normal;
+	t.Color = vNewColor;
+	this->changeVertex(t, aIndex);
+}
+
+void CPointCloudMesh::changeNormal(glm::vec3 vNewNormal, unsigned aIndex) {
+	Vertex t;
+	t.Position = this->vertices[aIndex].Position;
+	t.Normal = vNewNormal;
+	t.Color = this->vertices[aIndex].Color;
+	this->changeVertex(t, aIndex);
+}
+
+void CPointCloudMesh::changeVertex(Vertex vVertexPosition, unsigned aIndex) {
 	std::lock_guard<std::mutex> lock(m_VAOMutex);
 
-	pointsVertexAdd.push_back(vVertexPosition);
-	pointsVertexIndexAdd.push_back(aIndex);
+	pointsVertexChange.push_back(vVertexPosition);
+	pointsVertexChangeIndex.push_back(aIndex);
 }

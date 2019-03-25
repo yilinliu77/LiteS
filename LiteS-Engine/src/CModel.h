@@ -12,6 +12,7 @@ public:
 	string directory;
 	bool gammaCorrection;
 	bool isRender;
+	bool isRenderNormal;
 
 	/*  Functions   */
 	// constructor, expects a filepath to a 3D model.
@@ -24,7 +25,7 @@ public:
 	void loadPointCloud(string const &path);
 	void processPointCloudNode(aiNode* node, const aiScene* scene);
 
-	void draw(CShader* vShader);
+	void draw(CShader* vShader,bool vIsNormal);
 
 	void draw(CShader* vShader, glm::mat4& vModelMatrix);
 

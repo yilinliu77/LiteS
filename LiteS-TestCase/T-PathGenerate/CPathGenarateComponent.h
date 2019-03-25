@@ -12,6 +12,7 @@ public:
 	glm::vec3 optimizeOrientation(glm::vec3 vCameraPosition, int vCameraIndex);
 	std::pair<glm::vec3, float> downhillSimplex(std::vector<glm::vec3>* solution, size_t vCameraIndex, std::function<float(glm::vec3, glm::vec3, size_t)> const & func);
 	void optimize(size_t vCameraIndex, int vIter);
+	void visulizeScoreResult();
 	void optimize_nadir();
 	void simplexPoint();
 	void extraAlgorithm() override;

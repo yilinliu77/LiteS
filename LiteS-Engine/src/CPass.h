@@ -11,12 +11,12 @@ using namespace std;
 
 class CPass {
 public:
-	CPass();
+	CPass(bool isNormal);
 	~CPass();
 
 	CShader* getShader() { return m_Shader; }
-	bool setShader(const char* vVertFile, const char* vFragFile) {
-		m_Shader = new CShader(vVertFile, vFragFile);
+	bool setShader(const char* vVertFile, const char* vFragFile, const char* vGeomFile=NULL) {
+		m_Shader = new CShader(vVertFile, vFragFile, vGeomFile);
 		if (!m_Shader->checkShaderErrors())
 			return false;
 		return true;
@@ -29,6 +29,7 @@ public:
 
 	GLuint m_FrameBuffer;
 	bool m_IsTargetTexture;
+	bool m_IsNormal;
 	
 	unsigned int m_Width;
 	unsigned int m_Height;

@@ -27,6 +27,7 @@ public:
 
 	static CScene* m_Scene;
 
+
 	static map<string, CPass*> m_Pass;
 
 	//Post Process

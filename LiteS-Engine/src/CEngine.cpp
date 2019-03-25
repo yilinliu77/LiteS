@@ -393,7 +393,7 @@ bool CEngine::__readProperties(string configFile) {
 		for (rapidjson::SizeType i = 0; i < renderPasses.Size(); i++)
 		{
 			CPass* pass;
-			pass = new CPass();
+			pass = new CPass(false);
 			string passName = renderPasses[i]["Name"].GetString();
 			int width = CEngine::m_Scene->m_WindowWidth;
 			int height = CEngine::m_Scene->m_WindowHeight;
@@ -408,10 +408,20 @@ bool CEngine::__readProperties(string configFile) {
 			//Shader
 			const char* VertFile = renderPasses[i]["VertexShader"].GetString();
 			const char* FragFile = renderPasses[i]["FragmentShader"].GetString();
-			if (!pass->setShader(VertFile, FragFile)) {
-				std::cout << "Shader for " << passName << " init failed" << std::endl;
-				return false;
+			if (renderPasses[i].HasMember("GeometryShader")) {
+				const char* GeomFile = renderPasses[i]["GeometryShader"].GetString();
+				if (!pass->setShader(VertFile, FragFile, GeomFile)) {
+					std::cout << "Shader for " << passName << " init failed" << std::endl;
+					return false;
+				}
 			}
+			else {
+				if (!pass->setShader(VertFile, FragFile)) {
+					std::cout << "Shader for " << passName << " init failed" << std::endl;
+					return false;
+				}
+			}
+			
 			
 			//Initialize buffer
 			glGenFramebuffers(1, &pass->m_FrameBuffer);
@@ -609,7 +619,6 @@ bool CEngine::__readProperties(string configFile) {
 	//
 	__generateAxis();
 	
-
 	return true;
 }
 
