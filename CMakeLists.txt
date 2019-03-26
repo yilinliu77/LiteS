@@ -1,4 +1,8 @@
 cmake_minimum_required (VERSION 3.1)
+if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+  set(CMAKE_TOOLCHAIN_FILE "d:/TOOL/vcpkg/scripts/buildsystems/vcpkg.cmake"
+      CACHE STRING "")
+endif()
 project (LiteS)
 
 # Compiler and Linker options
