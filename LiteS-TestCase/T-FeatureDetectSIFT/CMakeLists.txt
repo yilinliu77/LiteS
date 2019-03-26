@@ -8,8 +8,20 @@ file(GLOB RESOURCES_FILES ./config.json)
 include_directories (../../LiteS-Engine/resources/)
 include_directories (../../LiteS-Engine/src/)
 
+find_path(FREEIMAGE_INCLUDE_DIR NAMES FreeImage.h)
+include_directories(${FREEIMAGE_INCLUDE_DIR})
+find_library(FREEIMAGE_LIBRARY FreeImage)
+
+include_directories (${GLFW3_INCLUDE_DIRS})
+include_directories (${GLEW_INCLUDE_DIRS})
+include_directories (${ASSIMP_INCLUDE_DIRS})
+include_directories (${GLM_INCLUDE_DIRS})
+include_directories (${IMGUI_INCLUDE_DIRS})
+include_directories (${TBB_INCLUDE_DIRS})
+
+
 add_executable(T-FeatureDetectSIFT ${SOURCE_FILES} ${HEADER_FILES})
 add_dependencies(T-FeatureDetectSIFT LiteS)
 
-target_link_libraries(T-FeatureDetectSIFT LiteS)
+target_link_libraries(T-FeatureDetectSIFT LiteS ${FREEIMAGE_LIBRARY})
 
