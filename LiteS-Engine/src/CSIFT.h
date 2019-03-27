@@ -575,8 +575,6 @@ public:
 		computeDescriptor();
 	}
 
-
-
 };
 
 #endif // 
