@@ -4,19 +4,9 @@ project(T-PathGenerate)
 #Path
 #set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build)
 
-find_package(glfw3 CONFIG REQUIRED)
-find_package(glew CONFIG REQUIRED)
-find_package(assimp CONFIG REQUIRED)
-find_package(imgui CONFIG REQUIRED)
-find_package(glm CONFIG REQUIRED)
-FIND_PACKAGE(OpenMP REQUIRED)
+
 find_package(TBB CONFIG REQUIRED)
 
-include_directories (${GLFW3_INCLUDE_DIRS})
-include_directories (${GLEW_INCLUDE_DIRS})
-include_directories (${ASSIMP_INCLUDE_DIRS})
-include_directories (${GLM_INCLUDE_DIRS})
-include_directories (${IMGUI_INCLUDE_DIRS})
 include_directories (${TBB_INCLUDE_DIRS})
 
 link_directories(T-PathGenerate "d:/TOOL/vcpkg/packages/tbb_x64-windows/lib")
