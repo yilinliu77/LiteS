@@ -156,7 +156,7 @@ float* getGussianKernal(float vSigma,size_t vKernalSize) {
 
 
 CImage<float>* gassianBlur(const CImage<float>* vImage, float vSigma) {
-	int kernalRadius = (int)ceil(3 * vSigma) + 1;
+	int kernalRadius = (int)ceil(4 * vSigma) + 1;
 	float* kernal = getGussianKernal(vSigma, kernalRadius);
 
 	return vImage->convoluted(kernal, kernalRadius, kernal, kernalRadius);
