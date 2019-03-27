@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.1)
 if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
-  set(CMAKE_TOOLCHAIN_FILE "d:/TOOL/vcpkg/scripts/buildsystems/vcpkg.cmake"
+  set(CMAKE_TOOLCHAIN_FILE "${PROJECT_BINARY_DIR}/scripts/buildsystems/vcpkg.cmake"
       CACHE STRING "")
 endif()
 project (LiteS)
@@ -19,6 +19,18 @@ else()
     message(FATAL_ERROR "Unsurpported generator")
 endif(${CMAKE_GENERATOR} MATCHES ".*Visual Studio.*|.*Ninja.*")
 
+find_package(glfw3 CONFIG REQUIRED)
+find_package(glew CONFIG REQUIRED)
+find_package(assimp CONFIG REQUIRED)
+find_package(RapidJSON CONFIG REQUIRED)
+find_package(imgui CONFIG REQUIRED)
+
+include_directories (${GLFW3_INCLUDE_DIRS})
+include_directories (${GLEW_INCLUDE_DIRS})
+include_directories (${ASSIMP_INCLUDE_DIRS})
+include_directories (${RAPIDJSON_INCLUDE_DIRS})
+include_directories (${IMGUI_INCLUDE_DIRS})
+include_directories (${GLM_INCLUDE_DIRS})
 
 SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${PROJECT_BINARY_DIR}/bin)
 SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${PROJECT_BINARY_DIR}/bin)
