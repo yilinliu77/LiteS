@@ -4,18 +4,18 @@
     "CameraSpeed":30,
 
     "Model":[
-        {
-            "Name":"proxy_point",
-            "Path":"../../../ny1-test/point_after_sampling.ply",
-            "Type":"PointCloud",
-            "Render":true
-        },
-        {
-            "Name":"proxy_mesh",
-            "Path":"../../../ny1-test/gt_proxy.ply",
-            "Type":"Mesh",
-            "Render":false
-        }
+      {
+        "Name": "proxy_point",
+        "Path": "../../../my_test/proxy_point.ply",
+        "Type": "PointCloud",
+        "Render": true
+      },
+      {
+        "Name": "proxy_mesh",
+        "Path": "../../../my_test/proxy_mesh.ply",
+        "Type": "Mesh",
+        "Render": false
+      }
     ],
 
   "RenderPass": [

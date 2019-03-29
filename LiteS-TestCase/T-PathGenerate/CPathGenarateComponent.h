@@ -15,6 +15,7 @@ public:
 	void visulizeScoreResult();
 	void optimize_nadir();
 	void simplexPoint();
+	void visualizeExistCamera();
 	void extraAlgorithm() override;
 	void extraInit() override;
 
