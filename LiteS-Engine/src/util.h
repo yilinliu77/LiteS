@@ -117,5 +117,29 @@ void shrink(std::vector<glm::vec3>* vSolution, glm::vec3 vPosition) {
 	}
 }
 
+template<typename T>
+std::vector<T> splitString(std::string str, std::string tok) {
+	size_t splitPos;
+	size_t psplitPos;
+	istringstream ss;
+	std::vector<T> out;
+	T temp;
+	splitPos = str.find(tok, 0);
+	psplitPos = 0;
+	while (splitPos!=std::string::npos)
+	{
+		ss.str(str.substr(psplitPos, splitPos));
+		ss >> temp;
+		out.push_back(temp);
+
+		ss.str("");
+		psplitPos = splitPos + 1;
+		splitPos = str.find(tok, splitPos + 1);
+	}
+	ss.str(str.substr(psplitPos));
+	ss >> temp;
+	out.push_back(temp);
+	return out;
+}
 
 #endif

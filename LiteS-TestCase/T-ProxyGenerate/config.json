@@ -1,13 +1,21 @@
 {
-    "CompanionWindowWidth":1600,
-    "CompanionWindowHeight":900,
-    "CameraSpeed":30,
+  "CompanionWindowWidth": 1600,
+  "CompanionWindowHeight": 900,
+  "CameraSpeed": 30,
 
-  "Model": [
+  "Model1": [
     {
       "Name": "ny_proxy",
       "Path": "../../../ny1-test/gt_proxy.ply",
       "Type": "Mesh",
+      "Render": false
+    }
+  ],
+  "Model": [
+    {
+      "Name": "my_proxy",
+      "Path": "../../../my_test/gt_mesh.ply",
+      "Type": "PointCloud",
       "Render": true
     }
   ],
@@ -20,7 +28,7 @@
     }
   ],
 
-    "Arguments":{
-        "DMAX":50
-    }
+  "Arguments": {
+    "DMAX": 50
+  }
 }

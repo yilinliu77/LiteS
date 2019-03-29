@@ -14,7 +14,7 @@
 #include <mve/mesh_io_ply.h>
 
 const float insert_sample_density = 2;
-const float samples_num = 0.3;
+const float samples_num = 10;
 
 vector<Vertex> cameraVertexVector;
 CMesh* proxyPoint;
@@ -28,7 +28,8 @@ CPathComponent::~CPathComponent() = default;
 
 void CPathComponent::sample_mesh(string vPath) {
 	cout << "Start Sample" << endl;
-	CMesh* mesh = this->m_Scene->m_Models["ny_proxy"]->meshes[0];
+	//CMesh* mesh = this->m_Scene->m_Models["ny_proxy"]->meshes[0];
+	CMesh* mesh = this->m_Scene->m_Models["my_proxy"]->meshes[0];
 
 	vector<Vertex> &in_vertexs = mesh->vertices;
 	vector<unsigned int> &in_indices = mesh->indices;
@@ -175,7 +176,7 @@ void CPathComponent::generate_nadir() {
 }
 
 void CPathComponent::fixDiscontinuecy(string vPath){
-	CMesh* outMesh = new CPointCloudMesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/point_after_sampling.ply");
+	CMesh* outMesh = new CPointCloudMesh("../../../my_test/point_after_sampling.ply");
 
 
 	//
@@ -361,7 +362,7 @@ void CPathComponent::addSafeSpace(string vPath){
 }
 
 void CPathComponent::reconstructMesh(string vPath){
-	CMesh* outMesh = new CPointCloudMesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_point.ply");
+	CMesh* outMesh = new CPointCloudMesh("../../../my_test/proxy_point.ply");
 
 	fssr::IsoOctree octree;
 	
@@ -399,12 +400,12 @@ void CPathComponent::reconstructMesh(string vPath){
 void CPathComponent::extraAlgorithm() {
 	//generate_nadir();
 
-	sample_mesh("../../../ny1-test/point_after_sampling.ply");
-	//fixDiscontinuecy("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_point.ply");
+	sample_mesh("../../../my_test/gt_point.ply");
+	//fixDiscontinuecy("../../../my_test/proxy_point.ply");
 
 	//addSafeSpace("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_airspace.ply");
 
-	//reconstructMesh("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_mesh.ply");
+	//reconstructMesh("../../../my_test/proxy_mesh.ply");
 
 	return;
 	
