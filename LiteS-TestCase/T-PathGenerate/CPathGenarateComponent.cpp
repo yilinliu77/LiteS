@@ -163,7 +163,6 @@ std::function<float(glm::vec3, glm::vec3, size_t)> func =
 
 		for (auto & cameraItem : obsRays[pointIndex]) {
 			if (cameraItem.first.w == vCameraIndex) {
-				foundReference = 1;
 				continue;
 			}
 
@@ -183,7 +182,7 @@ std::function<float(glm::vec3, glm::vec3, size_t)> func =
 
 			// w1 = 1 / ( 1 + exp( -k1 * ( alpha - alpha1 ) ) )
 			float tempw1 = (viewAngle - glm::pi<float>() / 16.0f);
-			float w1 = 1 / (1 + (std::exp(-5 * tempw1)));
+			float w1 = 1 / (1 + (std::exp(-32 * tempw1)));
 
 			// w2 = min( max(d1, d2) / dmax, 1 )
 			float w2 = 1 - min(maxDistance / DMAX, 1.0f);
@@ -200,20 +199,20 @@ std::function<float(glm::vec3, glm::vec3, size_t)> func =
 			assert(score >= 0);
 		}
 
-		reconstructionScore[pointIndex] += score;
-		// Last element encourage seen the less seen point
-		float punish = 1 / max(reconstructionScore[pointIndex], 0.1f);
-
-		
-		// 1 prevent divide by 0
-		totalScore += (score / max(float(obsRays[pointIndex].size()),1.0f) * punish);
-		//totalScore += score;
-
-		if (obsRays[pointIndex].size() < 10)
-		{
-			reconstructionScore[pointIndex] += 1.0f ;
-			totalScore += 1000.0f ;
+		if (0 == score) {
+			totalScore += 1;
+			continue;
 		}
+		else if (score > 1)
+			score = 1;
+
+		reconstructionScore[pointIndex] += score;
+		// encourage seen the less seen point, don't worry divide by 0
+		float punish = 1 / std::max(float(obsRays[pointIndex].size()),1.0f);
+
+		// 1 prevent divide by 0
+		totalScore += (score * punish);
+		//totalScore += score;
 
 		assert(totalScore >= 0);
 	}
@@ -432,12 +431,7 @@ void CPathGenarateComponent::optimize(size_t vCameraIndex,int vIter) {
 			std::mt19937 gen(rd());
 			size_t magicIndex = ranks[dist(gen)];
 			size_t magicIter = 0;
-			while (proxyPoint->vertices[magicIndex].Position.z<max_building_height/8 
-				&& magicIter<50)
-			{
-				magicIndex = ranks[dist(gen)];
-				magicIter++;
-			}
+
 			if (50 != magicIter) {
 				glm::vec3 newPosition = proxyPoint->vertices[magicIndex].Position
 					+ (2 * DMIN + 1)*glm::normalize(proxyPoint->vertices[magicIndex].Normal);
@@ -512,7 +506,7 @@ void CPathGenarateComponent::optimize_nadir() {
 	
 	reconstructionScore.resize(proxyPoint->vertices.size(),0);
 	bvhTree = new BVHAccel(this->m_Scene->m_Models.at("proxy_mesh")->meshes);
-
+	//this->m_Scene->m_Models.at("proxy_point")->isRenderNormal = true;
 	//
 	// Generate height map as free airspace
 	//

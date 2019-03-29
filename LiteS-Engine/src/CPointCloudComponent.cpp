@@ -73,7 +73,6 @@ void CPointCloudComponent::run() {
 		normalRenderPass->getShader()->setMat4("projection", projectionMatrix);
 		normalRenderPass->getShader()->setMat4("model", modelMatrix);
 		normalRenderPass->getShader()->setMat4("view", viewMatrix);
-		glLineWidth(5);
 		normalRenderPass->endPass(this->m_Scene);
 	}
 }
