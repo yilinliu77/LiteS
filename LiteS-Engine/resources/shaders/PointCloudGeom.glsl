@@ -9,7 +9,10 @@ in VS_OUT {
 
 uniform bool isRenderNormal;
 
-out vec3 fColor;
+out VS_OUT{
+	vec3 Normal;
+	vec3 Color;
+} vs_out;
 
 const float MAGNITUDE = 1.0f;
 
@@ -27,5 +30,5 @@ void main()
     GenerateLine(0); // First vertex normal
     //GenerateLine(1); // Second vertex normal
     //GenerateLine(2); // Third vertex normal
-    fColor=gs_in[0].Color;    
+	vs_out.Color =gs_in[0].Color;
 }

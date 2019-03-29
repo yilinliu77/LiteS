@@ -3,9 +3,9 @@
 
 int main(){
 	CEngine engine;
-	if (!engine.initEngine("C:/Users/vcc/Documents/repo/RENDERING/LiteS/LiteS-TestCase/T-PathGenerate/config.json")) {
 	//if (!engine.initEngine("C:/Users/vcc/Documents/repo/RENDERING/LiteS/LiteS-TestCase/T-PathGenerate/config.json")) {
-	//if (!engine.initEngine("C:/repos/GRAPHICS/RENDERING/LiteS/LiteS-TestCase/T-PathGenerate/config.xml")) {
+	//if (!engine.initEngine("C:/Users/vcc/Documents/repo/RENDERING/LiteS/LiteS-TestCase/T-PathGenerate/config.json")) {
+	if (!engine.initEngine("C:/repos/GRAPHICS/RENDERING/LiteS/LiteS-TestCase/T-PathGenerate/config.json")) {
 		getchar();
 		return 0;
 	}

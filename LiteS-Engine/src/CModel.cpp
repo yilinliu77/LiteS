@@ -27,9 +27,7 @@ CModel::CModel() {
 	isRenderNormal = false;
 }
 
-/*
- * Draw object
- */
+//Draw object
 void CModel::draw(CShader * vShader, bool vIsNormal) {
 	if ((!this->isRenderNormal)&&vIsNormal)
 		return;
