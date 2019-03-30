@@ -7,7 +7,9 @@
 #include <algorithm>
 #include <iostream>
 
+
 #define EPSILON 0
+#define MATCHTHRESHOLD 0.6
 
 struct SIFTParams {
 	int nOctave=8;
@@ -489,8 +491,8 @@ public:
 			float Rp = 1.414 * R;
 			int siMin = std::max(0, (int)(x - Rp + 0.5));
 			int sjMin = std::max(0, (int)(y - Rp + 0.5));
-			int siMax = std::min((int)(x + Rp + 0.5), h - 1);
-			int sjMax = std::min((int)(y + Rp + 0.5), w - 1);
+			int siMax = std::min((int)(x + Rp + 0.5), w - 1);
+			int sjMax = std::min((int)(y + Rp + 0.5), h - 1);
 			/// For each pixel inside the patch.
 			for (int si = siMin; si < siMax; si++) {
 				for (int sj = sjMin; sj < sjMax; sj++) {
@@ -576,5 +578,72 @@ public:
 	}
 
 };
+
+void computeKeypointsDistance(std::vector<std::vector<float>> &distVector
+	, const CSIFT* detector1, const CSIFT* detector2) {
+	for (size_t index1 = 0; index1 < detector1->keys.size(); index1++)
+	{
+		for (size_t index2 = 0; index2 < detector2->keys.size(); index2++)
+		{
+			assert(detector1->keys[0].desc.size() == detector2->keys[0].desc.size());
+			float dist = 0.f;
+			for (size_t featureIndex = 0; featureIndex < detector1->keys[index1].desc.size(); featureIndex++)
+			{
+				float t = detector1->keys[index1].desc[featureIndex] 
+					- detector2->keys[index2].desc[featureIndex];
+				dist += t * t;
+			}
+			dist = std::sqrt(dist);
+			distVector[index1][index2] = dist;
+		}
+	}
+}
+
+std::vector<std::pair<size_t, size_t>> findTheTwoNearestKeys(const std::vector<std::vector<float>> &distVector
+	, const CSIFT* detector1, const CSIFT* detector2) {
+	std::vector<std::pair<size_t, size_t>> outVector;
+	for (size_t keyIndex = 0; keyIndex < detector1->keys.size(); keyIndex++){
+		size_t lessIndex = 0;
+		size_t lesslessIndex = 0;
+		for (size_t distIndex = 0; distIndex < distVector[keyIndex].size(); distIndex++){
+			if (distVector[keyIndex][distIndex] < distVector[keyIndex][lesslessIndex]) {
+				if (distVector[keyIndex][distIndex] < distVector[keyIndex][lessIndex]) {
+					lesslessIndex = lessIndex;
+					lessIndex = distIndex;
+				}
+				else
+					lesslessIndex = distIndex;
+			}
+		}
+		outVector.push_back(std::make_pair(lessIndex, lesslessIndex));
+	}
+	return outVector;
+}
+
+std::vector<std::pair<size_t, size_t>> matchSIFT(const CSIFT* detector1, const CSIFT* detector2) {
+	size_t num1 = detector1->keys.size();
+	size_t num2 = detector2->keys.size();
+
+	std::vector<std::vector<float>> distVector(num1);
+	for (size_t i = 0; i < distVector.size(); i++)
+		distVector[i].resize(num2, 0.0f);
+
+	std::vector<std::pair<size_t, size_t>> matchIndexs;
+
+	computeKeypointsDistance(distVector, detector1, detector2);
+	matchIndexs=findTheTwoNearestKeys(distVector, detector1, detector2);
+
+	std::vector<std::pair<size_t, size_t>> matchResult;
+	for (size_t matchItem = 0; matchItem < matchIndexs.size(); matchItem++)
+	{
+		float t = distVector[matchItem][matchIndexs[matchItem].first] / distVector[matchItem][matchIndexs[matchItem].second];
+		if (distVector[matchItem][matchIndexs[matchItem].first]
+			/ distVector[matchItem][matchIndexs[matchItem].second] < MATCHTHRESHOLD) {
+			matchResult.push_back(std::make_pair(matchItem, matchIndexs[matchItem].first));
+		}
+	}
+
+	return matchResult;
+}
 
 #endif // 

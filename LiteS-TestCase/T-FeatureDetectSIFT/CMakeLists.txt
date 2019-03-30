@@ -10,7 +10,7 @@ include_directories (../../LiteS-Engine/src/)
 
 find_path(FREEIMAGE_INCLUDE_DIR NAMES FreeImage.h)
 include_directories(${FREEIMAGE_INCLUDE_DIR})
-find_library(FREEIMAGE_LIBRARY FreeImage)
+find_library(FREEIMAGE_LIBRARY FreeImaged)
 find_package(OpenCV REQUIRED)
 
 include_directories (${OpenCV_INCLUDE_DIRS})
@@ -20,5 +20,5 @@ include_directories (${TBB_INCLUDE_DIRS})
 add_executable(T-FeatureDetectSIFT ${SOURCE_FILES} ${HEADER_FILES})
 add_dependencies(T-FeatureDetectSIFT LiteS)
 
-target_link_libraries(T-FeatureDetectSIFT LiteS ${FREEIMAGE_LIBRARY} ${OpenCV_LIBS})
+target_link_libraries(T-FeatureDetectSIFT LiteS ${OpenCV_LIBS} ${FREEIMAGE_LIBRARY} )
  

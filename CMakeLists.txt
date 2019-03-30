@@ -1,14 +1,13 @@
 cmake_minimum_required (VERSION 3.1)
 if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
-  set(CMAKE_TOOLCHAIN_FILE "${PROJECT_BINARY_DIR}/scripts/buildsystems/vcpkg.cmake"
-      CACHE STRING "")
+  set(CMAKE_TOOLCHAIN_FILE "$ENV{vcpkg}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
 endif()
 project (LiteS)
 
 # Compiler and Linker options
 # Platform independent
 if(${CMAKE_GENERATOR} MATCHES ".*Visual Studio.*|.*Ninja.*")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} /MD /Zi /Od /std:c++latest")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} /MDd /Zi /Od /std:c++latest")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} /MD")
 
     SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /Profile /LTCG")
