@@ -40,6 +40,7 @@ struct Keypoint {
 	int scale;
 	int octave;
 	float sigma;
+	float delta;
 	std::vector<float> hist;
 	std::vector<float> desc;
 	float theta=-1;
@@ -195,6 +196,7 @@ public:
 							key.octave = iOctave;
 							key.x = x;
 							key.y = y;
+							key.delta = delta[iOctave];
 							key.sigma = sigma[iOctave][iScale];
 							key.value = centerValue;
 							keys.push_back(key);
