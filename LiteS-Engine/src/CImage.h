@@ -92,6 +92,21 @@ public:
 		return oImage;
 	}
 
+	void save(const std::string vPath) {
+		FIBITMAP* bitmap = FreeImage_AllocateT(FIT_UINT16,ncols, nrows,16,0,0,0); // create a bitmap
+		for (size_t y = 0; y < nrows; y++) { // fill bitmap pixels
+			BYTE* bits = FreeImage_GetScanLine(bitmap, nrows - 1 - y);
+			unsigned short *ptrs = (unsigned short*)(void*)bits;
+			for (size_t x = 0; x < ncols; x++) {
+				ptrs[0] = static_cast<unsigned short>(this->at(x,y)*255.0f);
+				ptrs++;
+			}
+		}
+		bitmap=FreeImage_ConvertToStandardType(bitmap);
+		bool bSuccess = FreeImage_Save(FIF_PNG, bitmap, vPath.c_str());
+		return;
+	}
+
 };
 
 CImage<float>* upsample(const CImage<float>* vImage, float vDelta) {
