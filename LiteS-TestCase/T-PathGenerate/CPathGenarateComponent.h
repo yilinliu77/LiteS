@@ -6,6 +6,7 @@ class CPathGenarateComponent : public CPointCloudComponent {
 public:
 	CPathGenarateComponent(const map<string, CPass*>& vPass,CScene * vScene);
 	~CPathGenarateComponent();
+	void initVariebles();
 	void visualizeCamera(size_t vCameraIndex);
 	void generate_nadir();
 	void updateRays(int vCameraIndex, glm::vec3 vNewPosition);
