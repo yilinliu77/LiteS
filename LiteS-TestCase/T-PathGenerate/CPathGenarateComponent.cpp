@@ -178,7 +178,7 @@ void CPathGenarateComponent::generate_nadir() {
 	srand(time(0));
 	for (size_t iter = 0; iter < 100; iter++){
 		glm::vec3 cameraPos = glm::linearRand(proxyPoint->bounds.pMin
-			, proxyPoint->bounds.pMax+glm::vec3(0,0,50));
+			, proxyPoint->bounds.pMax+glm::vec3(0,0,20));
 		while (-1!=isValidPosition(cameraPos))
 		{
 			cameraPos = glm::linearRand(proxyPoint->bounds.pMin, proxyPoint->bounds.pMax);
@@ -292,10 +292,10 @@ std::function<float(glm::vec3, glm::vec3, size_t)> func =
 		float punish = 1 / std::max(float(obsRays[pointIndex].size()),1.0f);
 
 		// 1 prevent divide by 0
-		totalScore += (score);
+		totalScore += powf(score-5,2.0f)+ powf(reconstructionScore[pointIndex] - 5, 2.0f);
 		//totalScore += score;
 
-		assert(totalScore >= 0);
+		//assert(totalScore >= 0);
 	}
 
 	return totalScore;
