@@ -26,13 +26,13 @@ include_directories (../../LiteS-Engine/src/)
 
 #add_subdirectory(libs)
 include_directories (C:/Users/vcc/Documents/repo/SFM/REFERENCE/mve/libs)
-link_directories (C:/Users/vcc/Documents/repo/SFM/REFERENCE/mve/libs/fssr/Release/)
-link_directories (C:/Users/vcc/Documents/repo/SFM/REFERENCE/mve/libs/mve/Release/)
-link_directories (C:/Users/vcc/Documents/repo/SFM/REFERENCE/mve/libs/util/Release/)
+link_directories (C:/Users/vcc/Documents/repo/SFM/REFERENCE/mve/libs/fssr/Debug/)
+link_directories (C:/Users/vcc/Documents/repo/SFM/REFERENCE/mve/libs/mve/Debug/)
+link_directories (C:/Users/vcc/Documents/repo/SFM/REFERENCE/mve/libs/util/Debug/)
 
 
 add_executable(T-ProxyGenerate ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_FILES})
 add_dependencies(T-ProxyGenerate LiteS)
 
-target_link_libraries(T-ProxyGenerate GLEW::GLEW glfw assimp::assimp imgui::imgui LiteS mve_fssr.lib mve.lib mve_util.lib PNG::PNG TIFF::TIFF ${JPEG_LIBRARIES})
+target_link_libraries(T-ProxyGenerate GLEW::GLEW glfw assimp::assimp imgui::imgui LiteS mve_fssr_d.lib mve_d.lib mve_util_d.lib PNG::PNG TIFF::TIFF ${JPEG_LIBRARIES})
 

@@ -122,18 +122,21 @@ void averageFilter(My8BitRGBImage* img, float vBound) {
 
 
 void CPathComponent::generate_nadir() {
-	proxyPoint = this->m_Scene->m_Models.at("ny_proxy")->meshes[0];
+	proxyPoint = this->m_Scene->m_Models.at("my_proxy")->meshes[0];
 
-	glm::vec3 mesh_dim = proxyPoint->bounds.pMax - proxyPoint->bounds.pMin;
-	float max_height = proxyPoint->bounds.pMax[2] + 40;
+	glm::vec3 startPos = glm::vec3(-55, -55, 65);
+	glm::vec3 endPos = glm::vec3(55, 55, 65);
 
-	float step = 3;
+	glm::vec3 mesh_dim = endPos - startPos;
+	float max_height = 65;
 
-	glm::vec3 cameraPos = proxyPoint->bounds.pMin;
+	float step = 10;
+
+	glm::vec3 cameraPos = startPos;
 	cameraPos.z = max_height;
-	while (cameraPos.x <= proxyPoint->bounds.pMax.x)
+	while (cameraPos.x <= endPos.x)
 	{
-		while (cameraPos.y <= proxyPoint->bounds.pMax.y)
+		while (cameraPos.y <= endPos.y)
 		{
 			Vertex v;
 			v.Position = cameraPos;
@@ -142,7 +145,7 @@ void CPathComponent::generate_nadir() {
 			cameraPos.y += step;
 		}
 		cameraPos.x += step;
-		cameraPos.y = proxyPoint->bounds.pMin.y;
+		cameraPos.y = startPos.y;
 	}
 
 	CMesh* cameraMesh = new CPointCloudMesh(cameraVertexVector, glm::vec3(1.0f, 0.0f, 0.0f), 30);
@@ -155,14 +158,14 @@ void CPathComponent::generate_nadir() {
 	CEngine::toAddModels.push_back(std::make_pair("camera", cameraModel));
 
 	int photoID = 0;
-	ofstream fileFp("C:/Users/vcc/Desktop/NY-1/my_ny1_nadir.log", ios::out);
+	ofstream fileFp("../../../my_test/camera.log", ios::out);
 	char c[8];
 	sprintf(c, "%05d", photoID);
 	string photoName = string(c);
 	for (size_t iCameraIndex = 0; iCameraIndex < cameraVertexVector.size(); iCameraIndex++) {
-		fileFp << photoName <<","<< -cameraVertexVector[iCameraIndex].Position.x * 100
-			<< "," << cameraVertexVector[iCameraIndex].Position.y * 100
-			<< "," << cameraVertexVector[iCameraIndex].Position.z * 100
+		fileFp << photoName <<","<< -cameraVertexVector[iCameraIndex].Position.x
+			<< "," << cameraVertexVector[iCameraIndex].Position.y 
+			<< "," << cameraVertexVector[iCameraIndex].Position.z 
 			<< "," << 90
 			<< "," << 0
 			<< "," << 0
@@ -398,9 +401,9 @@ void CPathComponent::reconstructMesh(string vPath){
 }
 
 void CPathComponent::extraAlgorithm() {
-	//generate_nadir();
+	generate_nadir();
 
-	sample_mesh("../../../my_test/gt_point.ply");
+	//sample_mesh("../../../my_test/gt_point.ply");
 	//fixDiscontinuecy("../../../my_test/proxy_point.ply");
 
 	//addSafeSpace("C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_airspace.ply");

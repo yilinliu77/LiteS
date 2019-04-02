@@ -14,7 +14,7 @@
   "Model": [
     {
       "Name": "my_proxy",
-      "Path": "../../../my_test/gt_mesh.ply",
+      "Path": "../../../my_test/proxy_point.ply",
       "Type": "PointCloud",
       "Render": true
     }
