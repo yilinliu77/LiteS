@@ -274,7 +274,7 @@ void CPointCloudMesh::changeNormal(glm::vec3 vNewNormal, unsigned aIndex) {
 
 void CPointCloudMesh::changeVertex(Vertex vVertexPosition, unsigned aIndex) {
 	std::lock_guard<std::mutex> lock(m_VAOMutex);
-
+	this->vertices[aIndex] = vVertexPosition;
 	pointsVertexChange.push_back(vVertexPosition);
 	pointsVertexChangeIndex.push_back(aIndex);
 }

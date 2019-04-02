@@ -95,9 +95,9 @@ bool strongVisible(glm::vec3 vCameraPos, glm::vec3 vCameraOrientation
 	, glm::vec3 vSamplePosition, BVHAccel* vBVH, float vDMAX) {
 	glm::vec3 sampleToCamera = vCameraPos - vSamplePosition;
 	// Inside the frustum
-	// 0.6f ~ cos(53.0f / 180.0f * pi)
+	// 0.6f ~ cos(78.0f / 2 / 180.0f * pi)
 	float viewAngleCos = glm::dot(-glm::normalize(sampleToCamera), glm::normalize(vCameraOrientation));
-	if (!abs(viewAngleCos>0.85))
+	if (viewAngleCos<0.77)
 		return false;
 
 	if (glm::length(vSamplePosition - vCameraPos) > vDMAX)

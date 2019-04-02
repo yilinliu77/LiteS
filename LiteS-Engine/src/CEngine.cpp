@@ -94,16 +94,15 @@ void CEngine::runEngine() {
 		//Lock the target arrays
 		std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
 		
-		for (size_t i= toAddModels.size();i>0;--i)
+		for (size_t i= 0;i< toAddModels.size();++i)
 		{
-			CEngine::m_Scene->m_Models.insert(std::make_pair(toAddModels[i-1].first,
-				toAddModels[i-1].second));
-			for (auto* mesh : this->m_Scene->m_Models[toAddModels[i-1].first]->meshes) {
+			CEngine::m_Scene->m_Models.insert(std::make_pair(toAddModels[i].first,
+				toAddModels[i].second));
+			for (auto* mesh : this->m_Scene->m_Models[toAddModels[i].first]->meshes) {
 				mesh->setupMesh();
 			}
-			toAddModels.pop_back();
 		}
-		
+		toAddModels.clear();
 
 		glfwSwapBuffers(m_Window);
 		glfwPollEvents();
