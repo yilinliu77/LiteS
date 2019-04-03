@@ -47,7 +47,7 @@ public:
 		return data[vY*ncols + vX];
 	}
 
-	static inline size_t symmetrizedCoordinates(int i, int l)
+	static inline int symmetrizedCoordinates(int i, int l)
 	{
 		int ll = 2 * l;
 		i = (i + ll) % (ll);
@@ -75,14 +75,14 @@ public:
 			}
 		}
 		// Along vertical
-		for (int y = 0; y < oImage->nrows; y++)
+		for (size_t y = 0; y < oImage->nrows; y++)
 		{
-			for (int x = 0; x < oImage->ncols; x++)
+			for (size_t x = 0; x < oImage->ncols; x++)
 			{
 				float sum = this->at(x, y) * vyKernal[0];
 				for (int k = 1; k < vyKernalSize; k++) {
-					int t_up = symmetrizedCoordinates(y - k, oImage->nrows);
-					int t_down = symmetrizedCoordinates(y + k, oImage->nrows);
+					size_t t_up = symmetrizedCoordinates(y - k, oImage->nrows);
+					size_t t_down = symmetrizedCoordinates(y + k, oImage->nrows);
 					sum += vyKernal[k] * (tmpImage->at(x, t_up) + tmpImage->at(x, t_down));
 				}
 				oImage->at(x, y) = sum;
@@ -110,7 +110,8 @@ public:
 };
 
 CImage<float>* upsample(const CImage<float>* vImage, float vDelta) {
-	CImage<float>* oImage=new CImage<float>(vImage->ncols / vDelta, vImage->nrows / vDelta);
+	CImage<float>* oImage=new CImage<float>(static_cast<size_t>(vImage->ncols / vDelta)
+		, static_cast<size_t>(vImage->nrows / vDelta));
 	for (size_t y = 0; y < oImage->nrows; y++)
 	{
 		for (size_t x = 0; x < oImage->ncols; x++)
@@ -131,9 +132,9 @@ CImage<float>* upsample(const CImage<float>* vImage, float vDelta) {
 			const float fractional_x = xleftf - floor(xleftf);
 			const float fractional_y = yupf - floor(yupf);
 			oImage->at(x, y) = fractional_x * (fractional_y  * vImage->at(xleft, yup)
-				+ (1. - fractional_y) * vImage->at(xleft, ydown))
-				+ (1. - fractional_x) * (fractional_y  * vImage->at(xleft, yup)
-					+ (1. - fractional_y) * vImage->at(xleft, ydown));
+				+ (1.f - fractional_y) * vImage->at(xleft, ydown))
+				+ (1.f - fractional_x) * (fractional_y  * vImage->at(xleft, yup)
+					+ (1.f - fractional_y) * vImage->at(xleft, ydown));
 		}
 	}
 	return oImage;

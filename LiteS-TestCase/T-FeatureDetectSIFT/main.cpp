@@ -119,10 +119,12 @@ int main(){
 	int q = 0;
 	for(int i = 0; i < a1.rows; i ++)
 	{ 
-		if(matchItems[i][0].distance/ matchItems[i][1].distance <= 0.6)
+		if (matchItems[i][0].distance / matchItems[i][1].distance <= 0.6)
 		{
 			good_matches.push_back(matchItems[i][0]);
 		}
+		else
+			int a = 1;
 	}
 	cv::Mat outImage;
 	cv::drawMatches(cvImage1, keypoints1, cvImage2, keypoints2, good_matches, outImage);
