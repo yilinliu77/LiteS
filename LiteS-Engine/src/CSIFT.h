@@ -20,8 +20,8 @@ struct SIFTParams {
 
 	float sigma_in = 0.5f;
 
-	float C_Dog = 0.013333333;
-	float keysThreshold = 0.013333333;
+	float C_Dog = 0.013333333f;
+	float keysThreshold = 0.013333333f;
 
 	float edgeThreshold =10;
 
@@ -56,12 +56,13 @@ public:
 	std::vector<std::vector<CImage<float>*>> gradientY;
 	std::vector<Keypoint> keys;
 	SIFTParams param;
+	CImage<float>* originalImage;
 
 	void init(int vW,int vH) {
 		// The minimal size (width or height) of images in the last octave.
 		int hmin = 32;
 		// The size (min of width and height) of images in the first octave.
-		int h0 = float(std::min(vW, vH)) / this->param.delta_min;
+		int h0 = static_cast<int>(float(std::min(vW, vH)) / this->param.delta_min);
 		// The number of octaves. 0.693147180559945309417==M_LN2
 		int n_oct = std::min(this->param.nOctave, (int)(std::log(h0 / hmin) / 0.693147180559945309417) + 1);
 		this->param.nOctave = n_oct;
@@ -81,8 +82,8 @@ public:
 			}
 		}
 		//0.693147180559945309417==ln2
-		float k_nspo = exp(0.693147180559945309417 / ((float)(param.imagesPerOctave)));
-		float k_3 = exp(0.693147180559945309417 / ((float)3));
+		float k_nspo = exp(0.693147180559945309417f / ((float)(param.imagesPerOctave)));
+		float k_3 = exp(0.693147180559945309417f / ((float)3));
 		param.keysThreshold = (k_nspo - 1) / (k_3 - 1) * param.C_Dog; 
 		param.edgeThreshold = (param.edgeThreshold)*(param.edgeThreshold + 1) / param.edgeThreshold;
 	}
@@ -218,17 +219,17 @@ public:
 		hXX = images[o][s]->at(x - 1, y) + images[o][s]->at(x + 1, y) - 2 * images[o][s]->at(x, y);
 		hYY = images[o][s]->at(x, y + 1) + images[o][s]->at(x, y - 1) - 2 * images[o][s]->at(x, y);
 		hSS = images[o][s + 1]->at(x, y) + images[o][s - 1]->at(x, y) - 2 * images[o][s]->at(x, y);
-		hXY = 0.25*((images[o][s]->at(x + 1, y + 1) - images[o][s]->at(x, y - 1))
+		hXY = 0.25f*((images[o][s]->at(x + 1, y + 1) - images[o][s]->at(x, y - 1))
 			- (images[o][s]->at(x - 1, y) - images[o][s]->at(x - 1, y - 1)));
-		hXS = 0.25*((images[o][s + 1]->at(x + 1, y) - images[o][s + 1]->at(x - 1, y))
+		hXS = 0.25f*((images[o][s + 1]->at(x + 1, y) - images[o][s + 1]->at(x - 1, y))
 			- (images[o][s - 1]->at(x + 1, y) - images[o][s - 1]->at(x - 1, y)));
-		hYS = 0.25*((images[o][s + 1]->at(x + 1, y) - images[o][s + 1]->at(x, y - 1))
+		hYS = 0.25f*((images[o][s + 1]->at(x + 1, y) - images[o][s + 1]->at(x, y - 1))
 			- (images[o][s - 1]->at(x, y + 1) - images[o][s - 1]->at(x, y - 1)));
 
 		/** Compute the 3d gradient at pixel (i,j,s) */
-		gX = 0.5*(images[o][s]->at(x+1, y) - images[o][s]->at(x - 1, y));
-		gY = 0.5*(images[o][s]->at(x , y + 1) - images[o][s]->at(x , y - 1));
-		gS = 0.5*(images[o][s + 1]->at(x, y ) - images[o][s - 1]->at(x, y ));
+		gX = 0.5f*(images[o][s]->at(x+1, y) - images[o][s]->at(x - 1, y));
+		gY = 0.5f*(images[o][s]->at(x , y + 1) - images[o][s]->at(x , y - 1));
+		gS = 0.5f*(images[o][s + 1]->at(x, y ) - images[o][s - 1]->at(x, y ));
 
 		/** Inverse the Hessian - Fitting a quadratic function */
 		det = hXX * hYY*hSS - hXX * hYS*hYS - hXY * hXY*hSS + 2 * hXY*hXS*hYS - hXS * hXS*hYY;
@@ -244,7 +245,7 @@ public:
 		ofstY = -ab * gX - bb * gY - bc * gS;
 		ofstS = -ac * gX - bc * gY - cc * gS;
 		/** Compute the DoG value offset */
-		ofstVal = +0.5*(gX*ofstX + gY * ofstY + gS * ofstS); //... and value
+		ofstVal = +0.5f*(gX*ofstX + gY * ofstY + gS * ofstS); //... and value
 
 		// output
 		*vOffsetX = ofstX;
@@ -257,7 +258,7 @@ public:
 		for (int ik = 0; ik < keys.size(); ik++) {
 			size_t iter = 0;
 			const size_t MAX_ITER = 5;
-			const float MAXOFFSET = 0.6;
+			const float MAXOFFSET = 0.6f;
 			bool isConf = false;
 
 			int s = keys[ik].scale;
@@ -268,7 +269,7 @@ public:
 
 			const int maxWidth = images[o][0]->ncols;
 			const int maxHeight = images[o][0]->nrows;
-			const int maxScale = images[o].size();
+			const int maxScale = static_cast<int>(images[o].size());
 
 			while (iter<MAX_ITER)
 			{
@@ -324,7 +325,7 @@ public:
 			// Compute the 2d Hessian at pixel (i,j)
 			float hXX = images[o][s]->at(x-1,y) + images[o][s]->at(x + 1, y) - 2 * images[o][s]->at(x, y);
 			float hYY = images[o][s]->at(x , y - 1) + images[o][s]->at(x , y + 1) - 2 * images[o][s]->at(x, y);
-			float hXY = 1. / 4 * ((images[o][s]->at(x+1, y + 1) - images[o][s]->at(x+1, y-1)) - (images[o][s]->at(x-1, y + 1) - images[o][s]->at(x-1, y - 1)));
+			float hXY = 1.f / 4.f * ((images[o][s]->at(x+1, y + 1) - images[o][s]->at(x+1, y-1)) - (images[o][s]->at(x-1, y + 1) - images[o][s]->at(x-1, y - 1)));
 			// Harris and Stephen Edge response
 			float edgeResp = (hXX + hYY)*(hXX + hYY) / (hXX*hYY - hXY * hXY);
 			if (abs(edgeResp) > param.edgeThreshold)
@@ -392,8 +393,8 @@ public:
 
 					/// Determine the bin index in the circular histogram
 					if (ori < 0)
-						ori += 2 * 3.1415926;
-					int gamma = (int)(ori / (2 * 3.1415926)*param.nbins + 0.5) % param.nbins;
+						ori += 2.f * 3.1415926f;
+					int gamma = (int)(ori / (2.f * 3.1415926f)*param.nbins + 0.5f) % param.nbins;
 
 					/// Add the contribution to the orientation histogram
 					keys[ik].hist[gamma] += M;
@@ -415,7 +416,7 @@ public:
 				for (i = 0; i < param.nbins; i++) {
 					i_prev = (i - 1 + param.nbins) % param.nbins;
 					i_next = (i + 1) % param.nbins;
-					keys[ik].hist[i] = (tmp[i_prev] + tmp[i] + tmp[i_next]) / 3.;
+					keys[ik].hist[i] = (tmp[i_prev] + tmp[i] + tmp[i_next]) / 3.f;
 				}
 			}
 			// What is the value of the global maximum
@@ -431,9 +432,9 @@ public:
 					float offset = (keys[ik].hist[i_prev] - keys[ik].hist[i_next])
 						/ (2 * (keys[ik].hist[i_prev] + keys[ik].hist[i_next] - 2 * keys[ik].hist[i]));
 					// Add to vector of principal orientations (expressed in [0,2pi]
-					float ori = ((float)i + offset + 0.5) * 2 * 3.1415926 / (float)param.nbins;
-					if (ori > 3.1415926)
-						ori -= 2 * 3.1415926;
+					float ori = ((float)i + offset + 0.5f) * 2.f * 3.1415926f / (float)param.nbins;
+					if (ori > 3.1415926f)
+						ori -= 2.f * 3.1415926f;
 					Keypoint tk(keys[ik]);
 					tk.theta = ori;
 					t_keys.push_back(tk);
@@ -470,8 +471,8 @@ public:
 		for (int ik = 0; ik < keys.size(); ik++) {
 
 			/** Loading keypoint gradient scalespaces */
-			float x = keys[ik].x;
-			float y = keys[ik].y;
+			float x = static_cast<float>(keys[ik].x);
+			float y = static_cast<float>(keys[ik].y);
 			int o = keys[ik].octave;
 			int s = keys[ik].scale;
 			float sigma = keys[ik].sigma;
@@ -490,7 +491,7 @@ public:
 			// Contributing pixels are inside a patch [siMin;siMax]X[sjMin;sjMax] of
 			// width 2*lambda_descr*sigma_key*(nhist+1)/nhist
 			float R = (1 + 1 / (float)param.n_hist)*param.lambda_descr*sigma;
-			float Rp = 1.414 * R;
+			float Rp = 1.414f * R;
 			int siMin = std::max(0, (int)(x - Rp + 0.5));
 			int sjMin = std::max(0, (int)(y - Rp + 0.5));
 			int siMax = std::min((int)(x + Rp + 0.5), w - 1);
@@ -505,38 +506,38 @@ public:
 					// Does this sample fall inside the descriptor area ?
 					if (std::max(abs(X), abs(Y)) < R) {
 						// Compute the gradient orientation (theta) on keypoint referential.
-						double dx = gradientX[o][s]->at(si,sj);
-						double dy = gradientY[o][s]->at(si, sj);
-						float ori = atan2(dy, dx) - keys[ik].theta;
+						float dx = gradientX[o][s]->at(si,sj);
+						float dy = gradientY[o][s]->at(si, sj);
+						float ori = atan2f(dy, dx) - keys[ik].theta;
 						//ori = modulus(ori, 2 * M_PI);
 						// Compute the gradient magnitude and apply a Gaussian weighing to give less emphasis to distant sample
-						double t = param.lambda_descr * sigma;
-						double M = hypot(dx, dy) * exp(-(X*X + Y * Y) / (2 * t*t));
+						float t = param.lambda_descr * sigma;
+						float M = hypot(dx, dy) * exp(-(X*X + Y * Y) / (2 * t*t));
 
 						// bin indices, Compute the (tri)linear weightings ...
-						float alpha = X / (2 * param.lambda_descr*sigma / param.n_hist) + (param.n_hist - 1.0) / 2.0;
-						float beta = Y / (2 * param.lambda_descr*sigma / param.n_hist) + (param.n_hist - 1.0) / 2.0;
-						float gamma = ori / (2 * 3.1415926)*param.n_ori;
+						float alpha = X / (2 * param.lambda_descr*sigma / param.n_hist) + (param.n_hist - 1.0f) / 2.0f;
+						float beta = Y / (2 * param.lambda_descr*sigma / param.n_hist) + (param.n_hist - 1.0f) / 2.0f;
+						float gamma = ori / (2 * 3.1415926f)*param.n_ori;
 						//    ...and add contributions to respective bins in different histograms.
 						// a loop with 1 or two elements
-						int i0 = floor(alpha);
-						int j0 = floor(beta);
+						int i0 = static_cast<int>(floor(alpha));
+						int j0 = static_cast<int>(floor(beta));
 						for (int i = std::max(0, i0); i <= std::min(i0 + 1, param.n_hist - 1); i++) {
 							for (int j = std::max(0, j0); j <= std::min(j0 + 1, param.n_hist - 1); j++) { // looping through all surrounding histograms.
 
 								int k;
 								// Contribution to left bin.
 								k = ((int)gamma + param.n_ori) % param.n_ori;
-								keys[ik].desc[i*param.n_hist*param.n_ori + j * param.n_ori + k] += (1. - (gamma - floor(gamma)))
-									*(1.0 - abs((float)i - alpha))
-									*(1.0 - abs((float)j - beta))
+								keys[ik].desc[i*param.n_hist*param.n_ori + j * param.n_ori + k] += (1.f - (gamma - floor(gamma)))
+									*(1.0f - abs((float)i - alpha))
+									*(1.0f - abs((float)j - beta))
 									*M;
 
 								// Contribution to right bin.
 								k = ((int)gamma + 1 + param.n_ori) % param.n_ori;
-								keys[ik].desc[i*param.n_hist*param.n_ori + j * param.n_ori + k] += (1.0 - (floor(gamma) + 1 - gamma))
-									*(1.0 - abs((float)i - alpha))
-									*(1.0 - abs((float)j - beta))
+								keys[ik].desc[i*param.n_hist*param.n_ori + j * param.n_ori + k] += (1.0f - (floor(gamma) + 1 - gamma))
+									*(1.0f - abs((float)i - alpha))
+									*(1.0f - abs((float)j - beta))
 									*M;
 
 
@@ -557,13 +558,16 @@ public:
 			l2norm = applyL2Norm(keys[ik].desc, n_descr);
 			// Quantization
 			for (int i = 0; i < n_descr; i++) {
-				keys[ik].desc[i] = (int)(keys[ik].desc[i] * 512.0 / l2norm);
+				keys[ik].desc[i] = static_cast<float>(keys[ik].desc[i] * 512.0f / l2norm);
 				keys[ik].desc[i] = std::min(keys[ik].desc[i], 255.0f);
 			}
 		}
 	}
 
 	void run(const CImage<float>* vImage) {
+		originalImage = new CImage<float>(vImage->ncols, vImage->nrows);
+		memcpy(originalImage->data, vImage->data, sizeof(float)*vImage->ncols*vImage->nrows);
+		
 		init(vImage->ncols,vImage->nrows);
 		scalespaceCompute(vImage);
 		scalespaceComputeDog();
@@ -643,6 +647,8 @@ std::vector<std::pair<size_t, size_t>> matchSIFT(const CSIFT* detector1, const C
 			/ distVector[matchItem][matchIndexs[matchItem].second] < MATCHTHRESHOLD) {
 			matchResult.push_back(std::make_pair(matchItem, matchIndexs[matchItem].first));
 		}
+		else
+			int a = 1;
 	}
 
 	return matchResult;
