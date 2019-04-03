@@ -58,13 +58,13 @@ public:
 	SIFTParams param;
 	CImage<float>* originalImage;
 
-	void init(int vW,int vH) {
+	void init(const int vW, const int vH) {
 		// The minimal size (width or height) of images in the last octave.
 		int hmin = 32;
 		// The size (min of width and height) of images in the first octave.
 		int h0 = static_cast<int>(float(std::min(vW, vH)) / this->param.delta_min);
 		// The number of octaves. 0.693147180559945309417==M_LN2
-		int n_oct = std::min(this->param.nOctave, (int)(std::log(h0 / hmin) / 0.693147180559945309417) + 1);
+		int n_oct = std::min(this->param.nOctave, (int)(std::log(h0 / hmin) / 0.693147180559945309417f) + 1);
 		this->param.nOctave = n_oct;
 
 		delta = new float[this->param.nOctave];
@@ -89,7 +89,6 @@ public:
 	}
 
 	void scalespaceCompute(const CImage<float>* vImage){
-
 		for (size_t iOctave = 0; iOctave < param.nOctave; iOctave++) {
 			for (size_t iScale = 0; iScale < param.imagesPerOctave + 3; iScale++)
 			{
