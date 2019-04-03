@@ -1,14 +1,22 @@
 #include "CSIFT.h"
 #include "FreeImage.h"
+#include <glm/matrix.hpp>
+#include <Eigen/Core>
 #include <iostream>
+#include <random>
 #include "opencv2/opencv.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include <opencv2/xfeatures2d/nonfree.hpp>
 
+struct PairWiseCameras {
+	CSIFT* detector1;
+	CSIFT* detector2;
+	std::vector<std::pair<size_t, size_t>> matchResult;
+};
 
-void getMatch(const std::string vImagePath1, const std::string vImagePath2,bool display=true) {
-	CSIFT detector1;
-	CSIFT detector2;
+PairWiseCameras getMatch(const std::string vImagePath1, const std::string vImagePath2,bool display=true) {
+	CSIFT* detector1;
+	CSIFT* detector2;
 
 	FREE_IMAGE_FORMAT fifmt = FreeImage_GetFileType(vImagePath1.c_str(), 0);
 	FIBITMAP *dib = FreeImage_Load(fifmt, vImagePath1.c_str(), 0);
@@ -53,12 +61,12 @@ void getMatch(const std::string vImagePath1, const std::string vImagePath2,bool 
 	width = input1->ncols;
 	height = input2->nrows;
 
-	detector1.run(input1);
-	detector2.run(input2);
+	detector1->run(input1);
+	detector2->run(input2);
 
 
 	std::vector<std::pair<size_t, size_t>> matchResult;
-	matchResult = matchSIFT(&detector1, &detector2);
+	matchResult = matchSIFT(detector1, detector2);
 
 	if (display) {
 		cv::Mat companionImage(cv::Size(2 * width + 5, height), CV_8UC1, cv::Scalar(0));
@@ -91,13 +99,51 @@ void getMatch(const std::string vImagePath1, const std::string vImagePath2,bool 
 		cv::waitKey(0);
 	}
 
-	return;
+	PairWiseCameras out;
+	out.detector1 = detector1;
+	out.detector2 = detector2;
+	out.matchResult = matchResult;
+
+	return out;
+}
+
+void estimate8Points(PairWiseCameras& pairCameras) {
+	if (pairCameras.matchResult.size() < 8) {
+		std::cout << "Not have enough point to estimate 8 point algorithm" << std::endl;
+		return;
+	}
+
+	std::uniform_int_distribution<size_t> gen(0, pairCameras.matchResult.size());
+	std::mt19937 myRand(time(0));
+
+	std::set<size_t> result;
+	while (result.size() < 8)
+		result.insert(gen(myRand));
+
+	Eigen::Matrix<float, 3, 8> pset1, pset2;
+	std::set<size_t>::const_iterator iter = result.begin();
+	for (int i = 0; i < 8; ++i, iter++) {
+		pset1[0][i]= pairCameras.detector1->keys[pairCameras.matchResult[iter].first]
+	}
+}
+
+void enforceConstrains() {
+
+}
+
+void matchSfm(PairWiseCameras& pairCameras) {
+	for (size_t iter = 0; iter < 10000; iter++)
+	{
+		estimate8Points(pairCameras);
+		enforceConstrains();
+	}
 }
 
 int main(){
-	getMatch("../../../my_test/00000.jpeg", "../../../my_test/00001.jpeg");
+	PairWiseCameras t = getMatch("../../../my_test/00000.jpeg"
+		, "../../../my_test/00001.jpeg");
 
-	
+	matchSfm(t);
 
 
     return 0;

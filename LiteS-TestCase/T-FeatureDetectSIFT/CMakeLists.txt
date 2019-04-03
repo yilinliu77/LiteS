@@ -12,6 +12,7 @@ find_path(FREEIMAGE_INCLUDE_DIR NAMES FreeImage.h)
 include_directories(${FREEIMAGE_INCLUDE_DIR})
 find_library(FREEIMAGE_LIBRARY FreeImaged)
 find_package(OpenCV REQUIRED)
+find_package(Eigen3 CONFIG REQUIRED)
 
 include_directories (${OpenCV_INCLUDE_DIRS})
 include_directories (${TBB_INCLUDE_DIRS})
