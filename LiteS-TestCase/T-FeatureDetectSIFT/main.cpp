@@ -46,8 +46,8 @@ int main(){
 
 	CImage<float>* input1 = downsampleBy2(downsampleBy2(downsampleBy2(&image1)));
 	CImage<float>* input2 = downsampleBy2(downsampleBy2(downsampleBy2(&image2)));
-	input1->save("../../../my_test/1.png");
-	input2->save("../../../my_test/2.png");
+	//input1->save("../../../my_test/1.png");
+	//input2->save("../../../my_test/2.png");
 	width = input1->ncols;
 	height = input2->nrows;
 
