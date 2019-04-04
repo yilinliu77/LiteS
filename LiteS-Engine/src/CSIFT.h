@@ -5,8 +5,11 @@
 #include"CImage.h"
 #include<vector>
 #include <algorithm>
+#include <FreeImage.h>
 #include <iostream>
-
+#include "opencv2/opencv.hpp"
+#include "opencv2/highgui/highgui.hpp"
+#include <opencv2/xfeatures2d/nonfree.hpp>
 
 #define EPSILON 0
 #define MATCHTHRESHOLD 0.6
@@ -651,6 +654,60 @@ std::vector<std::pair<size_t, size_t>> matchSIFT(const CSIFT* detector1, const C
 	}
 
 	return matchResult;
+}
+
+void computeFeaturesOpenCV(std::string vImagePath
+	, std::vector<cv::KeyPoint>* vKeyPoints,cv::Mat* vDescriptor) {
+	FREE_IMAGE_FORMAT fifmt = FreeImage_GetFileType(vImagePath.c_str(), 0);
+	FIBITMAP *dib = FreeImage_Load(fifmt, vImagePath.c_str(), 0);
+
+	FIBITMAP* greyScaleBitmap = FreeImage_ConvertToGreyscale(dib);
+	BYTE *pixels = (BYTE*)FreeImage_GetBits(greyScaleBitmap);
+	int width = FreeImage_GetWidth(greyScaleBitmap);
+	int height = FreeImage_GetHeight(greyScaleBitmap);
+
+	CImage<float> image1(width, height);
+
+	for (size_t y = 0; y < height; y++)
+	{
+		for (size_t x = 0; x < width; x++)
+		{
+			image1.at(x, height - y - 1) = pixels[y*width + x] / 255.f;
+		}
+	}
+
+	CImage<float>* input1 = downsampleBy2(downsampleBy2(downsampleBy2(&image1)));
+
+	//SIFT in opencv
+	cv::Mat cvImage1(cv::Size(input1->ncols, input1->nrows), CV_8U, cv::Scalar(0));
+	for (int y = 0; y < input1->nrows; ++y) {
+		for (int x = 0; x < input1->ncols; x++)
+		{
+			cvImage1.at<uchar>(y, x) = static_cast<int>(input1->at(x, y)*255.0f);
+
+		}
+	}
+
+	cv::Ptr<cv::Feature2D> sift = cv::xfeatures2d::SIFT::create(1600);
+	vKeyPoints =new std::vector<cv::KeyPoint>;
+	vKeyPoints->clear();
+	sift->detectAndCompute(cvImage1, cv::Mat(), *vKeyPoints, *vDescriptor);
+
+	delete input1,pixels,dib, greyScaleBitmap;
+}
+
+void matchFeatureOpenCV(const cv::Mat* vDescriptor1, const cv::Mat* vDescriptor2
+	, std::vector<cv::DMatch>& vGoodMatches) {
+	cv::FlannBasedMatcher matcher;
+	std::vector <std::vector<cv::DMatch>> matchItems;
+	matcher.knnMatch(*vDescriptor1, *vDescriptor2, matchItems, 2);
+
+	for (int i = 0; i < vDescriptor1->rows; i++){
+		if (matchItems[i][0].distance / matchItems[i][1].distance <= 0.6){
+			vGoodMatches.push_back(matchItems[i][0]);
+		}
+	}
+
 }
 
 #endif // 
