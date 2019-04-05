@@ -11,6 +11,12 @@
 
 const float RANSAC_INLIER_THRESHOLD = 0.0015f;
 
+struct CameraPose {
+	glm::mat3 K = glm::mat3(1.0f, 0.f, 0.f, 0.f, 1.0f, 0.f, 0.f, 0.f, 1.f);
+	glm::vec3 T = glm::vec3(0.0f, 0.f, 0.f);
+	glm::mat3 R = glm::mat3(1.0f, 0.f, 0.f, 0.f, 1.0f, 0.f, 0.f, 0.f, 1.f);
+};
+
 struct Viewport {
 	size_t ID;
 
@@ -18,6 +24,8 @@ struct Viewport {
 	cv::Mat* descriptor;
 
 	std::vector<int> trackIDs;
+
+	CameraPose pose;
 };
 
 struct PairWiseCamera {
@@ -393,31 +401,96 @@ size_t computeHomographyInliers(const PairWiseCamera& vPairCamera) {
 	return bestInliersNum;
 }
 
-void computePose(const PairWiseCamera& vPairCamera) {
+void poseFromEssential(const glm::mat3 vEssensialMatrix
+	, std::vector<CameraPose> vPoses) {
+	glm::mat3 W(0.0);
+	W[0][1] = -1.0; W[1][0] = 1.0; W[2][2] = 1.0;
+	glm::mat3 Wt(0.0);
+	Wt[0][1] = 1.0; Wt[1][0] = -1.0; Wt[2][2] = 1.0;
+
+	Eigen::Matrix<float, 3, 3> E;
+	E<< vEssensialMatrix[0][0], vEssensialMatrix[0][1], vEssensialMatrix[0][2]
+		, vEssensialMatrix[1][0], vEssensialMatrix[1][1], vEssensialMatrix[1][2]
+		, vEssensialMatrix[2][0], vEssensialMatrix[2][1], vEssensialMatrix[2][2];
+
+	Eigen::Matrix<float, 3, 3> U, S, V;
+	Eigen::JacobiSVD<Eigen::MatrixXf> svd(E, Eigen::ComputeFullU || Eigen::ComputeFullV);
+	U = svd.matrixU();
+	V = svd.matrixV();
+
+	if (U.determinant < 0.0)
+		for (int i = 0; i < 3; ++i)
+			U(i, 2) = -U(i, 2);
+	if (V.determinant < 0.0)
+		for (int i = 0; i < 3; ++i)
+			V(i, 2) = -V(i, 2);
+
+	V=V.transpose();
+	glm::mat3 uGlm, vGlm, sGlm;
+	for (int y = 0; y < 3; ++y)
+		for (int x = 0; x < 3; ++x) {
+			uGlm[y][x] = U(y, x);
+			vGlm[y][x] = V(y, x);
+		}
+	vPoses.clear();
+	vPoses.resize(4);
+	vPoses.at(0).R = uGlm * W * vGlm;
+	vPoses.at(1).R = vPoses.at(0).R;
+	vPoses.at(2).R = uGlm * Wt * vGlm;
+	vPoses.at(3).R = vPoses.at(2).R;
+	vPoses.at(0).T = glm::transpose(uGlm)[2];
+	vPoses.at(1).T = -vPoses.at(0).T;
+	vPoses.at(2).T = vPoses.at(0).T;
+	vPoses.at(3).T = -vPoses.at(0).T;
+}
+
+void triangleMatch(){
+	/* The algorithm is described in HZ 12.2, page 312. */
+	Eigen::Matrix<float, 3, 4> P1, P2;
+	pose1.fill_p_matrix(&P1);
+	pose2.fill_p_matrix(&P2);
+
+	glm::mat4 A;
+	for (int i = 0; i < 4; ++i)
+	{
+		A(0, i) = match.p1[0] * P1(2, i) - P1(0, i);
+		A(1, i) = match.p1[1] * P1(2, i) - P1(1, i);
+		A(2, i) = match.p2[0] * P2(2, i) - P2(0, i);
+		A(3, i) = match.p2[1] * P2(2, i) - P2(1, i);
+	}
+
+	math::Matrix<double, 4, 4> V;
+	math::matrix_svd<double, 4, 4>(A, nullptr, nullptr, &V);
+	math::Vector<double, 4> x = V.col(3);
+	return math::Vector<double, 3>(x[0] / x[3], x[1] / x[3], x[2] / x[3]);
+}
+
+void computePose(const std::vector<Viewport>& viewports, const PairWiseCamera& vPairCamera) {
 	// Compute fundamental matrix from pair correspondences.
 	const glm::mat3 fundamental=vPairCamera.foundamentalMatrix;
 
 	/* Populate K-matrices. */
-	Viewport const& view_1 = this->viewports->at(candidate.view_1_id);
-	Viewport const& view_2 = this->viewports->at(candidate.view_2_id);
-	pose1->set_k_matrix(view_1.focal_length, 0.0, 0.0);
-	pose1->init_canonical_form();
-	pose2->set_k_matrix(view_2.focal_length, 0.0, 0.0);
+	Viewport const& view_1 = viewports[vPairCamera.ID1];
+	Viewport const& view_2 = viewports[vPairCamera.ID2];
 
 	/* Compute essential matrix from fundamental matrix (HZ (9.12)). */
-	EssentialMatrix E = pose2->K.transposed() * fundamental * pose1->K;
+	glm::mat3 essensialMatrix = glm::transpose(view_2.pose.K) * fundamental * view_1.pose.K;
 
 	/* Compute pose from essential. */
 	std::vector<CameraPose> poses;
-	pose_from_essential(E, &poses);
+	poseFromEssential(essensialMatrix, poses);
 
 	/* Find the correct pose using point test (HZ Fig. 9.12). */
 	bool found_pose = false;
-	for (std::size_t i = 0; i < poses.size(); ++i)
-	{
-		poses[i].K = pose2->K;
-		if (is_consistent_pose(candidate.matches[0], *pose1, poses[i]))
-		{
+	for (std::size_t i = 0; i < poses.size(); ++i){
+		poses[i].K = viewports[vPairCamera.ID2].pose.K;
+
+		glm::vec3 x = triangulateMatch(match, pose1, pose2);
+		glm::vec3 x1 = pose1.R * x + pose1.t;
+		glm::vec3 x2 = pose2.R * x + pose2.t;
+		return x1[2] > 0.0f && x2[2] > 0.0f;
+
+		if (isConsistentPose(candidate.matches[0], *pose1, poses[i])){
 			*pose2 = poses[i];
 			found_pose = true;
 			break;
