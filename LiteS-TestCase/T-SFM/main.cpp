@@ -15,7 +15,7 @@ struct CameraPose {
 	glm::mat3 K = glm::mat3(1.0f, 0.f, 0.f, 0.f, 1.0f, 0.f, 0.f, 0.f, 1.f);
 	glm::vec3 T = glm::vec3(0.0f, 0.f, 0.f);
 	glm::mat3 R = glm::mat3(1.0f, 0.f, 0.f, 0.f, 1.0f, 0.f, 0.f, 0.f, 1.f);
-
+};
 
 struct Viewport {
 	size_t ID;
