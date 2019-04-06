@@ -3,6 +3,7 @@ debug
 release
 build
 .vs
+.vscode
 
 # Prerequisites
 *.d
