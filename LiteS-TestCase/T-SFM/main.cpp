@@ -760,11 +760,12 @@ void triangulateNewTracks(std::vector<Viewport>& vViewports,std::vector<Track>& 
 				continue;
 			Viewport const& viewport = vViewports.at(view_id);
 			int const feature_id = track.tracks[trackFeaturesIndex].second;
-			pos.push_back(undistort_feature(
+			// ?????????????????????????????????????????????????????????????
+			/*pos.push_back(undistortFeature(
 				viewport.features.positions[feature_id],
 				static_cast<double>(viewport.radial_distortion[0]),
 				static_cast<double>(viewport.radial_distortion[1]),
-				viewport.focal_length));
+				viewport.focal_length));*/
 			poses.push_back(vViewports.at(view_id).pose);
 			view_ids.push_back(view_id);
 			feature_ids.push_back(feature_id);
@@ -791,15 +792,18 @@ void triangulateNewTracks(std::vector<Viewport>& vViewports,std::vector<Track>& 
 		outlier_track.valied=false;
 		//outlier_track.color = inlier_track.color;
 		for (std::size_t i = 0; i < outlier.size(); ++i){
-			int const view_id = view_ids[outlier[i]];
-			int const feature_id = feature_ids[outlier[i]];
+			size_t viewID = view_ids[outlier[i]];
+			size_t featureID = feature_ids[outlier[i]];
 			/* Remove outlier from inlier track */
-			inlier_track.tracks.erase(view_id);
+			std::vector<std::pair<size_t, size_t>>::iterator iter = inlier_track.tracks.begin();
+			while (iter!= inlier_track.tracks.end()){
+				if ((*iter).first == viewID)
+					inlier_track.tracks.erase(iter++);
+			}
 			/* Add features to new track */
-			outlier_track.features.emplace_back(view_id, feature_id);
+			outlier_track.tracks.push_back(std::make_pair(viewID, featureID));
 			/* Change TrackID in viewports */
-			vViewports.at(view_id).trackIDs[feature_id] =
-				vTracks.size();
+			vViewports.at(viewID).trackIDs[featureID] = vTracks.size();
 		}
 		vTracks.push_back(outlier_track);
 	}
