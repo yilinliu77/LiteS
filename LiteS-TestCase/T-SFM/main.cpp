@@ -761,11 +761,13 @@ void triangulateNewTracks(std::vector<Viewport>& vViewports,std::vector<Track>& 
 			Viewport const& viewport = vViewports.at(view_id);
 			int const feature_id = track.tracks[trackFeaturesIndex].second;
 			// ?????????????????????????????????????????????????????????????
-			/*pos.push_back(undistortFeature(
-				viewport.features.positions[feature_id],
-				static_cast<double>(viewport.radial_distortion[0]),
-				static_cast<double>(viewport.radial_distortion[1]),
-				viewport.focal_length));*/
+			//pos.push_back(undistortFeature(
+			//	viewport.features.positions[feature_id],
+			//	static_cast<double>(viewport.radial_distortion[0]),
+			//	static_cast<double>(viewport.radial_distortion[1]),
+			//	viewport.focal_length));
+			pos.push_back(glm::vec2(viewport.keyPoints->at(feature_id).pt.x
+				, viewport.keyPoints->at(feature_id).pt.x));
 			poses.push_back(vViewports.at(view_id).pose);
 			view_ids.push_back(view_id);
 			feature_ids.push_back(feature_id);
@@ -810,12 +812,220 @@ void triangulateNewTracks(std::vector<Viewport>& vViewports,std::vector<Track>& 
 
 }
 
-void invalidateLargeErrorTracks() {
+void invalidateLargeErrorTracks(std::vector<Track>& vTracks) {
+	/* Iterate over all tracks and sum reprojection error. */
+	std::vector<std::pair<float, std::size_t> > all_errors;
+	std::size_t num_valid_tracks = 0;
+	for (std::size_t i = 0; i < vTracks.size(); ++i){
+		if (!vTracks.at(i).valied)
+			continue;
 
+		num_valid_tracks += 1;
+		glm::vec3 const& pos3d = vTracks.at(i).pos;
+		std::vector<std::pair<size_t, size_t>> const& ref = vTracks.at(i).tracks;
+
+		float total_error = 0.0f;
+		int num_valid = 0;
+		for (std::size_t j = 0; j < ref.size(); ++j){
+			/* Get pose and 2D position of feature. */
+			int view_id = ref[j].first;
+			int feature_id = ref[j].second;
+
+			Viewport const& viewport = viewport.at(view_id);
+			CameraPose const& pose = viewport.pose;
+			if (!pose.valied)
+				continue;
+
+			glm::vec2 const& pos2d = glm::vec2(viewport.keyPoints->at(feature_id).pt.x
+				, viewport.keyPoints->at(feature_id).pt.y);
+
+			/* Project 3D feature and compute reprojection error. */
+			glm::vec3 x = pose.R * pos3d + pose.T;
+			glm::vec2 x2d(x[0] / x[2], x[1] / x[2]);
+			float r2 = x2d.length();
+			//x2d *= (1.0 + r2 * (viewport.radial_distortion[0]
+			//	+ viewport.radial_distortion[1] * r2))
+			//	* pose.get_focal_length();
+			total_error += (pos2d - x2d).length();
+			num_valid += 1;
+		}
+		total_error /= static_cast<double>(num_valid);
+		all_errors.push_back(std::pair<double, int>(total_error, i));
+	}
+
+	if (num_valid_tracks < 2)
+		return;
+
+	/* Find the 1/2 percentile. */
+	std::size_t const nth_position = all_errors.size() / 2;
+	std::nth_element(all_errors.begin(),
+		all_errors.begin() + nth_position, all_errors.end());
+	float const square_threshold = all_errors[nth_position].first
+		* 10.0;
+
+	/* Delete all tracks with errors above the threshold. */
+	int num_deleted_tracks = 0;
+	for (std::size_t i = nth_position; i < all_errors.size(); ++i){
+		if (all_errors[i].first > square_threshold){
+			vTracks.at(all_errors[i].second).valied=false;
+			num_deleted_tracks += 1;
+		}
+	}
 }
 
 void bundleAdjustmentFull() {
+	ba_opts.verbose_output = this->opts.verbose_ba;
+	if (single_camera_ba >= 0)
+		ba_opts.bundle_mode = ba::BundleAdjustment::BA_CAMERAS;
+	else if (single_camera_ba == -2)
+		ba_opts.bundle_mode = ba::BundleAdjustment::BA_POINTS;
+	else if (single_camera_ba == -1)
+		ba_opts.bundle_mode = ba::BundleAdjustment::BA_CAMERAS_AND_POINTS;
+	else
+		throw std::invalid_argument("Invalid BA mode selection");
 
+	/* Convert camera to BA data structures. */
+	std::vector<ba::Camera> ba_cameras;
+	std::vector<int> ba_cameras_mapping(this->viewports->size(), -1);
+	for (std::size_t i = 0; i < this->viewports->size(); ++i){
+		if (single_camera_ba >= 0 && int(i) != single_camera_ba)
+			continue;
+
+		Viewport const& view = this->viewports->at(i);
+		CameraPose const& pose = view.pose;
+		if (!pose.is_valid())
+			continue;
+
+		ba::Camera cam;
+		cam.focal_length = pose.get_focal_length();
+		std::copy(pose.t.begin(), pose.t.end(), cam.translation);
+		std::copy(pose.R.begin(), pose.R.end(), cam.rotation);
+		std::copy(view.radial_distortion,
+			view.radial_distortion + 2, cam.distortion);
+		ba_cameras_mapping[i] = ba_cameras.size();
+		ba_cameras.push_back(cam);
+	}
+
+	/* Convert tracks and observations to BA data structures. */
+	std::vector<ba::Observation> ba_points_2d;
+	std::vector<ba::Point3D> ba_points_3d;
+	std::vector<int> ba_tracks_mapping(this->tracks->size(), -1);
+	for (std::size_t i = 0; i < this->tracks->size(); ++i)
+	{
+		Track const& track = this->tracks->at(i);
+		if (!track.is_valid())
+			continue;
+
+		/* Add corresponding 3D point to BA. */
+		ba::Point3D point;
+		std::copy(track.pos.begin(), track.pos.end(), point.pos);
+		ba_tracks_mapping[i] = ba_points_3d.size();
+		ba_points_3d.push_back(point);
+
+		/* Add all observations to BA. */
+		for (std::size_t j = 0; j < track.features.size(); ++j)
+		{
+			int const view_id = track.features[j].view_id;
+			if (!this->viewports->at(view_id).pose.is_valid())
+				continue;
+			if (single_camera_ba >= 0 && view_id != single_camera_ba)
+				continue;
+
+			int const feature_id = track.features[j].feature_id;
+			Viewport const& view = this->viewports->at(view_id);
+			math::Vec2f const& f2d = view.features.positions[feature_id];
+
+			ba::Observation point;
+			std::copy(f2d.begin(), f2d.end(), point.pos);
+			point.camera_id = ba_cameras_mapping[view_id];
+			point.point_id = ba_tracks_mapping[i];
+			ba_points_2d.push_back(point);
+		}
+	}
+
+	for (std::size_t i = 0; registered && i < this->survey_points->size(); ++i)
+	{
+		SurveyPoint const& survey_point = this->survey_points->at(i);
+
+		/* Add corresponding 3D point to BA. */
+		ba::Point3D point;
+		std::copy(survey_point.pos.begin(), survey_point.pos.end(), point.pos);
+		point.is_constant = true;
+		ba_points_3d.push_back(point);
+
+		/* Add all observations to BA. */
+		for (std::size_t j = 0; j < survey_point.observations.size(); ++j)
+		{
+			SurveyObservation const& obs = survey_point.observations[j];
+			int const view_id = obs.view_id;
+			if (!this->viewports->at(view_id).pose.is_valid())
+				continue;
+			if (single_camera_ba >= 0 && view_id != single_camera_ba)
+				continue;
+
+			ba::Observation point;
+			std::copy(obs.pos.begin(), obs.pos.end(), point.pos);
+			point.camera_id = ba_cameras_mapping[view_id];
+			point.point_id = ba_points_3d.size() - 1;
+			ba_points_2d.push_back(point);
+		}
+	}
+
+	/* Run bundle adjustment. */
+	ba::BundleAdjustment ba(ba_opts);
+	ba.set_cameras(&ba_cameras);
+	ba.set_points(&ba_points_3d);
+	ba.set_observations(&ba_points_2d);
+	ba.optimize();
+	ba.print_status();
+
+	/* Transfer cameras back to SfM data structures. */
+	std::size_t ba_cam_counter = 0;
+	for (std::size_t i = 0; i < this->viewports->size(); ++i)
+	{
+		if (ba_cameras_mapping[i] == -1)
+			continue;
+
+		Viewport& view = this->viewports->at(i);
+		CameraPose& pose = view.pose;
+		ba::Camera const& cam = ba_cameras[ba_cam_counter];
+
+		if (this->opts.verbose_output && !this->opts.ba_fixed_intrinsics)
+		{
+			std::cout << "Camera " << std::setw(3) << i
+				<< ", focal length: "
+				<< util::string::get_fixed(pose.get_focal_length(), 5)
+				<< " -> "
+				<< util::string::get_fixed(cam.focal_length, 5)
+				<< ", distortion: "
+				<< util::string::get_fixed(cam.distortion[0], 5) << " "
+				<< util::string::get_fixed(cam.distortion[1], 5)
+				<< std::endl;
+		}
+
+		std::copy(cam.translation, cam.translation + 3, pose.t.begin());
+		std::copy(cam.rotation, cam.rotation + 9, pose.R.begin());
+		std::copy(cam.distortion, cam.distortion + 2, view.radial_distortion);
+		pose.set_k_matrix(cam.focal_length, 0.0, 0.0);
+		ba_cam_counter += 1;
+	}
+
+	/* Exit if single camera BA is used. */
+	if (single_camera_ba >= 0)
+		return;
+
+	/* Transfer tracks back to SfM data structures. */
+	std::size_t ba_track_counter = 0;
+	for (std::size_t i = 0; i < this->tracks->size(); ++i)
+	{
+		Track& track = this->tracks->at(i);
+		if (!track.is_valid())
+			continue;
+
+		ba::Point3D const& point = ba_points_3d[ba_track_counter];
+		std::copy(point.pos, point.pos + 3, track.pos.begin());
+		ba_track_counter += 1;
+	}
 }
 
 void findNextViews() {
@@ -849,8 +1059,8 @@ int main(){
 	computeTracks(pairCameras, viewports, tracks);
 	size_t initPairID=findInitPairs(viewports,pairCameras);
 
-	triangulateNewTracks(viewports,tracks);
-	invalidateLargeErrorTracks();
+	triangulateNewTracks(viewports,tracks,2);
+	invalidateLargeErrorTracks(tracks);
 	bundleAdjustmentFull();
 
 	/* Reconstruct remaining views. */
