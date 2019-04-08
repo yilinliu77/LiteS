@@ -692,7 +692,7 @@ size_t findInitPairs(const std::vector<Viewport>& vViewports, const std::vector<
 		if (found_pair)
 			continue;
 
-		// Reject pairs with 8 or fewer matches.
+		// Reject pairs with 50 or fewer matches.
 		if (candidates[candidateIndex].matchResult.size() < 50){
 			continue;
 		}
