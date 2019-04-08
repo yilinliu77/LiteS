@@ -1,22 +1,21 @@
 #ifndef LITE_UTIL_H
 #define LITE_UTIL_H
 #include <glm/glm.hpp>
-#include <glm/gtx/norm.hpp>
 #include<glm/gtc/random.hpp>
-#include<glm/ext.hpp>
 
-#include <assimp/Importer.hpp>
-#include <assimp/postprocess.h>
+
 #include <assimp/Exporter.hpp>
-#include <assimp/scene.h>
 #include<assimp/config.h>
+
+#include <Eigen/Core>
+#include <Eigen/Dense>
+#include "CMesh.h"
+#include "CBVHACCEL.h"
 
 #include <vector>
 #include <array>
 #include <numeric>
 #include <algorithm>
-
-using namespace Assimp;
 
 struct My8BitRGBImage
 {
@@ -35,10 +34,10 @@ float triangleArea(glm::vec3 v1, glm::vec3 v2, glm::vec3 v3) {
 
 void saveMesh(const CMesh* v_mesh,string v_outName) {
 	aiScene* scene=new aiScene;
-	scene->mRootNode = new aiNode();
+	scene->mRootNode = new aiNode;
 
 	scene->mMeshes = new aiMesh*[1];
-	scene->mMeshes[0] = new aiMesh();
+	scene->mMeshes[0] = new aiMesh;
 	scene->mNumMeshes = 1;
 
 	//scene->mMaterials = new aiMaterial*[1];
@@ -71,7 +70,7 @@ void saveMesh(const CMesh* v_mesh,string v_outName) {
 	}
 
 	Assimp::Exporter *mAiExporter=new Assimp::Exporter;
-	ExportProperties *properties = new ExportProperties;
+	Assimp::ExportProperties *properties = new Assimp::ExportProperties;
 	properties->SetPropertyBool(AI_CONFIG_EXPORT_POINT_CLOUDS, true);
 	mAiExporter->Export(scene, "ply", v_outName, 0, properties);
 
@@ -139,6 +138,23 @@ std::vector<T> splitString(std::string str, std::string tok) {
 	ss.str(str.substr(psplitPos));
 	ss >> temp;
 	out.push_back(temp);
+	return out;
+}
+
+template<size_t row, size_t col>
+Eigen::Matrix<float, row, col> eigenFromGLM(glm::mat<col, row, float> vM) {
+	Eigen::Matrix<float, row, col> out;
+	for (size_t y = 0; y < row; y++)
+		for (size_t x = 0; x < col; x++)
+			out(y, x) = vM[y][x];
+	return out;
+}
+
+template<size_t row>
+Eigen::Matrix<float, row, 1> eigenFromGLM(glm::vec<row, float> vM) {
+	Eigen::Matrix<float, row, 1> out;
+	for (size_t y = 0; y < row; y++)
+		out(y, 1) = vM[y];
 	return out;
 }
 

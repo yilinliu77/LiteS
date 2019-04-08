@@ -689,8 +689,7 @@ void computeFeaturesOpenCV(std::string vImagePath
 	}
 
 	cv::Ptr<cv::Feature2D> sift = cv::xfeatures2d::SIFT::create(1600);
-	vKeyPoints =new std::vector<cv::KeyPoint>;
-	vKeyPoints->clear();
+	
 	sift->detectAndCompute(cvImage1, cv::Mat(), *vKeyPoints, *vDescriptor);
 
 	delete input1,pixels,dib, greyScaleBitmap;
