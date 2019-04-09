@@ -8,7 +8,8 @@
 #include <utility>
 #include "CImage.h"
 #include "util.h"
-
+#include "ceres/ceres.h"
+#include "ceres/rotation.h"
 
 const float RANSAC_INLIER_THRESHOLD = 0.0015f;
 
@@ -43,6 +44,12 @@ struct Track {
 	bool valied = true;
 	glm::vec3 pos;
 	std::vector<std::pair<size_t, size_t>> tracks;
+};
+
+struct Observation {
+	glm::vec2 pos;
+	int camera_id;
+	int point_id;
 };
 
 void getViewportFeatures(const std::vector<std::string> &vImageLists
@@ -467,11 +474,11 @@ glm::vec3 triangulateMatch(const std::pair<glm::vec2, glm::vec2> vPairPos
 	Eigen::Matrix<float, 3, 3> KR1=eigenFromGLM<3,3>(vPose1.K * vPose1.R);
 	Eigen::Matrix<float, 3, 1> Kt1 = eigenFromGLM<3>(vPose1.K * vPose1.T);
 	P1.block(0, 0, 3, 3) = KR1;
-	P1.block(2, 2, 1, 1) = Kt1;
+	P1.block(0, 3, 3, 1) = Kt1;
 	Eigen::Matrix<float, 3, 3> KR2 = eigenFromGLM<3, 3>(vPose2.K * vPose2.R);
 	Eigen::Matrix<float, 3, 1> Kt2 = eigenFromGLM<3>(vPose2.K * vPose2.T);
 	P2.block(0, 0, 3, 3) = KR2;
-	P2.block(2, 2, 1, 1) = Kt2;
+	P2.block(0, 3, 3, 1) = Kt2;
 	
 	Eigen::Matrix<float, 4, 4> A;
 	for (int i = 0; i < 4; ++i){
@@ -523,10 +530,12 @@ bool computePose(const std::vector<Viewport>& viewports, const PairWiseCamera& v
 	return found_pose;
 }
 
-float angleForPose(const PairWiseCamera& vPairCamera, CameraPose& vPose1, CameraPose& vPose2) {
+float angleForPose(const std::vector<Viewport>& viewports, const PairWiseCamera& vPairCamera) {
+	const CameraPose& pose1 = viewports[vPairCamera.ID1].pose;
+	const CameraPose& pose2 = viewports[vPairCamera.ID2].pose;
 	// Compute transformation from image coordinates to viewing direction
-	glm::mat3 T1 = glm::transpose(vPose1.R) * glm::inverse(vPose1.K);
-	glm::mat3 T2 = glm::transpose(vPose2.R) * glm::inverse(vPose2.K);
+	glm::mat3 T1 = glm::transpose(pose1.R) * glm::inverse(pose1.K);
+	glm::mat3 T2 = glm::transpose(pose2.R) * glm::inverse(pose2.K);
 
 	/* Compute triangulation angle for each correspondence. */
 	std::vector<float> cos_angles;
@@ -581,10 +590,10 @@ glm::vec3 triangulateTrack(std::vector<glm::vec2>& vPostion, std::vector<CameraP
 		P1.block(0, 0, 3, 3) = KR1;
 		P1.block(2, 2, 1, 1) = Kt1;
 
-		//for (int j = 0; j < 4; ++j){
-		//	A[(2 * i + 0) * 4 + j] = p[0] * P1(2, j) - P1(0, j);
-		//	A[(2 * i + 1) * 4 + j] = p[1] * P1(2, j) - P1(1, j);
-		//}
+		for (int j = 0; j < 4; ++j){
+			A(2 * i + 0, j) = p[0] * P1(2, j) - P1(0, j);
+			A(2 * i + 1, j) = p[1] * P1(2, j) - P1(1, j);
+		}
 	}
 
 	/* Compute SVD. */
@@ -706,7 +715,6 @@ size_t findInitPairs(const std::vector<Viewport>& vViewports, const std::vector<
 		}
 
 		// Compute initial pair pose.
-		CameraPose pose1, pose2;
 
 		bool const found_pose = computePose(vViewports, candidates[candidateIndex]);
 		if (!found_pose){
@@ -714,16 +722,15 @@ size_t findInitPairs(const std::vector<Viewport>& vViewports, const std::vector<
 		}
 
 		// Rejects pairs with bad triangulation angle.
-		float const angle = angleForPose(vPairCameras[candidateIndex],pose1, pose2);
+		float const angle = angleForPose(vViewports,vPairCameras[candidateIndex]);
 		pairScores[candidateIndex] = scoreForPair(vPairCameras[candidateIndex], numInliers, angle);
 		if (angle < 5 * 3.1415926 / 180)
 			continue;
 
 		// If all passes, run triangulation to ensure correct pair
-
 		std::vector<CameraPose> poses;
-		poses.push_back(pose1);
-		poses.push_back(pose2);
+		poses.push_back(vViewports[vPairCameras[candidateIndex].ID1].pose);
+		poses.push_back(vViewports[vPairCameras[candidateIndex].ID2].pose);
 		std::size_t successful_triangulations = 0;
 		std::vector<glm::vec2> positions(2);
 		for (std::size_t j = 0; j < vPairCameras[candidateIndex].matchResult.size(); ++j)
@@ -779,7 +786,7 @@ void triangulateNewTracks(std::vector<Viewport>& vViewports,std::vector<Track>& 
 			//	static_cast<double>(viewport.radial_distortion[1]),
 			//	viewport.focal_length));
 			pos.push_back(glm::vec2(viewport.keyPoints->at(feature_id).pt.x
-				, viewport.keyPoints->at(feature_id).pt.x));
+				, viewport.keyPoints->at(feature_id).pt.y));
 			poses.push_back(vViewports.at(view_id).pose);
 			view_ids.push_back(view_id);
 			feature_ids.push_back(feature_id);
@@ -885,159 +892,325 @@ void invalidateLargeErrorTracks(std::vector<Viewport>& vViewports,std::vector<Tr
 	}
 }
 
-void bundleAdjustmentFull() {
-	//ba_opts.verbose_output = this->opts.verbose_ba;
-	//if (single_camera_ba >= 0)
-	//	ba_opts.bundle_mode = ba::BundleAdjustment::BA_CAMERAS;
-	//else if (single_camera_ba == -2)
-	//	ba_opts.bundle_mode = ba::BundleAdjustment::BA_POINTS;
-	//else if (single_camera_ba == -1)
-	//	ba_opts.bundle_mode = ba::BundleAdjustment::BA_CAMERAS_AND_POINTS;
-	//else
-	//	throw std::invalid_argument("Invalid BA mode selection");
+void updateParameters(Eigen::VectorXf& delta_x, std::vector<Eigen::Vector3f>& vBAPoints3d
+	, const size_t cameraNums) {
+	for (std::size_t i = 0; i < vBAPoints3d.size(); ++i)
+		vBAPoints3d[i] += delta_x;
+}
 
-	///* Convert camera to BA data structures. */
-	//std::vector<ba::Camera> ba_cameras;
-	//std::vector<int> ba_cameras_mapping(this->viewports->size(), -1);
-	//for (std::size_t i = 0; i < this->viewports->size(); ++i){
-	//	if (single_camera_ba >= 0 && int(i) != single_camera_ba)
-	//		continue;
+void computeReprojectionErrors(Eigen::VectorXf& vVector, std::vector<Observation>& vBAPoints2d
+	, std::vector<Eigen::Vector3f>& vBAPoints3d
+	, std::vector<int>& vBAPointMapping, std::vector<Viewport>& vViewports
+	, Eigen::VectorXf *delta_x = nullptr) {
+	for (size_t i = 0; i < vVector.rows(); i++){
+		const Viewport& viewport = vViewports.at(vBAPoints2d.at(i).camera_id);
+		Eigen::Vector3f point = vBAPoints3d.at(vBAPoints2d.at(i).point_id);
+		const glm::vec2 screenPos = vBAPoints2d.at(i).pos;
 
-	//	Viewport const& view = this->viewports->at(i);
-	//	CameraPose const& pose = view.pose;
-	//	if (!pose.is_valid())
-	//		continue;
+		if (delta_x != nullptr)
+			point += *delta_x;
 
-	//	ba::Camera cam;
-	//	cam.focal_length = pose.get_focal_length();
-	//	std::copy(pose.t.begin(), pose.t.end(), cam.translation);
-	//	std::copy(pose.R.begin(), pose.R.end(), cam.rotation);
-	//	std::copy(view.radial_distortion,
-	//		view.radial_distortion + 2, cam.distortion);
-	//	ba_cameras_mapping[i] = ba_cameras.size();
-	//	ba_cameras.push_back(cam);
-	//}
+		// Project point onto image plane.
+		point = eigenFromGLM(viewport.pose.R)*point + eigenFromGLM(viewport.pose.T);
+		
+		point(0) = point(0) / point(2);
+		point(1) = point(1) / point(2);
 
-	///* Convert tracks and observations to BA data structures. */
-	//std::vector<ba::Observation> ba_points_2d;
-	//std::vector<ba::Point3D> ba_points_3d;
-	//std::vector<int> ba_tracks_mapping(this->tracks->size(), -1);
-	//for (std::size_t i = 0; i < this->tracks->size(); ++i)
-	//{
-	//	Track const& track = this->tracks->at(i);
-	//	if (!track.is_valid())
-	//		continue;
+		// Distort reprojection.
+		//this->radial_distort(rp + 0, rp + 1, dist);
 
-	//	/* Add corresponding 3D point to BA. */
-	//	ba::Point3D point;
-	//	std::copy(track.pos.begin(), track.pos.end(), point.pos);
-	//	ba_tracks_mapping[i] = ba_points_3d.size();
-	//	ba_points_3d.push_back(point);
+		/* Compute reprojection error. */
+		vVector(i) = point(0) - screenPos[0];
+		vVector(i) = point(1) - screenPos[1];
+	}
+}
 
-	//	/* Add all observations to BA. */
-	//	for (std::size_t j = 0; j < track.features.size(); ++j)
-	//	{
-	//		int const view_id = track.features[j].view_id;
-	//		if (!this->viewports->at(view_id).pose.is_valid())
-	//			continue;
-	//		if (single_camera_ba >= 0 && view_id != single_camera_ba)
-	//			continue;
+float computeMSE(Eigen::VectorXf& vVector) {
+	float mse = 0.0;
+	for (std::size_t i = 0; i < vVector.rows(); ++i)
+		mse += vVector(i) * vVector(i);
+	return mse / static_cast<float>(vVector.rows() / 2);
+}
 
-	//		int const feature_id = track.features[j].feature_id;
-	//		Viewport const& view = this->viewports->at(view_id);
-	//		math::Vec2f const& f2d = view.features.positions[feature_id];
+void analyticJacobian(Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& vMatrix) {
 
-	//		ba::Observation point;
-	//		std::copy(f2d.begin(), f2d.end(), point.pos);
-	//		point.camera_id = ba_cameras_mapping[view_id];
-	//		point.point_id = ba_tracks_mapping[i];
-	//		ba_points_2d.push_back(point);
-	//	}
-	//}
+}
 
-	//for (std::size_t i = 0; registered && i < this->survey_points->size(); ++i)
-	//{
-	//	SurveyPoint const& survey_point = this->survey_points->at(i);
+bool linearSolve(Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& F1
+	, Eigen::VectorXf& vVector, Eigen::VectorXf delta_x) {
 
-	//	/* Add corresponding 3D point to BA. */
-	//	ba::Point3D point;
-	//	std::copy(survey_point.pos.begin(), survey_point.pos.end(), point.pos);
-	//	point.is_constant = true;
-	//	ba_points_3d.push_back(point);
+}
 
-	//	/* Add all observations to BA. */
-	//	for (std::size_t j = 0; j < survey_point.observations.size(); ++j)
-	//	{
-	//		SurveyObservation const& obs = survey_point.observations[j];
-	//		int const view_id = obs.view_id;
-	//		if (!this->viewports->at(view_id).pose.is_valid())
-	//			continue;
-	//		if (single_camera_ba >= 0 && view_id != single_camera_ba)
-	//			continue;
+void baOptimize(std::vector<Observation>& vBAPoints2d, std::vector<Eigen::Vector3f>& vBAPoints3d
+	, std::vector<int>& vBAPointMapping, std::vector<Viewport>& vViewports) {
+	Eigen::VectorXf F, F_new;
+	F.resize(vBAPoints2d.size());
+	F_new.resize(vBAPoints2d.size());
+	computeReprojectionErrors(F,vBAPoints2d,vBAPoints3d,vBAPointMapping,vViewports);
+	float currentMSE = computeMSE(F);
 
-	//		ba::Observation point;
-	//		std::copy(obs.pos.begin(), obs.pos.end(), point.pos);
-	//		point.camera_id = ba_cameras_mapping[view_id];
-	//		point.point_id = ba_points_3d.size() - 1;
-	//		ba_points_2d.push_back(point);
-	//	}
-	//}
+	/* Levenberg-Marquard main loop. */
+	for (int lm_iter = 0; ; ++lm_iter){
+		if (lm_iter + 1 > 0
+			&& (currentMSE < 1e-8)){
+			cout << "BA: Satisfied MSE threshold." << std::endl;
+			break;
+		}
 
-	///* Run bundle adjustment. */
-	//ba::BundleAdjustment ba(ba_opts);
-	//ba.set_cameras(&ba_cameras);
-	//ba.set_points(&ba_points_3d);
-	//ba.set_observations(&ba_points_2d);
-	//ba.optimize();
-	//ba.print_status();
+		/* Compute Jacobian. */
+		Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> Jp;
+		analyticJacobian(Jp);
 
-	///* Transfer cameras back to SfM data structures. */
-	//std::size_t ba_cam_counter = 0;
-	//for (std::size_t i = 0; i < this->viewports->size(); ++i)
-	//{
-	//	if (ba_cameras_mapping[i] == -1)
-	//		continue;
+		/* Perform linear step. */
+		Eigen::VectorXf delta_x;
+		bool linearSuccess=linearSolve(Jp, F, delta_x);
 
-	//	Viewport& view = this->viewports->at(i);
-	//	CameraPose& pose = view.pose;
-	//	ba::Camera const& cam = ba_cameras[ba_cam_counter];
+		/* Update reprojection errors and MSE after linear step. */
+		double new_mse, delta_mse, delta_mse_ratio = 1.0;
+		if (linearSuccess){
+			computeReprojectionErrors(F_new, vBAPoints2d, vBAPoints3d, vBAPointMapping, vViewports, &delta_x);
+			new_mse = computeMSE(F_new);
+			delta_mse = currentMSE - new_mse;
+			delta_mse_ratio = 1.0 - new_mse / currentMSE;
+		}
+		else{
+			new_mse = currentMSE;
+			delta_mse = 0.0;
+		}
+		bool successful_iteration = delta_mse > 0.0;
 
-	//	if (this->opts.verbose_output && !this->opts.ba_fixed_intrinsics)
-	//	{
-	//		std::cout << "Camera " << std::setw(3) << i
-	//			<< ", focal length: "
-	//			<< util::string::get_fixed(pose.get_focal_length(), 5)
-	//			<< " -> "
-	//			<< util::string::get_fixed(cam.focal_length, 5)
-	//			<< ", distortion: "
-	//			<< util::string::get_fixed(cam.distortion[0], 5) << " "
-	//			<< util::string::get_fixed(cam.distortion[1], 5)
-	//			<< std::endl;
-	//	}
+		/*
+		 * Apply delta to parameters after successful step.
+		 * Adjust the trust region to increase/decrease regularization.
+		 */
+		if (successful_iteration){
+			cout << "BA: #" << std::setw(2) << std::left << lm_iter
+				<< " success" << std::right
+				<< ", MSE " << std::setw(11) << currentMSE
+				<< " -> " << std::setw(11) << new_mse
+				//<< ", CG " << std::setw(3) << cg_status.num_cg_iterations
+				//<< ", TRR " << pcg_opts.trust_region_radius
+				<< std::endl;
 
-	//	std::copy(cam.translation, cam.translation + 3, pose.t.begin());
-	//	std::copy(cam.rotation, cam.rotation + 9, pose.R.begin());
-	//	std::copy(cam.distortion, cam.distortion + 2, view.radial_distortion);
-	//	pose.set_k_matrix(cam.focal_length, 0.0, 0.0);
-	//	ba_cam_counter += 1;
-	//}
+			//this->status.num_lm_iterations += 1;
+			//this->status.num_lm_successful_iterations += 1;
+			updateParameters(delta_x, vBAPoints3d,vViewports.size());
+			std::swap(F, F_new);
+			currentMSE = new_mse;
 
-	///* Exit if single camera BA is used. */
-	//if (single_camera_ba >= 0)
-	//	return;
+			/* Compute trust region update. FIXME delta_norm or mse? */
+			//double const gain_ratio = delta_mse * (F.size() / 2)
+			//	/ cg_status.predicted_error_decrease;
+			//double const trust_region_update = 1.0 / std::max(1.0 / 3.0,
+			//	(1.0 - MATH_POW3(2.0 * gain_ratio - 1.0)));
+			//pcg_opts.trust_region_radius *= trust_region_update;
+		}
+		else{
+			cout << "BA: #" << std::setw(2) << std::left << lm_iter
+				<< " failure" << std::right
+				<< ", MSE " << std::setw(11) << currentMSE
+				<< ",    " << std::setw(11) << " "
+				//<< " CG " << std::setw(3) << cg_status.num_cg_iterations
+				//<< ", TRR " << pcg_opts.trust_region_radius
+				<< std::endl;
 
-	///* Transfer tracks back to SfM data structures. */
-	//std::size_t ba_track_counter = 0;
-	//for (std::size_t i = 0; i < this->tracks->size(); ++i)
-	//{
-	//	Track& track = this->tracks->at(i);
-	//	if (!track.is_valid())
-	//		continue;
+			//this->status.num_lm_iterations += 1;
+			//this->status.num_lm_unsuccessful_iterations += 1;
+			//pcg_opts.trust_region_radius *= TRUST_REGION_RADIUS_DECREMENT;
+		}
 
-	//	ba::Point3D const& point = ba_points_3d[ba_track_counter];
-	//	std::copy(point.pos, point.pos + 3, track.pos.begin());
-	//	ba_track_counter += 1;
-	//}
+		/* Check termination due to LM iterations. */
+		if (lm_iter + 1 < 0)
+			continue;
+		if (lm_iter + 1 >= 50){
+			cout << "BA: Reached maximum LM iterations of "
+				<< 50 << std::endl;
+			break;
+		}
+
+		/* Check threshold on the norm of delta_x. */
+		if (successful_iteration){
+			if (delta_mse_ratio < 1e-4){
+				cout << "BA: Satisfied delta mse ratio threshold of "
+					<< 1e-4 << std::endl;
+				break;
+			}
+		}
+	}
+}
+
+struct baObservation {
+	double *params;
+};
+
+struct SnavelyReprojectionError {
+	SnavelyReprojectionError(double observed_x, double observed_y)
+		: observed_x(observed_x), observed_y(observed_y) {}
+
+	template <typename T>
+	bool operator()(const T* const camera,
+		const T* const point,
+		T* residuals) const {
+		// camera[0,1,2] are the angle-axis rotation.
+		T p[3];
+		ceres::AngleAxisRotatePoint(camera, point, p);
+		// camera[3,4,5] are the translation.
+		p[0] += camera[3]; p[1] += camera[4]; p[2] += camera[5];
+
+		// Compute the center of distortion. The sign change comes from
+		// the camera model that Noah Snavely's Bundler assumes, whereby
+		// the camera coordinate system has a negative z axis.
+		T xp = -p[0] / p[2];
+		T yp = -p[1] / p[2];
+
+		// Apply second and fourth order radial distortion.
+		const T& l1 = camera[7];
+		const T& l2 = camera[8];
+		T r2 = xp * xp + yp * yp;
+		T distortion = T(1.0) + r2 * (l1 + l2 * r2);
+
+		// Compute final projected point position.
+		const T& focal = camera[6];
+		T predicted_x = focal * distortion * xp;
+		T predicted_y = focal * distortion * yp;
+
+		// The error is the difference between the predicted and observed position.
+		residuals[0] = predicted_x - T(observed_x);
+		residuals[1] = predicted_y - T(observed_y);
+		return true;
+	}
+
+	// Factory to hide the construction of the CostFunction object from
+	// the client code.
+	static ceres::CostFunction* Create(const double observed_x,
+		const double observed_y) {
+		return (new ceres::AutoDiffCostFunction<SnavelyReprojectionError, 2, 9, 3>(
+			new SnavelyReprojectionError(observed_x, observed_y)));
+	}
+
+	double observed_x;
+	double observed_y;
+};
+
+void baOptimizeWithCeres(std::vector<baObservation>& vBAObservations
+	, std::vector<Eigen::Vector3f>& vPointsWorld
+	, std::vector<int>& vBAPointMapping, std::vector<Viewport>& vViewports) {
+	ceres::Problem problem;
+	double *screenPoses = new double[];
+	double *pointWorldPoses = new double[vBAPoints3d.size()];
+	double *pointWorldPoses = new double[vBAPoints3d.size()];
+	for (int i = 0; i < vBAPoints2d.size(); ++i) {
+		ceres::CostFunction* cost_function =
+			SnavelyReprojectionError::Create(
+				static_cast<double>(),
+				static_cast<double>();
+		problem.AddResidualBlock(cost_function,
+			NULL /* squared loss */,
+			static_cast<double>(),
+			static_cast<double>());
+	}
+}
+
+void bundleAdjustmentFull(std::vector<Viewport>& vViewports, std::vector<Track>& vTracks) {
+	/* Convert tracks and observations to BA data structures. */
+	std::vector<Observation> ba_points_2d;
+	std::vector<Eigen::Vector3f> ba_points_3d;
+	std::vector<int> ba_tracks_mapping(vTracks.size(), -1);
+	for (std::size_t i = 0; i < vTracks.size(); ++i){
+		Track const& track = vTracks.at(i);
+		if (!track.valied)
+			continue;
+
+		/* Add corresponding 3D point to BA. */
+		glm::vec3 point=vTracks[i].pos;
+		ba_tracks_mapping[i] = ba_points_3d.size();
+		ba_points_3d.push_back(eigenFromGLM(point));
+
+		/* Add all observations to BA. */
+		for (std::size_t j = 0; j < track.tracks.size(); ++j){
+			int const view_id = track.tracks[j].first;
+			if (!vViewports.at(view_id).pose.valied)
+				continue;
+
+			int const feature_id = track.tracks[j].second;
+			Viewport const& view = vViewports.at(view_id);
+			const glm::vec2 & f2d = glm::vec2(view.keyPoints->at(feature_id).pt.x
+				, view.keyPoints->at(feature_id).pt.y);
+
+			Observation point;
+			point.pos = f2d;
+			point.camera_id = view_id;
+			point.point_id = ba_tracks_mapping[i];
+			ba_points_2d.push_back(point);
+		}
+	}
+
+	/* Run bundle adjustment. */
+	baOptimize(ba_points_2d, ba_points_3d, ba_tracks_mapping, vViewports);
+
+	/* Transfer tracks back to SfM data structures. */
+	std::size_t ba_track_counter = 0;
+	for (std::size_t i = 0; i < vTracks.size(); ++i){
+		Track& track = vTracks.at(i);
+		if (!track.valied)
+			continue;
+
+		const Eigen::Vector3f & point = ba_points_3d[ba_track_counter];
+		track.pos = glm::vec3(point(0), point(1) , point(2));
+		ba_track_counter += 1;
+	}
+}
+
+void bundleAdjustmentFullWithCeres(std::vector<Viewport>& vViewports, std::vector<Track>& vTracks) {
+	
+	
+	/* Convert tracks and observations to BA data structures. */
+	std::vector<Observation> ba_points_2d;
+	std::vector<Eigen::Vector3f> ba_points_3d;
+	std::vector<int> ba_tracks_mapping(vTracks.size(), -1);
+	for (std::size_t i = 0; i < vTracks.size(); ++i) {
+		Track const& track = vTracks.at(i);
+		if (!track.valied)
+			continue;
+
+		/* Add corresponding 3D point to BA. */
+		glm::vec3 point = vTracks[i].pos;
+		ba_tracks_mapping[i] = ba_points_3d.size();
+		ba_points_3d.push_back(eigenFromGLM(point));
+
+		/* Add all observations to BA. */
+		for (std::size_t j = 0; j < track.tracks.size(); ++j) {
+			int const view_id = track.tracks[j].first;
+			if (!vViewports.at(view_id).pose.valied)
+				continue;
+
+			int const feature_id = track.tracks[j].second;
+			Viewport const& view = vViewports.at(view_id);
+			const glm::vec2 & f2d = glm::vec2(view.keyPoints->at(feature_id).pt.x
+				, view.keyPoints->at(feature_id).pt.y);
+
+			Observation point;
+			point.pos = f2d;
+			point.camera_id = view_id;
+			point.point_id = ba_tracks_mapping[i];
+			ba_points_2d.push_back(point);
+		}
+	}
+
+	/* Run bundle adjustment. */
+	baOptimizeWithCeres(ba_points_2d, ba_points_3d, ba_tracks_mapping, vViewports);
+
+	/* Transfer tracks back to SfM data structures. */
+	std::size_t ba_track_counter = 0;
+	for (std::size_t i = 0; i < vTracks.size(); ++i) {
+		Track& track = vTracks.at(i);
+		if (!track.valied)
+			continue;
+
+		const Eigen::Vector3f & point = ba_points_3d[ba_track_counter];
+		track.pos = glm::vec3(point(0), point(1), point(2));
+		ba_track_counter += 1;
+	}
 }
 
 void findNextViews(std::vector<int>& next_views) {
@@ -1075,7 +1248,7 @@ int main(){
 
 	triangulateNewTracks(viewports,tracks,2);
 	invalidateLargeErrorTracks(viewports, tracks);
-	bundleAdjustmentFull();
+	bundleAdjustmentFull(viewports, tracks);
 
 	/* Reconstruct remaining views. */
 	int num_cameras_reconstructed = 2;
@@ -1107,7 +1280,7 @@ int main(){
 			else{
 				triangulateNewTracks(viewports, tracks, 3);
 				std::cout << "Running full bundle adjustment..." << std::endl;
-				bundleAdjustmentFull();
+				bundleAdjustmentFull(viewports, tracks);
 				invalidateLargeErrorTracks(viewports, tracks);
 				full_ba_num_skipped = 0;
 				continue;
@@ -1115,8 +1288,8 @@ int main(){
 		}
 
 		/* Run single-camera bundle adjustment. */
-		std::cout << "Running single camera bundle adjustment..." << std::endl;
-		bundleAdjustmentSingleCamera(next_view_id);
+		//std::cout << "Running single camera bundle adjustment..." << std::endl;
+		//bundleAdjustmentSingleCamera(next_view_id);
 		num_cameras_reconstructed += 1;
 
 		/* Run full bundle adjustment only after a couple of views. */
@@ -1131,7 +1304,7 @@ int main(){
 			triangulateNewTracks(viewports, tracks, 3);
 			tryRestoreTracksForViews();
 			std::cout << "Running full bundle adjustment..." << std::endl;
-			bundleAdjustmentFull();
+			bundleAdjustmentFull(viewports, tracks);
 			invalidateLargeErrorTracks(viewports, tracks);
 			full_ba_num_skipped = 0;
 		}
