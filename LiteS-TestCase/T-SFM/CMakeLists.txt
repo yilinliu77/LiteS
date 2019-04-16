@@ -14,7 +14,7 @@ find_library(FREEIMAGE_LIBRARY FreeImaged)
 find_package(OpenCV REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 find_package(Ceres CONFIG REQUIRED)
-
+find_package(GTest MODULE REQUIRED)
 include_directories (${OpenCV_INCLUDE_DIRS})
 include_directories (${TBB_INCLUDE_DIRS})
 include_directories (${ASSIMP_INCLUDE_DIRS})
@@ -23,5 +23,5 @@ include_directories (${ASSIMP_INCLUDE_DIRS})
 add_executable(T-SFM ${SOURCE_FILES} ${HEADER_FILES})
 add_dependencies(T-SFM LiteS)
 
-target_link_libraries(T-SFM LiteS ${OpenCV_LIBS} ${FREEIMAGE_LIBRARY} ceres assimp::assimp)
+target_link_libraries(T-SFM LiteS ${OpenCV_LIBS} ${FREEIMAGE_LIBRARY} ceres assimp::assimp GTest::GTest GTest::Main)
  

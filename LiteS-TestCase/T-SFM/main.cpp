@@ -10,47 +10,10 @@
 #include "util.h"
 #include "ceres/ceres.h"
 #include "ceres/rotation.h"
+#include "foundamental.h"
+#include "unitTest.h"
 
 const float RANSAC_INLIER_THRESHOLD = 0.0015f;
-
-
-struct CameraPose {
-	glm::mat3 K = glm::mat3(1.0f, 0.f, 0.f, 0.f, 1.0f, 0.f, 0.f, 0.f, 1.f);
-	glm::vec3 T = glm::vec3(0.0f, 0.f, 0.f);
-	glm::mat3 R = glm::mat3(1.0f, 0.f, 0.f, 0.f, 1.0f, 0.f, 0.f, 0.f, 1.f);
-	bool valied = true;
-};
-
-struct Viewport {
-	size_t ID;
-
-	std::vector<cv::KeyPoint>* keyPoints;
-	cv::Mat* descriptor;
-
-	std::vector<int> trackIDs;
-
-	CameraPose pose;
-};
-
-struct PairWiseCamera {
-	size_t ID1;
-	size_t ID2;
-	
-	std::vector<std::pair<glm::vec3, glm::vec3>> matchResult;
-	glm::mat3 foundamentalMatrix;
-};
-
-struct Track {
-	bool valied = true;
-	glm::vec3 pos;
-	std::vector<std::pair<size_t, size_t>> tracks;
-};
-
-struct Observation {
-	glm::vec2 pos;
-	int camera_id;
-	int point_id;
-};
 
 void getViewportFeatures(const std::vector<std::string> &vImageLists
 	,std::vector<Viewport> &vOutViewports) {
@@ -61,7 +24,8 @@ void getViewportFeatures(const std::vector<std::string> &vImageLists
 		vOutViewports.back().descriptor = new cv::Mat;
 		vOutViewports.back().keyPoints->clear();
 		computeFeaturesOpenCV(vImageLists[i], vOutViewports.back().keyPoints
-			, vOutViewports.back().descriptor);
+			, vOutViewports.back().descriptor, vOutViewports.back().originalImage
+			, vOutViewports.back().width, vOutViewports.back().height);
 	}
 }
 
@@ -72,7 +36,8 @@ void matchViewportFeature(const std::vector<Viewport> &vViewports
 			if(view1==view2)
 				continue;
 			std::vector<cv::DMatch> goodMatches;
-			matchFeatureOpenCV(vViewports[view1].descriptor, vViewports[view2].descriptor, goodMatches);
+			matchFeatureOpenCV(vViewports[view1].descriptor, vViewports[view2].descriptor
+				, goodMatches);
 			vOutPairs.push_back(PairWiseCamera());
 			PairWiseCamera& p = vOutPairs.back();
 			p.ID1 = view1;
@@ -84,113 +49,54 @@ void matchViewportFeature(const std::vector<Viewport> &vViewports
 				float y2 = vViewports[view2].keyPoints->at(matchItem.trainIdx).pt.y;
 			
 				p.matchResult.push_back(std::make_pair < glm::vec3, glm::vec3 >(
-					glm::vec3(x1, y1, matchItem.queryIdx), glm::vec3(x2, y2, matchItem.trainIdx)));
+					glm::vec3(x1, y1, matchItem.queryIdx)
+					, glm::vec3(x2, y2, matchItem.trainIdx)));
 			}
 		}
 	}
 }
 
-void normalizeImageCoordinate(std::vector<Viewport> &vViewports,size_t vWidth, size_t vHeight) {
-	for (auto& viewport : vViewports) {
-		for (size_t i = 0; i < viewport.keyPoints->size();++i) {
-			viewport.keyPoints->at(i).pt.x /= static_cast<float>(vWidth);
-			viewport.keyPoints->at(i).pt.y /= static_cast<float>(vHeight);
+void drawMatchResult(const std::vector<Viewport> &vViewports
+	,const std::vector<PairWiseCamera> &vPaitCameras) {
+	for (const PairWiseCamera& pairItem : vPaitCameras) {
+		const Viewport& view1 = vViewports[pairItem.ID1];
+		const Viewport& view2 = vViewports[pairItem.ID2];
+
+		cv::Mat companionImage(cv::Size(view1.width + view2.width + 5
+			, std::max(view1.height, view2.height))
+			, CV_8UC1, cv::Scalar(0));
+		for (int y = 0; y < companionImage.rows; ++y) {
+			for (int x = 0; x < companionImage.cols; x++)
+			{
+				if (x < view1.width)
+					companionImage.at<uchar>(y, x) = view1.originalImage.at(x, y)*255.0f;
+				else if (x >= view1.width&&x < view1.width + 5)
+					companionImage.at<uchar>(y, x) = 0;
+				else
+					companionImage.at<uchar>(y, x) = view2.originalImage.at(x - (int)view1.width - 5, y)*255.0f;
+			}
 		}
+
+		for (auto &matchItem : pairItem.matchResult) {
+			size_t x1 = matchItem.first.x*view1.width;
+			size_t y1 = matchItem.first.y*view1.height;
+			size_t x2 = matchItem.second.x * view2.width;
+			size_t y2 = matchItem.second.y * view2.height;
+
+			cv::line(companionImage, cv::Point2f(x1, y1), cv::Point2f(x2 + view1.width + 5, y2)
+				, cv::Scalar(0, 0, 255), 1, CV_AA);
+		}
+
+		cv::namedWindow("MyWindow", CV_WINDOW_NORMAL);
+		cv::resizeWindow("MyWindow", cv::Size(1200, 600));
+		cv::imshow("MyWindow", companionImage);
+		cv::waitKey(0);
+
 	}
 }
 
-Eigen::VectorXf estimate8Points(PairWiseCamera& pairCameras) {
-	if (pairCameras.matchResult.size() < 8) {
-		std::cout << "Not have enough point to estimate 8 point algorithm" << std::endl;
-		return Eigen::VectorXf();
-	}
-
-	std::uniform_int_distribution<size_t> gen(0, pairCameras.matchResult.size()-1);
-	std::mt19937 myRand(time(0));
-
-	std::set<size_t> result;
-	while (result.size() < 8)
-		result.insert(gen(myRand));
-
-	Eigen::Matrix<float, 3, 8> pset1, pset2;
-	std::set<size_t>::const_iterator iter = result.begin();
-	for (int i = 0; i < 8; ++i, iter++) {
-		pset1(0, i) = pairCameras.matchResult[*iter].first.x;
-		pset1(1, i) = pairCameras.matchResult[*iter].first.y;
-		pset1(2, i) = 1.f;
-		pset2(0, i) = pairCameras.matchResult[*iter].second.x;
-		pset2(1, i) = pairCameras.matchResult[*iter].second.y;
-		pset2(2, i) = 1.f;
-	}
-
-	Eigen::Matrix<float, 8, 9> A;
-	for (int i = 0; i < 8; ++i){
-		Eigen::Vector3f p1 = pset1.col(i);
-		Eigen::Vector3f p2 = pset2.col(i);
-		A(i, 0) = p2(0) * p1(0);
-		A(i, 1) = p2(0) * p1(1);
-		A(i, 2) = p2(0) * 1.0f;
-		A(i, 3) = p2(1) * p1(0);
-		A(i, 4) = p2(1) * p1(1);
-		A(i, 5) = p2(1) * 1.0f;
-		A(i, 6) = 1.0f   * p1(0);
-		A(i, 7) = 1.0f   * p1(1);
-		A(i, 8) = 1.0f   * 1.0f;
-	}
-
-	Eigen::JacobiSVD<Eigen::MatrixXf> svd(A, Eigen::ComputeFullV | Eigen::ComputeFullU);
-	Eigen::Matrix<float, 8, 8> U = svd.matrixU();
-	Eigen::Matrix<float, 9, 9> V = svd.matrixV();
-
-	Eigen::VectorXf solution = V.transpose().col(8);
-
-	return solution;
-}
-
-Eigen::Matrix<float, 3, 3> enforceConstrains(Eigen::VectorXf vSolution) {
-	Eigen::Matrix<float, 3, 3> fundamentalMatrix;
-	for (size_t y = 0; y < 3; y++)
-		for (size_t x = 0; x < 3; x++)
-			fundamentalMatrix(y, x) = vSolution(y * 3 + x);
-
-	Eigen::JacobiSVD<Eigen::MatrixXf> svd(fundamentalMatrix, Eigen::ComputeFullU | Eigen::ComputeFullV);
-	Eigen::Matrix3f U = svd.matrixU();
-	Eigen::Matrix3f V = svd.matrixV();
-	Eigen::Matrix3f S = svd.singularValues().asDiagonal();
-
-	S(2, 2) = 0;
-
-	Eigen::Matrix<float, 3, 3> outPut;
-	outPut = U * S*V.transpose();
-	return outPut;
-}
-
-double sampsonDistance(Eigen::Matrix<float, 3, 3> &vFoundamentalMatrix
-	, std::pair<glm::vec2, glm::vec2> vCoordinates) {
-	double p2_F_p1 = 0.0;
-	p2_F_p1 += vCoordinates.second[0] * (vCoordinates.first[0] * vFoundamentalMatrix(0,0) 
-		+ vCoordinates.first[1] * vFoundamentalMatrix(0,1) + vFoundamentalMatrix(0,2));
-	p2_F_p1 += vCoordinates.second[1] * (vCoordinates.first[0] * vFoundamentalMatrix(1,0) 
-		+ vCoordinates.first[1] * vFoundamentalMatrix(1,1) + vFoundamentalMatrix(1,2));
-	p2_F_p1 += 1.0 * (vCoordinates.first[0] * vFoundamentalMatrix(2,0) 
-		+ vCoordinates.first[1] * vFoundamentalMatrix(2,1) + vFoundamentalMatrix(2,2));
-	p2_F_p1 *= p2_F_p1;
-
-	double sum = 0.0;
-	sum += pow(vCoordinates.first[0] * vFoundamentalMatrix(0,0) 
-		+ vCoordinates.first[1] * vFoundamentalMatrix(0,1) + vFoundamentalMatrix(0,2), 2);
-	sum += pow(vCoordinates.first[0] * vFoundamentalMatrix(1,0) 
-		+ vCoordinates.first[1] * vFoundamentalMatrix(1,1) + vFoundamentalMatrix(1,2), 2);
-	sum += pow(vCoordinates.second[0] * vFoundamentalMatrix(0,0) 
-		+ vCoordinates.second[1] * vFoundamentalMatrix(1,0) + vFoundamentalMatrix(2,0), 2);
-	sum += pow(vCoordinates.second[0] * vFoundamentalMatrix(0,1) 
-		+ vCoordinates.second[1] * vFoundamentalMatrix(1,1) + vFoundamentalMatrix(2,1), 2);
-
-	return p2_F_p1 / sum;
-}
-
-std::vector<size_t> findInlier(Eigen::Matrix<float, 3, 3> &vFoundamentalMatrix , PairWiseCamera& vPairCameras) {
-	std::vector<size_t> result;
+void findInlier(Eigen::Matrix<float, 3, 3> &vFoundamentalMatrix 
+	, PairWiseCamera& vPairCameras, std::vector<size_t> &result) {
 	result.resize(0);
 	double const squared_thres = RANSAC_INLIER_THRESHOLD * RANSAC_INLIER_THRESHOLD;
 	for (std::size_t i = 0; i < vPairCameras.matchResult.size(); ++i)
@@ -199,19 +105,22 @@ std::vector<size_t> findInlier(Eigen::Matrix<float, 3, 3> &vFoundamentalMatrix ,
 		if (error < squared_thres)
 			result.push_back(i);
 	}
-	return result;
 }
 
 void ransac(std::vector<PairWiseCamera>& pairCameras) {
 	for (auto& pairItem : pairCameras) {
+		if(pairItem.matchResult.size() < 8)
+			continue;
 		std::vector<size_t> inliers;
 		inliers.reserve(pairItem.matchResult.size());
 		Eigen::Matrix<float, 3, 3> bestFoundamentalMatrix;
-		for (size_t iter = 0; iter < 10000; iter++)
-		{
+		std::random_device rd;
+		for (size_t iter = 0; iter < 10000; iter++){
 			Eigen::VectorXf solution = estimate8Points(pairItem);
 			Eigen::Matrix<float, 3, 3> foundamentalMatrix = enforceConstrains(solution);
-			std::vector<size_t> localInlier = findInlier(foundamentalMatrix, pairItem);
+			std::vector<size_t> localInlier;
+			findInlier(foundamentalMatrix, pairItem, localInlier);
+	
 			if (inliers.size() < localInlier.size()) {
 				bestFoundamentalMatrix = foundamentalMatrix;
 				inliers = localInlier;
@@ -224,6 +133,16 @@ void ransac(std::vector<PairWiseCamera>& pairCameras) {
 		for (size_t y = 0; y < 3; y++)
 			for (size_t x = 0; x < 3; x++)
 				pairItem.foundamentalMatrix[y][x] = bestFoundamentalMatrix(y,x);
+
+		//cout << bestFoundamentalMatrix << endl;
+
+		//Eigen::Matrix<float, 3, 3> foundamentalMatrixTest;
+		//foundamentalMatrixTest << -0.096756483053679315, -0.57146167914266977, -0.22958190490132394
+		//	, 0.45878596870904709, -0.19779471963425721, 0.46367107992972378
+		//	, 0.078813641696254058, -0.37484835695287755, 0.0063867887415862135;
+		//std::vector<size_t> localInlierTest;
+		//findInlier(foundamentalMatrixTest, pairItem, localInlierTest);
+		//cout << localInlierTest.size() << endl;
 	}
 	
 }
@@ -338,11 +257,12 @@ size_t computeHomographyInliers(const PairWiseCamera& vPairCamera) {
 		if (vPairCamera.matchResult.size() < 4)
 			throw std::invalid_argument("At least 4 matches required");
 
+		std::random_device rd;
 		std::set<int> result;
 		std::uniform_int_distribution<int> gen(0, vPairCamera.matchResult.size()-1);
-		std::mt19937 rd(time(0));
+		std::mt19937 myRand(rd());
 		while (result.size() < 4)
-			result.insert(gen(rd));
+			result.insert(gen(myRand));
 
 		std::vector<std::pair<glm::vec3, glm::vec3>> fourFeatures(4);
 		std::set<int>::const_iterator iter = result.begin();
@@ -350,68 +270,48 @@ size_t computeHomographyInliers(const PairWiseCamera& vPairCamera) {
 			fourFeatures[i] = vPairCamera.matchResult[*iter];
 
 		// Compute homography
-		Eigen::Matrix<float,9,9> A;
+		Eigen::Matrix<float,8,9> A;
 		for (std::size_t featurePairID = 0; featurePairID < fourFeatures.size(); ++featurePairID)
 		{
 			std::size_t const row1 = 2 * featurePairID;
 			std::size_t const row2 = 2 * featurePairID + 1;
 			std::pair<glm::vec3, glm::vec3> const& match = fourFeatures[featurePairID];
-			A(row2 , 0) = 0.0;
-			A(row2 , 1) = 0.0;
-			A(row2 , 2) = 0.0;
-			A(row2 , 3) = match.first.x;
-			A(row2 , 4) = match.first.y;
-			A(row2 , 5) = 1.0;
-			A(row2 , 6) = -match.second.y * match.first.x;
-			A(row2 , 7) = -match.second.y * match.first.y;
-			A(row2 , 8) = -match.second.y;
+			A(row1 , 0) = 0.0;
+			A(row1 , 1) = 0.0;
+			A(row1 , 2) = 0.0;
+			A(row1 , 3) = match.first.x;
+			A(row1 , 4) = match.first.y;
+			A(row1 , 5) = 1.0;
+			A(row1 , 6) = -match.second.y * match.first.x;
+			A(row1 , 7) = -match.second.y * match.first.y;
+			A(row1 , 8) = -match.second.y;
 
-			A(row1 , 0) = match.first.x;
-			A(row1 , 1) = match.first.y;
-			A(row1 , 2) = 1.0;
-			A(row1 , 3) = 0.0;
-			A(row1 , 4) = 0.0;
-			A(row1 , 5) = 0.0;
-			A(row1 , 6) = -match.second.x * match.first.x;
-			A(row1 , 7) = -match.second.x * match.first.y;
-			A(row1 , 8) = -match.second.x;
+			A(row2, 0) = -match.first.x;
+			A(row2, 1) = -match.first.y;
+			A(row2, 2) = -1.0;
+			A(row2, 3) = 0.0;
+			A(row2, 4) = 0.0;
+			A(row2, 5) = 0.0;
+			A(row2, 6) = match.second.x * match.first.x;
+			A(row2, 7) = match.second.x * match.first.y;
+			A(row2, 8) = match.second.x;
 		}
 
 		/* Compute homography matrix using SVD. */
 		Eigen::JacobiSVD<Eigen::MatrixXf> svd(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
-		Eigen::VectorXf V = svd.matrixV().col(9);
+		Eigen::VectorXf V = svd.matrixV().col(8);
 		glm::mat3 homographyMatrix;
 		for (size_t y = 0; y < 3; y++)
 			for (size_t x = 0; x < 3; x++)
 				homographyMatrix[y][x] = V(y * 3 + x);
 
 		//???????????????????????????????????????????????
-		//*homography /= (*homography)[8];
+		homographyMatrix /= homographyMatrix[2][2];
 
 		float const square_threshold = 0.05 * 0.05;
 		inliers.resize(0);
 		for (std::size_t i = 0; i < vPairCamera.matchResult.size(); ++i){
-			const glm::vec3 point1 = vPairCamera.matchResult[i].first;
-			const glm::vec3 point2 = vPairCamera.matchResult[i].second;
-			/*
-			 * Computes the symmetric transfer error for a given match and homography
-			 * matrix. The error is computed as [Sect 4.2.2, Hartley, Zisserman]:
-			 *
-			 *   e = d(x, (H^-1)x')^2 + d(x', Hx)^2
-			 */
-			glm::vec3 p1(point1[0], point1[1], 1.0);
-			glm::vec3 p2(point2[0], point2[1], 1.0);
-
-			glm::mat3 invH = glm::inverse(homographyMatrix);
-			glm::vec3 result = invH * p2;
-			result /= result[2];
-			float error = glm::distance(p1, result);
-
-			result = homographyMatrix * p1;
-			result /= result[2];
-			error += glm::distance(result, p2);
-
-			error = 0.5 * error;
+			float error = symmetricTransferError(homographyMatrix, vPairCamera.matchResult[i]);
 			if (error < square_threshold)
 				inliers.push_back(i);
 		}
@@ -425,7 +325,7 @@ size_t computeHomographyInliers(const PairWiseCamera& vPairCamera) {
 }
 
 void poseFromEssential(const glm::mat3 vEssensialMatrix
-	, std::vector<CameraPose> vPoses) {
+	, std::vector<CameraPose>& vPoses) {
 	glm::mat3 W(0.0);
 	W[0][1] = -1.0; W[1][0] = 1.0; W[2][2] = 1.0;
 	glm::mat3 Wt(0.0);
@@ -437,7 +337,7 @@ void poseFromEssential(const glm::mat3 vEssensialMatrix
 		, vEssensialMatrix[2][0], vEssensialMatrix[2][1], vEssensialMatrix[2][2];
 
 	Eigen::Matrix<float, 3, 3> U, S, V;
-	Eigen::JacobiSVD<Eigen::MatrixXf> svd(E, Eigen::ComputeFullU || Eigen::ComputeFullV);
+	Eigen::JacobiSVD<Eigen::MatrixXf> svd(E, Eigen::ComputeFullU | Eigen::ComputeFullV);
 	U = svd.matrixU();
 	V = svd.matrixV();
 
@@ -448,7 +348,7 @@ void poseFromEssential(const glm::mat3 vEssensialMatrix
 		for (int i = 0; i < 3; ++i)
 			V(i, 2) = -V(i, 2);
 
-	V=V.transpose();
+	V.transposeInPlace();
 	glm::mat3 uGlm, vGlm, sGlm;
 	for (int y = 0; y < 3; ++y)
 		for (int x = 0; x < 3; ++x) {
@@ -489,7 +389,7 @@ glm::vec3 triangulateMatch(const std::pair<glm::vec2, glm::vec2> vPairPos
 	}
 
 
-	Eigen::JacobiSVD<Eigen::MatrixXf> svd(A, Eigen::ComputeFullU || Eigen::ComputeFullU);
+	Eigen::JacobiSVD<Eigen::MatrixXf> svd(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
 	Eigen::Matrix<float, 4, 4> V = svd.matrixV();
 	Eigen::VectorXf x = V.col(3);
 	return glm::vec3(x[0] / x[3], x[1] / x[3], x[2] / x[3]);
@@ -579,8 +479,7 @@ glm::vec3 triangulateTrack(std::vector<glm::vec2>& vPostion, std::vector<CameraP
 	if (vPostion.size() != vPoses.size() || vPostion.size() < 2)
 		throw std::invalid_argument("Invalid number of positions/poses");
 
-	Eigen::Matrix<float, Eigen::Dynamic,4> A;
-	A.resize(2 * vPoses.size(), 4);
+	Eigen::MatrixXf A(2 * vPoses.size(), 4);
 	for (std::size_t i = 0; i < vPoses.size(); ++i){
 		CameraPose const& pose = vPoses[i];
 		glm::vec2 p= vPostion[i];
@@ -588,7 +487,7 @@ glm::vec3 triangulateTrack(std::vector<glm::vec2>& vPostion, std::vector<CameraP
 		Eigen::Matrix<float, 3, 3> KR1=eigenFromGLM<3,3>(pose.K * pose.R);
 		Eigen::Matrix<float, 3, 1> Kt1=eigenFromGLM<3>(pose.K * pose.T);
 		P1.block(0, 0, 3, 3) = KR1;
-		P1.block(2, 2, 1, 1) = Kt1;
+		P1.block(0, 3, 3, 1) = Kt1;
 
 		for (int j = 0; j < 4; ++j){
 			A(2 * i + 0, j) = p[0] * P1(2, j) - P1(0, j);
@@ -597,7 +496,7 @@ glm::vec3 triangulateTrack(std::vector<glm::vec2>& vPostion, std::vector<CameraP
 	}
 
 	/* Compute SVD. */
-	Eigen::JacobiSVD<Eigen::MatrixXf> svd(A, Eigen::ComputeFullU || Eigen::ComputeFullU);
+	Eigen::JacobiSVD<Eigen::MatrixXf> svd(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
 	Eigen::Matrix<float, 4, 4> V = svd.matrixV();
 	Eigen::VectorXf x = V.col(3);
 	return glm::vec3(x[0] / x[3], x[1] / x[3], x[2] / x[3]);
@@ -938,7 +837,7 @@ void analyticJacobian(Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& vMat
 
 bool linearSolve(Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& F1
 	, Eigen::VectorXf& vVector, Eigen::VectorXf delta_x) {
-
+	return false;
 }
 
 void baOptimize(std::vector<Observation>& vBAPoints2d, std::vector<Eigen::Vector3f>& vBAPoints3d
@@ -1277,19 +1176,30 @@ void tryRestoreTracksForViews() {
 
 }
 
-int main(){
+
+
+int main(int argc, char* argv[]){
+	bool testEnable = true;
+	if (testEnable)
+		unitTest(argc, argv);
+
+
 	std::vector<std::string> imageLists;
-	imageLists.push_back("../../../my_test/00000.jpeg");
-	imageLists.push_back("../../../my_test/00001.jpeg");
-	imageLists.push_back("../../../my_test/00002.jpeg");
+	imageLists.push_back("../../../my_test/test_low/0.png");
+	imageLists.push_back("../../../my_test/test_low/1.png");
+	imageLists.push_back("../../../my_test/test_low/2.png");
+	//imageLists.push_back("../../../my_test/test/00000.jpg");
+	//imageLists.push_back("../../../my_test/test/00001.jpg");
+	//imageLists.push_back("../../../my_test/test/00002.jpg");
 	std::vector<Viewport> viewports;
 	std::vector<PairWiseCamera> pairCameras;
 	std::vector<Track> tracks;
 
 	getViewportFeatures(imageLists, viewports);
-	normalizeImageCoordinate(viewports, 3000, 2000);
 	matchViewportFeature(viewports, pairCameras);
+	//drawMatchResult(viewports, pairCameras);
 	ransac(pairCameras);
+	//drawMatchResult(viewports, pairCameras);
 	computeTracks(pairCameras, viewports, tracks);
 	size_t initPairID=findInitPairs(viewports,pairCameras);
 
