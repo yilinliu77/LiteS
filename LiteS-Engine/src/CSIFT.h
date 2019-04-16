@@ -657,43 +657,50 @@ std::vector<std::pair<size_t, size_t>> matchSIFT(const CSIFT* detector1, const C
 }
 
 void computeFeaturesOpenCV(std::string vImagePath
-	, std::vector<cv::KeyPoint>* vKeyPoints,cv::Mat* vDescriptor) {
+	, std::vector<cv::KeyPoint>* vKeyPoints, cv::Mat* vDescriptor
+	,CImage<float>& vOriginalImage, size_t& vWidth, size_t& vHeight) {
 	FREE_IMAGE_FORMAT fifmt = FreeImage_GetFileType(vImagePath.c_str(), 0);
 	FIBITMAP *dib = FreeImage_Load(fifmt, vImagePath.c_str(), 0);
+
+	// Convert non-32 bit images
+	if (FreeImage_GetBPP(dib) != 32){
+		FIBITMAP* hOldImage = dib;
+		dib = FreeImage_ConvertTo32Bits(hOldImage);
+		FreeImage_Unload(hOldImage);
+	}
 
 	FIBITMAP* greyScaleBitmap = FreeImage_ConvertToGreyscale(dib);
 	BYTE *pixels = (BYTE*)FreeImage_GetBits(greyScaleBitmap);
 	int width = FreeImage_GetWidth(greyScaleBitmap);
 	int height = FreeImage_GetHeight(greyScaleBitmap);
 
-	CImage<float> image1(width, height);
-
-	for (size_t y = 0; y < height; y++)
-	{
-		for (size_t x = 0; x < width; x++)
-		{
-			image1.at(x, height - y - 1) = pixels[y*width + x] / 255.f;
-		}
-	}
-
-	CImage<float>* input1 = downsampleBy2(downsampleBy2(downsampleBy2(&image1)));
-
+	vOriginalImage = CImage<float>(width, height);
+	vWidth = width;
+	vHeight = height;
 	//SIFT in opencv
-	cv::Mat cvImage1(cv::Size(input1->ncols, input1->nrows), CV_8U, cv::Scalar(0));
-	for (int y = 0; y < input1->nrows; ++y) {
-		for (int x = 0; x < input1->ncols; x++)
-		{
-			cvImage1.at<uchar>(y, x) = static_cast<int>(input1->at(x, y)*255.0f);
-
+	cv::Mat cvImage1(cv::Size(width, height), CV_8U, cv::Scalar(0));
+	for (int y = 0; y < height; ++y) {
+		BYTE* pixelScanline = FreeImage_GetScanLine(greyScaleBitmap, height - y - 1);
+		for (int x = 0; x < width; x++) {
+			cvImage1.at<uchar>(y, x) 
+				= static_cast<unsigned char>(pixelScanline[x]);
+			vOriginalImage.at(x, y) 
+				= static_cast<float>(pixelScanline[x]);
 		}
 	}
 
-	cv::Ptr<cv::Feature2D> sift = cv::xfeatures2d::SIFT::create(1600);
+	cv::Ptr<cv::Feature2D> sift = cv::xfeatures2d::SIFT::create();
 	
 	sift->detectAndCompute(cvImage1, cv::Mat(), *vKeyPoints, *vDescriptor);
 
-	delete input1,pixels,dib, greyScaleBitmap;
-}
+	for (size_t j = 0; j < vKeyPoints->size(); ++j) {
+		vKeyPoints->at(j).pt.x /= static_cast<float>(width);
+		vKeyPoints->at(j).pt.y /= static_cast<float>(height);
+	}
+
+	FreeImage_Unload(dib); 
+	FreeImage_Unload(greyScaleBitmap);
+;}
 
 void matchFeatureOpenCV(const cv::Mat* vDescriptor1, const cv::Mat* vDescriptor2
 	, std::vector<cv::DMatch>& vGoodMatches) {
@@ -702,7 +709,7 @@ void matchFeatureOpenCV(const cv::Mat* vDescriptor1, const cv::Mat* vDescriptor2
 	matcher.knnMatch(*vDescriptor1, *vDescriptor2, matchItems, 2);
 
 	for (int i = 0; i < vDescriptor1->rows; i++){
-		if (matchItems[i][0].distance / matchItems[i][1].distance <= 0.6){
+		if (matchItems[i][0].distance / matchItems[i][1].distance <= 0.6f){
 			vGoodMatches.push_back(matchItems[i][0]);
 		}
 	}

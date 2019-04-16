@@ -47,9 +47,9 @@ public:
 		return data[vY*ncols + vX];
 	}
 
-	static inline int symmetrizedCoordinates(int i, int l)
+	static inline int symmetrizedCoordinates(size_t i, size_t l)
 	{
-		int ll = 2 * l;
+		size_t ll = 2 * l;
 		i = (i + ll) % (ll);
 		if (i > l - 1) { i = ll - 1 - i; }
 		return i;
