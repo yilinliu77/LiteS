@@ -13,6 +13,14 @@
 #include "foundamental.h"
 #include "unitTest.h"
 
+#include <tbb/parallel_for.h>
+#include <tbb/parallel_reduce.h>
+#include <tbb/blocked_range.h>
+#include <tbb/blocked_range2d.h>
+#include <tbb/spin_mutex.h>
+#include <tbb/task_scheduler_init.h>
+#include <tbb/concurrent_vector.h>
+
 const float RANSAC_INLIER_THRESHOLD = 0.0015f;
 
 void getViewportFeatures(const std::vector<std::string> &vImageLists
@@ -26,6 +34,9 @@ void getViewportFeatures(const std::vector<std::string> &vImageLists
 		computeFeaturesOpenCV(vImageLists[i], vOutViewports.back().keyPoints
 			, vOutViewports.back().descriptor, vOutViewports.back().originalImage
 			, vOutViewports.back().width, vOutViewports.back().height);
+		//CImage<float>* tempImage = downsampleBy2(downsampleBy2(&vOutViewports.back().originalImage));
+		//tempImage->save(std::string("../../../my_test/test_low/") + std::to_string(i) + std::string(".png"));
+
 	}
 }
 
@@ -96,7 +107,7 @@ void drawMatchResult(const std::vector<Viewport> &vViewports
 }
 
 void findInlier(Eigen::Matrix<float, 3, 3> &vFoundamentalMatrix 
-	, PairWiseCamera& vPairCameras, std::vector<size_t> &result) {
+	,const PairWiseCamera& vPairCameras, std::vector<size_t> &result) {
 	result.resize(0);
 	double const squared_thres = RANSAC_INLIER_THRESHOLD * RANSAC_INLIER_THRESHOLD;
 	for (std::size_t i = 0; i < vPairCameras.matchResult.size(); ++i)
@@ -111,38 +122,63 @@ void ransac(std::vector<PairWiseCamera>& pairCameras) {
 	for (auto& pairItem : pairCameras) {
 		if(pairItem.matchResult.size() < 8)
 			continue;
-		std::vector<size_t> inliers;
-		inliers.reserve(pairItem.matchResult.size());
-		Eigen::Matrix<float, 3, 3> bestFoundamentalMatrix;
-		std::random_device rd;
-		for (size_t iter = 0; iter < 10000; iter++){
-			Eigen::VectorXf solution = estimate8Points(pairItem);
-			Eigen::Matrix<float, 3, 3> foundamentalMatrix = enforceConstrains(solution);
-			std::vector<size_t> localInlier;
-			findInlier(foundamentalMatrix, pairItem, localInlier);
-	
-			if (inliers.size() < localInlier.size()) {
-				bestFoundamentalMatrix = foundamentalMatrix;
-				inliers = localInlier;
+
+		std::pair<Eigen::Matrix<float, 3, 3>, std::vector<size_t>> result = 
+			tbb::parallel_reduce(tbb::blocked_range<size_t>(size_t(0), size_t(10000))
+			, std::make_pair<Eigen::Matrix<float, 3, 3>, std::vector<size_t>>(Eigen::Matrix<float, 3, 3>(), std::vector<size_t>())
+			, [=](const tbb::blocked_range<size_t>& r
+				, std::pair<Eigen::Matrix<float, 3, 3>, std::vector<size_t>> value)
+			->std::pair<Eigen::Matrix<float, 3, 3>, std::vector<size_t>> {
+			std::vector<size_t> bestInliers;
+			Eigen::Matrix<float, 3, 3> bestFoundamentalMatrix;
+
+			for (int i = r.begin(); i != r.end(); ++i) {
+				Eigen::VectorXf solution = estimate8Points(pairItem);
+				Eigen::Matrix<float, 3, 3> foundamentalMatrix = enforceConstrains(solution);
+				std::vector<size_t> localInlier;
+				findInlier(foundamentalMatrix, pairItem, localInlier);
+				if (bestInliers.size() < localInlier.size()) {
+					bestFoundamentalMatrix = foundamentalMatrix;
+					bestInliers = localInlier;
+				}
 			}
+			if (value.second.size() >= bestInliers.size())
+				return value;
+			else
+				return std::make_pair(bestFoundamentalMatrix, bestInliers);
 		}
+			, [](std::pair<Eigen::Matrix<float, 3, 3>, std::vector<size_t>> x
+				, std::pair< Eigen::Matrix<float, 3, 3>, std::vector<size_t>> y)
+			->std::pair<Eigen::Matrix<float, 3, 3>, std::vector<size_t>> {
+			return x.second.size() > y.second.size() ? x : y;
+		});
+
+
+		//std::vector<size_t> inliers;
+		//Eigen::Matrix<float, 3, 3> bestFoundamentalMatrix;
+		//for (size_t iter = 0; iter < 10000; iter++){
+		//	Eigen::VectorXf solution = estimate8Points(pairItem);
+		//	Eigen::Matrix<float, 3, 3> foundamentalMatrix = enforceConstrains(solution);
+		//	std::vector<size_t> localInlier;
+		//	findInlier(foundamentalMatrix, pairItem, localInlier);
+	
+		//	if (inliers.size() < localInlier.size()) {
+		//		bestFoundamentalMatrix = foundamentalMatrix;
+		//		inliers = localInlier;
+		//	}
+		//}
+
+
 		std::vector<std::pair<glm::vec3, glm::vec3>> newMatchResult;
-		for (auto& inlierIndex : inliers)
+		for (auto& inlierIndex : result.second)
 			newMatchResult.push_back(pairItem.matchResult[inlierIndex]);
 		pairItem.matchResult = newMatchResult;
-		for (size_t y = 0; y < 3; y++)
-			for (size_t x = 0; x < 3; x++)
-				pairItem.foundamentalMatrix[y][x] = bestFoundamentalMatrix(y,x);
+		pairItem.foundamentalMatrix = glmFromEigen<3, 3>(result.first);
 
 		//cout << bestFoundamentalMatrix << endl;
-
-		//Eigen::Matrix<float, 3, 3> foundamentalMatrixTest;
-		//foundamentalMatrixTest << -0.096756483053679315, -0.57146167914266977, -0.22958190490132394
-		//	, 0.45878596870904709, -0.19779471963425721, 0.46367107992972378
-		//	, 0.078813641696254058, -0.37484835695287755, 0.0063867887415862135;
-		//std::vector<size_t> localInlierTest;
-		//findInlier(foundamentalMatrixTest, pairItem, localInlierTest);
-		//cout << localInlierTest.size() << endl;
+		//cout << endl;
+		//cout << result.first << endl;
+		//cout << endl;
 	}
 	
 }
@@ -324,84 +360,13 @@ size_t computeHomographyInliers(const PairWiseCamera& vPairCamera) {
 	return bestInliersNum;
 }
 
-void poseFromEssential(const glm::mat3 vEssensialMatrix
-	, std::vector<CameraPose>& vPoses) {
-	glm::mat3 W(0.0);
-	W[0][1] = -1.0; W[1][0] = 1.0; W[2][2] = 1.0;
-	glm::mat3 Wt(0.0);
-	Wt[0][1] = 1.0; Wt[1][0] = -1.0; Wt[2][2] = 1.0;
-
-	Eigen::Matrix<float, 3, 3> E;
-	E<< vEssensialMatrix[0][0], vEssensialMatrix[0][1], vEssensialMatrix[0][2]
-		, vEssensialMatrix[1][0], vEssensialMatrix[1][1], vEssensialMatrix[1][2]
-		, vEssensialMatrix[2][0], vEssensialMatrix[2][1], vEssensialMatrix[2][2];
-
-	Eigen::Matrix<float, 3, 3> U, S, V;
-	Eigen::JacobiSVD<Eigen::MatrixXf> svd(E, Eigen::ComputeFullU | Eigen::ComputeFullV);
-	U = svd.matrixU();
-	V = svd.matrixV();
-
-	if (U.determinant() < 0.0)
-		for (int i = 0; i < 3; ++i)
-			U(i, 2) = -U(i, 2);
-	if (V.determinant() < 0.0)
-		for (int i = 0; i < 3; ++i)
-			V(i, 2) = -V(i, 2);
-
-	V.transposeInPlace();
-	glm::mat3 uGlm, vGlm, sGlm;
-	for (int y = 0; y < 3; ++y)
-		for (int x = 0; x < 3; ++x) {
-			uGlm[y][x] = U(y, x);
-			vGlm[y][x] = V(y, x);
-		}
-	vPoses.clear();
-	vPoses.resize(4);
-	vPoses.at(0).R = uGlm * W * vGlm;
-	vPoses.at(1).R = vPoses.at(0).R;
-	vPoses.at(2).R = uGlm * Wt * vGlm;
-	vPoses.at(3).R = vPoses.at(2).R;
-	vPoses.at(0).T = glm::transpose(uGlm)[2];
-	vPoses.at(1).T = -vPoses.at(0).T;
-	vPoses.at(2).T = vPoses.at(0).T;
-	vPoses.at(3).T = -vPoses.at(0).T;
-}
-
-glm::vec3 triangulateMatch(const std::pair<glm::vec2, glm::vec2> vPairPos
-	,CameraPose vPose1, CameraPose vPose2){
-	/* The algorithm is described in HZ 12.2, page 312. */
-	Eigen::Matrix<float, 3, 4> P1, P2;
-	Eigen::Matrix<float, 3, 3> KR1=eigenFromGLM<3,3>(vPose1.K * vPose1.R);
-	Eigen::Matrix<float, 3, 1> Kt1 = eigenFromGLM<3>(vPose1.K * vPose1.T);
-	P1.block(0, 0, 3, 3) = KR1;
-	P1.block(0, 3, 3, 1) = Kt1;
-	Eigen::Matrix<float, 3, 3> KR2 = eigenFromGLM<3, 3>(vPose2.K * vPose2.R);
-	Eigen::Matrix<float, 3, 1> Kt2 = eigenFromGLM<3>(vPose2.K * vPose2.T);
-	P2.block(0, 0, 3, 3) = KR2;
-	P2.block(0, 3, 3, 1) = Kt2;
-	
-	Eigen::Matrix<float, 4, 4> A;
-	for (int i = 0; i < 4; ++i){
-		A(0, i) = vPairPos.first[0] * P1(2, i) - P1(0, i);
-		A(1, i) = vPairPos.first[1] * P1(2, i) - P1(1, i);
-		A(2, i) = vPairPos.second[0] * P2(2, i) - P2(0, i);
-		A(3, i) = vPairPos.second[1] * P2(2, i) - P2(1, i);
-	}
-
-
-	Eigen::JacobiSVD<Eigen::MatrixXf> svd(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
-	Eigen::Matrix<float, 4, 4> V = svd.matrixV();
-	Eigen::VectorXf x = V.col(3);
-	return glm::vec3(x[0] / x[3], x[1] / x[3], x[2] / x[3]);
-}
-
-bool computePose(const std::vector<Viewport>& viewports, const PairWiseCamera& vPairCamera) {
+bool computePose(std::vector<Viewport>& viewports, const PairWiseCamera& vPairCamera) {
 	// Compute fundamental matrix from pair correspondences.
 	const glm::mat3 fundamental=vPairCamera.foundamentalMatrix;
 
 	/* Populate K-matrices. */
-	Viewport view_1 = viewports[vPairCamera.ID1];
-	Viewport view_2 = viewports[vPairCamera.ID2];
+	Viewport& view_1 = viewports[vPairCamera.ID1];
+	Viewport& view_2 = viewports[vPairCamera.ID2];
 
 	/* Compute essential matrix from fundamental matrix (HZ (9.12)). */
 	glm::mat3 essensialMatrix = glm::transpose(view_2.pose.K) * fundamental * view_1.pose.K;
@@ -473,33 +438,6 @@ float scoreForPair(const PairWiseCamera& vPairCamera,const size_t vNumInliers
 	f2 = std::clamp(f2, 0.0f, 1.0f);
 	f3 = std::clamp(f3, 0.0f, 1.0f);
 	return f1 * f2 * f3;
-}
-
-glm::vec3 triangulateTrack(std::vector<glm::vec2>& vPostion, std::vector<CameraPose>& vPoses) {
-	if (vPostion.size() != vPoses.size() || vPostion.size() < 2)
-		throw std::invalid_argument("Invalid number of positions/poses");
-
-	Eigen::MatrixXf A(2 * vPoses.size(), 4);
-	for (std::size_t i = 0; i < vPoses.size(); ++i){
-		CameraPose const& pose = vPoses[i];
-		glm::vec2 p= vPostion[i];
-		Eigen::Matrix<float, 3, 4> P1;
-		Eigen::Matrix<float, 3, 3> KR1=eigenFromGLM<3,3>(pose.K * pose.R);
-		Eigen::Matrix<float, 3, 1> Kt1=eigenFromGLM<3>(pose.K * pose.T);
-		P1.block(0, 0, 3, 3) = KR1;
-		P1.block(0, 3, 3, 1) = Kt1;
-
-		for (int j = 0; j < 4; ++j){
-			A(2 * i + 0, j) = p[0] * P1(2, j) - P1(0, j);
-			A(2 * i + 1, j) = p[1] * P1(2, j) - P1(1, j);
-		}
-	}
-
-	/* Compute SVD. */
-	Eigen::JacobiSVD<Eigen::MatrixXf> svd(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
-	Eigen::Matrix<float, 4, 4> V = svd.matrixV();
-	Eigen::VectorXf x = V.col(3);
-	return glm::vec3(x[0] / x[3], x[1] / x[3], x[2] / x[3]);
 }
 
 bool triangulate(std::vector<CameraPose>& vPoses,std::vector<glm::vec2>& vPositions
@@ -583,7 +521,8 @@ bool triangulate(std::vector<CameraPose>& vPoses,std::vector<glm::vec2>& vPositi
 	return true;
 }
 
-size_t findInitPairs(const std::vector<Viewport>& vViewports, const std::vector<PairWiseCamera>& vPairCameras) {
+size_t findInitPairs(std::vector<Viewport>& vViewports
+	, const std::vector<PairWiseCamera>& vPairCameras) {
 	int viewID1 = -1, viewID2 = -1;
 	std::vector<PairWiseCamera> candidates(vPairCameras);
 	
@@ -621,28 +560,28 @@ size_t findInitPairs(const std::vector<Viewport>& vViewports, const std::vector<
 		}
 
 		// Rejects pairs with bad triangulation angle.
-		float const angle = angleForPose(vViewports,vPairCameras[candidateIndex]);
-		pairScores[candidateIndex] = scoreForPair(vPairCameras[candidateIndex], numInliers, angle);
+		float const angle = angleForPose(vViewports, candidates[candidateIndex]);
+		pairScores[candidateIndex] = scoreForPair(candidates[candidateIndex], numInliers, angle);
 		if (angle < 5 * 3.1415926 / 180)
 			continue;
 
 		// If all passes, run triangulation to ensure correct pair
 		std::vector<CameraPose> poses;
-		poses.push_back(vViewports[vPairCameras[candidateIndex].ID1].pose);
-		poses.push_back(vViewports[vPairCameras[candidateIndex].ID2].pose);
+		poses.push_back(vViewports[candidates[candidateIndex].ID1].pose);
+		poses.push_back(vViewports[candidates[candidateIndex].ID2].pose);
 		std::size_t successful_triangulations = 0;
 		std::vector<glm::vec2> positions(2);
-		for (std::size_t j = 0; j < vPairCameras[candidateIndex].matchResult.size(); ++j)
+		for (std::size_t j = 0; j < candidates[candidateIndex].matchResult.size(); ++j)
 		{
-			positions[0] = glm::vec2(vPairCameras[candidateIndex].matchResult[j].first.x
-				, vPairCameras[candidateIndex].matchResult[j].first.y);
-			positions[1] = glm::vec2(vPairCameras[candidateIndex].matchResult[j].second.x
-				, vPairCameras[candidateIndex].matchResult[j].second.y);
+			positions[0] = glm::vec2(candidates[candidateIndex].matchResult[j].first.x
+				, candidates[candidateIndex].matchResult[j].first.y);
+			positions[1] = glm::vec2(candidates[candidateIndex].matchResult[j].second.x
+				, candidates[candidateIndex].matchResult[j].second.y);
 			glm::vec3 pos3d;
 			if (triangulate(poses, positions, pos3d))
 				successful_triangulations += 1;
 		}
-		if (successful_triangulations * 2 < vPairCameras[candidateIndex].matchResult.size())
+		if (successful_triangulations * 2 < candidates[candidateIndex].matchResult.size())
 			continue;
 
 		found_pair = true;
@@ -1188,9 +1127,13 @@ int main(int argc, char* argv[]){
 	imageLists.push_back("../../../my_test/test_low/0.png");
 	imageLists.push_back("../../../my_test/test_low/1.png");
 	imageLists.push_back("../../../my_test/test_low/2.png");
-	//imageLists.push_back("../../../my_test/test/00000.jpg");
-	//imageLists.push_back("../../../my_test/test/00001.jpg");
-	//imageLists.push_back("../../../my_test/test/00002.jpg");
+	imageLists.push_back("../../../my_test/test_low/3.png");
+	imageLists.push_back("../../../my_test/test_low/4.png");
+	//imageLists.push_back("../../../my_test/test/00000.jpeg");
+	//imageLists.push_back("../../../my_test/test/00001.jpeg");
+	//imageLists.push_back("../../../my_test/test/00002.jpeg");
+	//imageLists.push_back("../../../my_test/test/00003.jpeg");
+	//imageLists.push_back("../../../my_test/test/00004.jpeg");
 	std::vector<Viewport> viewports;
 	std::vector<PairWiseCamera> pairCameras;
 	std::vector<Track> tracks;

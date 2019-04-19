@@ -98,6 +98,74 @@ TEST(SymmetricError, normalOutput)
 	EXPECT_LE(abs(actualError - expectedError), 1e-7);
 }
 
+TEST(TriangulateTrackError, normalOutput)
+{
+	std::vector<glm::vec2> vPostion;
+	std::vector<CameraPose> vPoses;
+	vPostion.push_back(glm::vec2(-0.291181982f, -0.192279682f));
+	vPostion.push_back(glm::vec2(-0.205872044f, -0.0936535671f));
+
+	CameraPose pose1, pose2;
+	pose2.R[0][0] = 0.99941037176556757;
+	pose2.R[0][1] = 0.034266463962079718;
+	pose2.R[0][2] = -0.0021721544479905153;
+	pose2.R[1][0] = -0.033268140623173625;
+	pose2.R[1][1] = 0.98205948907569274;
+	pose2.R[1][2] = 0.18561355213417374;
+	pose2.R[2][0] = 0.0084935049824663711;
+	pose2.R[2][1] = -0.18543184560351150;
+	pose2.R[2][2] = 0.98262042061479071;
+	pose2.T[0] = 0.89617069378421477;
+	pose2.T[1] = -0.15643556371642153;
+	pose2.T[2] = 0.41521801744028974;
+	vPoses.push_back(pose1);
+	vPoses.push_back(pose2);
+
+	glm::vec3 expectedPos = glm::vec3(-2.8591628206205266, -2.2887103047447170, 9.6374448796934935);
+	glm::vec3 actualPos = triangulateTrack(vPostion, vPoses);
+	EXPECT_LE(abs(glm::distance(expectedPos , actualPos)), 1e-5);
+}
+
+TEST(PoseFromEssensial, normalOutput)
+{
+	Eigen::Matrix3f e;
+	e << 9.0270081951060455e-07, 0.26131201394831827, 0.13855922416246347
+		, -0.29535328927602827, -0.18397842245636264, 0.61092372228775027
+		, -0.11127784762870724, -0.63330810807276505, -0.068885544371089680;
+	glm::mat3 vEssensialMatrix = glmFromEigen<3, 3>(e);
+	std::vector<CameraPose> vPoses;
+	poseFromEssential(vEssensialMatrix, vPoses);
+
+	glm::mat3 finalR;
+	glm::vec3 finalT;
+	CameraPose pose;
+	glm::mat3 K = glm::identity<glm::mat3>();
+	for (std::size_t i = 0; i < vPoses.size(); ++i) {
+		std::pair<glm::vec2, glm::vec2> matchPos = std::make_pair<glm::vec2, glm::vec2>(
+			glm::vec2(-0.29118198156356812, -0.19227968156337738)
+			, glm::vec2(-0.20587204396724701, -0.093653567135334015));
+		glm::vec3 x = triangulateMatch(matchPos, pose, vPoses[i]);
+		glm::vec3 x1 = pose.R * x + pose.T;
+		glm::vec3 x2 = vPoses[i].R * x + vPoses[i].T;
+
+		if (x1[2] > 0.0f && x2[2] > 0.0f) {
+			finalR= vPoses[i].R;
+			finalT = vPoses[i].T;
+			break;
+		}
+	}
+
+	Eigen::Matrix3f expectR;
+	expectR << 0.99941037176556757, 0.034266463962079718, -0.0021721544479905153
+		, -0.033268140623173625, 0.98205948907569274, 0.18561355213417374
+		, 0.0084935049824663711, -0.18543184560351150, 0.98262042061479071;
+
+	glm::vec3 expectedT = glm::vec3(0.89617069378421477, -0.15643556371642153, 0.41521801744028974);
+	EXPECT_LE(glm::distance(expectedT,finalT), 1e-5);
+	EXPECT_EQ(expectR.isApprox(eigenFromGLM<3, 3>(finalR), 1e-5), true);
+}
+
+
 void unitTest(int argc, char* argv[]) {
 	testing::InitGoogleTest(&argc, argv);
 	RUN_ALL_TESTS();

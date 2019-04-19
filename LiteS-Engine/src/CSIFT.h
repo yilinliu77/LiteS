@@ -675,6 +675,7 @@ void computeFeaturesOpenCV(std::string vImagePath
 	int height = FreeImage_GetHeight(greyScaleBitmap);
 
 	vOriginalImage = CImage<float>(width, height);
+
 	vWidth = width;
 	vHeight = height;
 	//SIFT in opencv
@@ -709,7 +710,7 @@ void matchFeatureOpenCV(const cv::Mat* vDescriptor1, const cv::Mat* vDescriptor2
 	matcher.knnMatch(*vDescriptor1, *vDescriptor2, matchItems, 2);
 
 	for (int i = 0; i < vDescriptor1->rows; i++){
-		if (matchItems[i][0].distance / matchItems[i][1].distance <= 0.6f){
+		if (matchItems[i][0].distance / matchItems[i][1].distance <= 0.8f){
 			vGoodMatches.push_back(matchItems[i][0]);
 		}
 	}
