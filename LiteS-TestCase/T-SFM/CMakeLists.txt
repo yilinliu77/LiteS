@@ -8,6 +8,12 @@ file(GLOB RESOURCES_FILES ./config.json)
 include_directories (../../LiteS-Engine/resources/)
 include_directories (../../LiteS-Engine/src/)
 
+find_package(TBB CONFIG REQUIRED)
+
+include_directories (${TBB_INCLUDE_DIRS})
+
+
+
 find_path(FREEIMAGE_INCLUDE_DIR NAMES FreeImage.h)
 include_directories(${FREEIMAGE_INCLUDE_DIR})
 find_library(FREEIMAGE_LIBRARY FreeImaged)
@@ -23,5 +29,5 @@ include_directories (${ASSIMP_INCLUDE_DIRS})
 add_executable(T-SFM ${SOURCE_FILES} ${HEADER_FILES})
 add_dependencies(T-SFM LiteS)
 
-target_link_libraries(T-SFM LiteS ${OpenCV_LIBS} ${FREEIMAGE_LIBRARY} ceres assimp::assimp GTest::GTest GTest::Main)
+target_link_libraries(T-SFM LiteS ${OpenCV_LIBS} ${FREEIMAGE_LIBRARY} TBB::tbb ceres assimp::assimp GTest::GTest GTest::Main)
  
