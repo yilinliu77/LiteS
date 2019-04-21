@@ -287,7 +287,7 @@ private:
                     }
                 }
                 // partition
-                float leafCost = nObjects;
+                float leafCost = static_cast<float>(nObjects);
                 if (nObjects > MAX_TRIANGLES_IN_NODE || minCost < leafCost) {
 					Tri* pMid = std::partition(&p[start], &p[end - 1] + 1, [=](Tri pi) {
                         int b = nBuckets * bounds.Offset(pi.bounds.getCentroid())[dim];
