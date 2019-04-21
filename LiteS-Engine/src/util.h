@@ -146,7 +146,7 @@ Eigen::Matrix<float, row, col> eigenFromGLM(glm::mat<col, row, float> vM) {
 	Eigen::Matrix<float, row, col> out;
 	for (size_t y = 0; y < row; y++)
 		for (size_t x = 0; x < col; x++)
-			out(y, x) = vM[y][x];
+			out(y, x) = vM[x][y];
 	return out;
 }
 
@@ -155,7 +155,7 @@ glm::mat<col, row, float> glmFromEigen(Eigen::Matrix<float, row, col> vM) {
 	glm::mat<col, row, float> out;
 	for (size_t y = 0; y < row; y++)
 		for (size_t x = 0; x < col; x++)
-			out[y][x] = vM(y,x);
+			out[x][y] = vM(y,x);
 	return out;
 }
 

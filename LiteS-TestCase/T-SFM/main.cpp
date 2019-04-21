@@ -1,8 +1,9 @@
 #include "CSIFT.h"
-#include <glm/matrix.hpp>
 #include <Eigen/Core>
 #include <Eigen/SVD>  
-#include <Eigen/Dense>  
+#include <Eigen/Dense> 
+#include <Eigen/Geometry> 
+
 #include <iostream>
 #include <random>
 #include <utility>
@@ -59,9 +60,9 @@ void matchViewportFeature(const std::vector<Viewport> &vViewports
 				float x2 = vViewports[view2].keyPoints->at(matchItem.trainIdx).pt.x;
 				float y2 = vViewports[view2].keyPoints->at(matchItem.trainIdx).pt.y;
 			
-				p.matchResult.push_back(std::make_pair < glm::vec3, glm::vec3 >(
-					glm::vec3(x1, y1, matchItem.queryIdx)
-					, glm::vec3(x2, y2, matchItem.trainIdx)));
+				p.matchResult.push_back(std::make_pair < Eigen::Vector3f, Eigen::Vector3f>(
+					Eigen::Vector3f(x1, y1, matchItem.queryIdx)
+					, Eigen::Vector3f(x2, y2, matchItem.trainIdx)));
 			}
 		}
 	}
@@ -89,10 +90,10 @@ void drawMatchResult(const std::vector<Viewport> &vViewports
 		}
 
 		for (auto &matchItem : pairItem.matchResult) {
-			size_t x1 = matchItem.first.x*view1.width;
-			size_t y1 = matchItem.first.y*view1.height;
-			size_t x2 = matchItem.second.x * view2.width;
-			size_t y2 = matchItem.second.y * view2.height;
+			size_t x1 = matchItem.first(0)*view1.width;
+			size_t y1 = matchItem.first(1)*view1.height;
+			size_t x2 = matchItem.second(0) * view2.width;
+			size_t y2 = matchItem.second(1) * view2.height;
 
 			cv::line(companionImage, cv::Point2f(x1, y1), cv::Point2f(x2 + view1.width + 5, y2)
 				, cv::Scalar(0, 0, 255), 1, CV_AA);
@@ -169,11 +170,11 @@ void ransac(std::vector<PairWiseCamera>& pairCameras) {
 		//}
 
 
-		std::vector<std::pair<glm::vec3, glm::vec3>> newMatchResult;
+		std::vector<std::pair<Eigen::Vector3f, Eigen::Vector3f>> newMatchResult;
 		for (auto& inlierIndex : result.second)
 			newMatchResult.push_back(pairItem.matchResult[inlierIndex]);
 		pairItem.matchResult = newMatchResult;
-		pairItem.foundamentalMatrix = glmFromEigen<3, 3>(result.first);
+		pairItem.foundamentalMatrix = result.first;
 
 		//cout << bestFoundamentalMatrix << endl;
 		//cout << endl;
@@ -196,8 +197,8 @@ void computeTracks(const std::vector<PairWiseCamera>& vPairCameras
 		Viewport& viewport2 = viewports[pairCamera.ID2];
 
 		for (size_t matchIndex = 0; matchIndex < pairCamera.matchResult.size(); ++matchIndex) {
-			size_t featureIndex1 = pairCamera.matchResult[matchIndex].first.z;
-			size_t featureIndex2 = pairCamera.matchResult[matchIndex].second.z;
+			size_t featureIndex1 = pairCamera.matchResult[matchIndex].first(2);
+			size_t featureIndex2 = pairCamera.matchResult[matchIndex].second(2);
 
 			if (-1 == viewport1.trackIDs[featureIndex1] && -1 == viewport2.trackIDs[featureIndex2]) {
 				vTracks.push_back(Track());
@@ -300,7 +301,7 @@ size_t computeHomographyInliers(const PairWiseCamera& vPairCamera) {
 		while (result.size() < 4)
 			result.insert(gen(myRand));
 
-		std::vector<std::pair<glm::vec3, glm::vec3>> fourFeatures(4);
+		std::vector<std::pair<Eigen::Vector3f, Eigen::Vector3f>> fourFeatures(4);
 		std::set<int>::const_iterator iter = result.begin();
 		for (std::size_t i = 0; i < 4; ++i, ++iter)
 			fourFeatures[i] = vPairCamera.matchResult[*iter];
@@ -311,40 +312,40 @@ size_t computeHomographyInliers(const PairWiseCamera& vPairCamera) {
 		{
 			std::size_t const row1 = 2 * featurePairID;
 			std::size_t const row2 = 2 * featurePairID + 1;
-			std::pair<glm::vec3, glm::vec3> const& match = fourFeatures[featurePairID];
+			std::pair<Eigen::Vector3f, Eigen::Vector3f> const& match = fourFeatures[featurePairID];
 			A(row1 , 0) = 0.0;
 			A(row1 , 1) = 0.0;
 			A(row1 , 2) = 0.0;
-			A(row1 , 3) = match.first.x;
-			A(row1 , 4) = match.first.y;
+			A(row1 , 3) = match.first(0);
+			A(row1 , 4) = match.first(1);
 			A(row1 , 5) = 1.0;
-			A(row1 , 6) = -match.second.y * match.first.x;
-			A(row1 , 7) = -match.second.y * match.first.y;
-			A(row1 , 8) = -match.second.y;
+			A(row1 , 6) = -match.second(1) * match.first(0);
+			A(row1 , 7) = -match.second(1) * match.first(1);
+			A(row1 , 8) = -match.second(1);
 
-			A(row2, 0) = -match.first.x;
-			A(row2, 1) = -match.first.y;
+			A(row2, 0) = -match.first(0);
+			A(row2, 1) = -match.first(1);
 			A(row2, 2) = -1.0;
 			A(row2, 3) = 0.0;
 			A(row2, 4) = 0.0;
 			A(row2, 5) = 0.0;
-			A(row2, 6) = match.second.x * match.first.x;
-			A(row2, 7) = match.second.x * match.first.y;
-			A(row2, 8) = match.second.x;
+			A(row2, 6) = match.second(0) * match.first(0);
+			A(row2, 7) = match.second(0) * match.first(1);
+			A(row2, 8) = match.second(0);
 		}
 
 		/* Compute homography matrix using SVD. */
 		Eigen::JacobiSVD<Eigen::MatrixXf> svd(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
 		Eigen::VectorXf V = svd.matrixV().col(8);
-		glm::mat3 homographyMatrix;
+		Eigen::Matrix3f homographyMatrix;
 		for (size_t y = 0; y < 3; y++)
 			for (size_t x = 0; x < 3; x++)
-				homographyMatrix[y][x] = V(y * 3 + x);
+				homographyMatrix(y,x) = V(y * 3 + x);
 
 		//???????????????????????????????????????????????
-		homographyMatrix /= homographyMatrix[2][2];
+		homographyMatrix /= homographyMatrix(2,2);
 
-		float const square_threshold = 0.05 * 0.05;
+		float const square_threshold = 0.05f * 0.05f;
 		inliers.resize(0);
 		for (std::size_t i = 0; i < vPairCamera.matchResult.size(); ++i){
 			float error = symmetricTransferError(homographyMatrix, vPairCamera.matchResult[i]);
@@ -360,16 +361,18 @@ size_t computeHomographyInliers(const PairWiseCamera& vPairCamera) {
 	return bestInliersNum;
 }
 
-bool computePose(std::vector<Viewport>& viewports, const PairWiseCamera& vPairCamera) {
+bool computePose(std::vector<Viewport>& viewports, const PairWiseCamera& vPairCamera
+	, CameraPose& vPose1, CameraPose& vPose2) {
 	// Compute fundamental matrix from pair correspondences.
-	const glm::mat3 fundamental=vPairCamera.foundamentalMatrix;
+	const Eigen::Matrix3f fundamental=vPairCamera.foundamentalMatrix;
 
 	/* Populate K-matrices. */
 	Viewport& view_1 = viewports[vPairCamera.ID1];
 	Viewport& view_2 = viewports[vPairCamera.ID2];
 
 	/* Compute essential matrix from fundamental matrix (HZ (9.12)). */
-	glm::mat3 essensialMatrix = glm::transpose(view_2.pose.K) * fundamental * view_1.pose.K;
+	Eigen::Matrix3f essensialMatrix = view_2.pose.K.inverse().transpose()
+		* fundamental * view_1.pose.K.inverse();
 
 	/* Compute pose from essential. */
 	std::vector<CameraPose> poses;
@@ -379,15 +382,15 @@ bool computePose(std::vector<Viewport>& viewports, const PairWiseCamera& vPairCa
 	bool found_pose = false;
 	for (std::size_t i = 0; i < poses.size(); ++i){
 		poses[i].K = viewports[vPairCamera.ID2].pose.K;
-		std::pair<glm::vec2, glm::vec2> matchPos = std::make_pair<glm::vec2, glm::vec2>(
-			glm::vec2(vPairCamera.matchResult[0].first.x, vPairCamera.matchResult[0].first.y)
-			, glm::vec2(vPairCamera.matchResult[0].second.x, vPairCamera.matchResult[0].second.y));
-		glm::vec3 x = triangulateMatch(matchPos, view_1.pose, poses[i]);
-		glm::vec3 x1 = view_1.pose.R * x + view_1.pose.T;
-		glm::vec3 x2 = poses[i].R * x + poses[i].T;
+		std::pair<Eigen::Vector2f, Eigen::Vector2f> matchPos = std::make_pair<Eigen::Vector2f, Eigen::Vector2f>(
+			Eigen::Vector2f(vPairCamera.matchResult[0].first(0), vPairCamera.matchResult[0].first(1))
+			, Eigen::Vector2f(vPairCamera.matchResult[0].second(0), vPairCamera.matchResult[0].second(1)));
+		Eigen::Vector3f x = triangulateMatch(matchPos, view_1.pose, poses[i]);
+		Eigen::Vector3f x1 = view_1.pose.R * x + view_1.pose.T;
+		Eigen::Vector3f x2 = poses[i].R * x + poses[i].T;
 
 		if (x1[2] > 0.0f && x2[2] > 0.0f){
-			view_2.pose = poses[i];
+			vPose2 = poses[i];
 			found_pose = true;
 			break;
 		}
@@ -395,22 +398,23 @@ bool computePose(std::vector<Viewport>& viewports, const PairWiseCamera& vPairCa
 	return found_pose;
 }
 
-float angleForPose(const std::vector<Viewport>& viewports, const PairWiseCamera& vPairCamera) {
-	const CameraPose& pose1 = viewports[vPairCamera.ID1].pose;
-	const CameraPose& pose2 = viewports[vPairCamera.ID2].pose;
+float angleForPose(const PairWiseCamera& vPairCamera
+	,const CameraPose& vPose1, const CameraPose& vPose2) {
 	// Compute transformation from image coordinates to viewing direction
-	glm::mat3 T1 = glm::transpose(pose1.R) * glm::inverse(pose1.K);
-	glm::mat3 T2 = glm::transpose(pose2.R) * glm::inverse(pose2.K);
+	Eigen::Matrix3f T1 = vPose1.R.transpose() * vPose1.K.inverse();
+	Eigen::Matrix3f T2 = vPose2.R.transpose() * vPose2.K.inverse();
 
 	/* Compute triangulation angle for each correspondence. */
 	std::vector<float> cos_angles;
 	cos_angles.reserve(vPairCamera.matchResult.size());
 	for (std::size_t i = 0; i < vPairCamera.matchResult.size(); ++i){
-		glm::vec3 p1(vPairCamera.matchResult[i].first.x, vPairCamera.matchResult[i].first.y, 1.f);
-		glm::vec3 p2(vPairCamera.matchResult[i].second.x, vPairCamera.matchResult[i].second.y, 1.f);
-		p1 = glm::normalize(T1*p1);
-		p2 = glm::normalize(T2*p2);
-		cos_angles.push_back(glm::dot(p1,p2));
+		Eigen::Vector3f p1(vPairCamera.matchResult[i].first(0), vPairCamera.matchResult[i].first(1), 1.f);
+		Eigen::Vector3f p2(vPairCamera.matchResult[i].second(0), vPairCamera.matchResult[i].second(1), 1.f);
+		p1 = (T1*p1);
+		p1.normalize();
+		p2 = (T2*p2);
+		p2.normalize();
+		cos_angles.push_back(p1.dot(p2));
 	}
 
 	/* Return 50% median. */
@@ -425,14 +429,14 @@ float scoreForPair(const PairWiseCamera& vPairCamera,const size_t vNumInliers
 	,const float vAngle) {
 	float const matchesScore = static_cast<float>(vPairCamera.matchResult.size());
 	float const inlierScore = static_cast<float>(vNumInliers) / matchesScore;
-	float const angle_d = vAngle*180/3.1415926;
+	float const angle_d = vAngle*180.f/3.1415926f;
 
 	/* Score for matches (min: 20, good: 200). */
-	float f1 = 2.0 / (1.0 + std::exp((20.0 - matchesScore) * 6.0 / 200.0)) - 1.0;
+	float f1 = 2.0f / (1.0f + std::exp((20.0f - matchesScore) * 6.0f / 200.0f)) - 1.0f;
 	/* Score for angle (min 1 degree, good 8 degree). */
-	float f2 = 2.0 / (1.0 + std::exp((1.0 - angle_d) * 6.0 / 8.0)) - 1.0;
+	float f2 = 2.0f / (1.0f + std::exp((1.0f - angle_d) * 6.0f / 8.0f)) - 1.0f;
 	/* Score for H-Inlier (max 70%, good 40%). */
-	float f3 = 2.0 / (1.0 + std::exp((inlierScore - 0.7) * 6.0 / 0.4)) - 1.0;
+	float f3 = 2.0f / (1.0f + std::exp((inlierScore - 0.7f) * 6.0f / 0.4f)) - 1.0f;
 
 	f1 = std::clamp(f1, 0.0f, 1.0f);
 	f2 = std::clamp(f2, 0.0f, 1.0f);
@@ -440,8 +444,8 @@ float scoreForPair(const PairWiseCamera& vPairCamera,const size_t vNumInliers
 	return f1 * f2 * f3;
 }
 
-bool triangulate(std::vector<CameraPose>& vPoses,std::vector<glm::vec2>& vPositions
-	,glm::vec3& vPos3D, std::vector<std::size_t>* vOutliers=nullptr) {
+bool triangulate(std::vector<CameraPose>& vPoses,std::vector<Eigen::Vector2f>& vPositions
+	, Eigen::Vector3f& vPos3D, std::vector<std::size_t>* vOutliers=nullptr) {
 	if (vPoses.size() < 2)
 		throw std::invalid_argument("At least two poses required");
 	if (vPoses.size() != vPositions.size())
@@ -449,28 +453,28 @@ bool triangulate(std::vector<CameraPose>& vPoses,std::vector<glm::vec2>& vPositi
 
 	// Check all possible pose pairs for successful triangulation
 	std::vector<std::size_t> bestOutliers(vPositions.size());
-	glm::vec3 bestPos(0.0f);
+	Eigen::Vector3f bestPos(0.0f,0.f,0.f);
 	for (std::size_t p1 = 0; p1 < vPoses.size(); ++p1)
 		for (std::size_t p2 = p1 + 1; p2 < vPoses.size(); ++p2){
 			/* Triangulate position from current pair */
 			std::vector<CameraPose> pose_pair;
-			std::vector<glm::vec2> position_pair;
+			std::vector<Eigen::Vector2f> position_pair;
 			pose_pair.push_back(vPoses[p1]);
 			pose_pair.push_back(vPoses[p2]);
 			position_pair.push_back(vPositions[p1]);
 			position_pair.push_back(vPositions[p2]);
-			glm::vec3 tmp_pos = triangulateTrack(position_pair, pose_pair);
+			Eigen::Vector3f tmp_pos = triangulateTrack(position_pair, pose_pair);
 			assert(!(std::isnan(tmp_pos[0]) || std::isnan(tmp_pos[0]) ||
 				std::isnan(tmp_pos[1]) || std::isnan(tmp_pos[1]) ||
 				std::isnan(tmp_pos[2]) || std::isnan(tmp_pos[2])));
 
 			// Check if pair has small triangulation angle
-			glm::vec3 camera_pos;
-			camera_pos = -glm::inverse(pose_pair[0].R)*pose_pair[0].T;
-			glm::vec3 ray0 = glm::normalize(tmp_pos - camera_pos);
-			camera_pos = -glm::inverse(pose_pair[1].R)*pose_pair[1].T;
-			glm::vec3 ray1 = glm::normalize(tmp_pos - camera_pos);
-			float const cos_angle = glm::dot(ray0,ray1);
+			Eigen::Vector3f camera_pos;
+			camera_pos = -(pose_pair[0].R).inverse()*pose_pair[0].T;
+			Eigen::Vector3f ray0 = (tmp_pos - camera_pos).normalized();
+			camera_pos = -(pose_pair[1].R).inverse()*pose_pair[1].T;
+			Eigen::Vector3f ray1 = (tmp_pos - camera_pos).normalized();
+			float const cos_angle = ray0.dot(ray1);
 			if (cos_angle > std::cos(1*3.1415926/180))
 				continue;
 
@@ -478,7 +482,7 @@ bool triangulate(std::vector<CameraPose>& vPoses,std::vector<glm::vec2>& vPositi
 			std::vector<std::size_t> tmp_outliers;
 			for (std::size_t i = 0; i < vPoses.size(); ++i){
 
-				glm::vec3 x = vPoses[i].R * tmp_pos + vPoses[i].T;
+				Eigen::Vector3f x = vPoses[i].R * tmp_pos   + vPoses[i].T;
 
 				/* Reject track if it appears behind the camera. */
 				if (x[2] <= 0.0){
@@ -488,8 +492,8 @@ bool triangulate(std::vector<CameraPose>& vPoses,std::vector<glm::vec2>& vPositi
 
 
 				x = vPoses[i].K * x;
-				glm::vec2 x2d(x[0] / x[2], x[1] / x[2]);
-				float error = glm::distance(vPositions[i], x2d);
+				Eigen::Vector2f x2d(x[0] / x[2], x[1] / x[2]);
+				float error = (vPositions[i]-x2d).norm();
 				if (error > 0.01f)
 					tmp_outliers.push_back(i);
 			}
@@ -503,7 +507,7 @@ bool triangulate(std::vector<CameraPose>& vPoses,std::vector<glm::vec2>& vPositi
 		}
 
 	// If all pairs have small angles pos will be 0 here.
-	if (glm::length(bestPos) == 0.0f){
+	if ((bestPos).norm() == 0.0f){
 		return false;
 	}
 
@@ -524,74 +528,99 @@ bool triangulate(std::vector<CameraPose>& vPoses,std::vector<glm::vec2>& vPositi
 size_t findInitPairs(std::vector<Viewport>& vViewports
 	, const std::vector<PairWiseCamera>& vPairCameras) {
 	int viewID1 = -1, viewID2 = -1;
-	std::vector<PairWiseCamera> candidates(vPairCameras);
+	std::vector<size_t> candidates(vPairCameras.size());
 	
+	std::iota(candidates.begin(), candidates.end(), 0);
 	std::sort(candidates.begin(), candidates.end()
-		, [](const PairWiseCamera& v1,const PairWiseCamera& v2)->bool {
-		return v1.matchResult.size() > v2.matchResult.size();
+		, [=](const size_t& v1,const size_t& v2)->bool {
+		return vPairCameras[v1].matchResult.size() > vPairCameras[v2].matchResult.size();
 	});
 
 	bool found_pair = false;
-	std::size_t found_pair_id = std::numeric_limits<std::size_t>::max();
+	size_t resultPairID =std::numeric_limits<size_t>::max();
 	std::vector<float> pairScores(candidates.size(), 0.0f);
+
+	CameraPose pose1, pose2;
 
 	for (std::size_t candidateIndex = 0; candidateIndex < candidates.size(); ++candidateIndex) {
 		if (found_pair)
 			continue;
 
 		// Reject pairs with 50 or fewer matches.
-		if (candidates[candidateIndex].matchResult.size() < 50){
+		if (vPairCameras[candidates[candidateIndex]].matchResult.size() < 50){
 			continue;
 		}
 
 
 		// Reject pairs with too high percentage of homography inliers.
-		std::size_t numInliers = computeHomographyInliers(candidates[candidateIndex]);
-		float percentage = static_cast<float>(numInliers) / candidates[candidateIndex].matchResult.size();
+		std::size_t numInliers = computeHomographyInliers(vPairCameras[candidates[candidateIndex]]);
+		float percentage = static_cast<float>(numInliers) / vPairCameras[candidates[candidateIndex]].matchResult.size();
 		if (percentage > 0.8f){
 			continue;
 		}
 
 		// Compute initial pair pose.
-
-		bool const found_pose = computePose(vViewports, candidates[candidateIndex]);
+		bool const found_pose = computePose(vViewports, vPairCameras[candidates[candidateIndex]], pose1,pose2);
 		if (!found_pose){
 			continue;
 		}
 
 		// Rejects pairs with bad triangulation angle.
-		float const angle = angleForPose(vViewports, candidates[candidateIndex]);
-		pairScores[candidateIndex] = scoreForPair(candidates[candidateIndex], numInliers, angle);
+		float const angle = angleForPose(vPairCameras[candidates[candidateIndex]], pose1, pose2);
+		pairScores[candidateIndex] = scoreForPair(vPairCameras[candidates[candidateIndex]], numInliers, angle);
 		if (angle < 5 * 3.1415926 / 180)
 			continue;
 
 		// If all passes, run triangulation to ensure correct pair
 		std::vector<CameraPose> poses;
-		poses.push_back(vViewports[candidates[candidateIndex].ID1].pose);
-		poses.push_back(vViewports[candidates[candidateIndex].ID2].pose);
+		poses.push_back(pose1);
+		poses.push_back(pose2);
 		std::size_t successful_triangulations = 0;
-		std::vector<glm::vec2> positions(2);
-		for (std::size_t j = 0; j < candidates[candidateIndex].matchResult.size(); ++j)
+		std::vector<Eigen::Vector2f> positions(2);
+		for (std::size_t j = 0; j < vPairCameras[candidates[candidateIndex]].matchResult.size(); ++j)
 		{
-			positions[0] = glm::vec2(candidates[candidateIndex].matchResult[j].first.x
-				, candidates[candidateIndex].matchResult[j].first.y);
-			positions[1] = glm::vec2(candidates[candidateIndex].matchResult[j].second.x
-				, candidates[candidateIndex].matchResult[j].second.y);
-			glm::vec3 pos3d;
+			positions[0] = Eigen::Vector2f(vPairCameras[candidates[candidateIndex]].matchResult[j].first(0)
+				, vPairCameras[candidates[candidateIndex]].matchResult[j].first(1));
+			positions[1] = Eigen::Vector2f(vPairCameras[candidates[candidateIndex]].matchResult[j].second(0)
+				, vPairCameras[candidates[candidateIndex]].matchResult[j].second(1));
+			Eigen::Vector3f pos3d;
 			if (triangulate(poses, positions, pos3d))
 				successful_triangulations += 1;
 		}
-		if (successful_triangulations * 2 < candidates[candidateIndex].matchResult.size())
+		if (successful_triangulations * 2 < vPairCameras[candidates[candidateIndex]].matchResult.size())
 			continue;
 
 		found_pair = true;
-		viewID1 = candidates[candidateIndex].ID1;
-		viewID2 = candidates[candidateIndex].ID2;
+		viewID1 = vPairCameras[candidates[candidateIndex]].ID1;
+		viewID2 = vPairCameras[candidates[candidateIndex]].ID2;
+		resultPairID = candidates[candidateIndex];
+		break;
 	}
 
-	if (!found_pair)
+	
+	if (found_pair) {
+		vViewports[viewID1].pose = pose1;
+		vViewports[viewID2].pose = pose2;
+		return resultPairID;
+	}
+
+	float best_score = 0.0f;
+	for (std::size_t i = 0; i < pairScores.size(); ++i){
+		if (pairScores[i] <= best_score)
+			continue;
+		best_score = pairScores[i];
+		resultPairID = candidates[i];
+	}
+
+	/* Recompute pose for pair with best score. */
+	if (best_score > 0.0f) {
+		computePose(vViewports,vPairCameras[resultPairID],
+			vViewports[vPairCameras[resultPairID].ID1].pose
+			, vViewports[vPairCameras[resultPairID].ID2].pose);
+		return resultPairID;
+	}
+	else
 		throw "lalala";
-	return found_pair_id;
 }
 
 void triangulateNewTracks(std::vector<Viewport>& vViewports,std::vector<Track>& vTracks
@@ -607,7 +636,7 @@ void triangulateNewTracks(std::vector<Viewport>& vViewports,std::vector<Track>& 
 		 * Triangulate the track using all cameras. There can be more than two
 		 * cameras if the track was rejected in previous triangulation attempts.
 		 */
-		std::vector<glm::vec2> pos;
+		std::vector<Eigen::Vector2f> pos;
 		std::vector<CameraPose> poses;
 		std::vector<std::size_t> view_ids;
 		std::vector<std::size_t> feature_ids;
@@ -623,7 +652,7 @@ void triangulateNewTracks(std::vector<Viewport>& vViewports,std::vector<Track>& 
 			//	static_cast<double>(viewport.radial_distortion[0]),
 			//	static_cast<double>(viewport.radial_distortion[1]),
 			//	viewport.focal_length));
-			pos.push_back(glm::vec2(viewport.keyPoints->at(feature_id).pt.x
+			pos.push_back(Eigen::Vector2f(viewport.keyPoints->at(feature_id).pt.x
 				, viewport.keyPoints->at(feature_id).pt.y));
 			poses.push_back(vViewports.at(view_id).pose);
 			view_ids.push_back(view_id);
@@ -636,7 +665,7 @@ void triangulateNewTracks(std::vector<Viewport>& vViewports,std::vector<Track>& 
 
 		/* Accept track if triangulation was successful. */
 		std::vector<std::size_t> outlier;
-		glm::vec3 track_pos;
+		Eigen::Vector3f track_pos;
 		if (!triangulate(poses, pos, track_pos,  &outlier))
 			continue;
 		vTracks.at(i).pos = track_pos;
@@ -678,7 +707,7 @@ void invalidateLargeErrorTracks(std::vector<Viewport>& vViewports,std::vector<Tr
 			continue;
 
 		num_valid_tracks += 1;
-		glm::vec3 const& pos3d = vTracks.at(i).pos;
+		Eigen::Vector3f const& pos3d = vTracks.at(i).pos;
 		std::vector<std::pair<size_t, size_t>> const& ref = vTracks.at(i).tracks;
 
 		float total_error = 0.0f;
@@ -693,21 +722,21 @@ void invalidateLargeErrorTracks(std::vector<Viewport>& vViewports,std::vector<Tr
 			if (!pose.valied)
 				continue;
 
-			glm::vec2 const& pos2d = glm::vec2(viewport.keyPoints->at(feature_id).pt.x
+			Eigen::Vector2f const& pos2d = Eigen::Vector2f(viewport.keyPoints->at(feature_id).pt.x
 				, viewport.keyPoints->at(feature_id).pt.y);
 
 			/* Project 3D feature and compute reprojection error. */
-			glm::vec3 x = pose.R * pos3d + pose.T;
-			glm::vec2 x2d(x[0] / x[2], x[1] / x[2]);
-			float r2 = x2d.length();
+			Eigen::Vector3f x = pose.R * pos3d + pose.T;
+			Eigen::Vector2f x2d(x[0] / x[2], x[1] / x[2]);
+			float r2 = x2d.norm();
 			//x2d *= (1.0 + r2 * (viewport.radial_distortion[0]
 			//	+ viewport.radial_distortion[1] * r2))
 			//	* pose.get_focal_length();
-			total_error += (pos2d - x2d).length();
+			total_error += (pos2d - x2d).norm();
 			num_valid += 1;
 		}
-		total_error /= static_cast<double>(num_valid);
-		all_errors.push_back(std::pair<double, int>(total_error, i));
+		total_error /= static_cast<float>(num_valid);
+		all_errors.push_back(std::pair<float, size_t>(total_error, i));
 	}
 
 	if (num_valid_tracks < 2)
@@ -718,7 +747,7 @@ void invalidateLargeErrorTracks(std::vector<Viewport>& vViewports,std::vector<Tr
 	std::nth_element(all_errors.begin(),
 		all_errors.begin() + nth_position, all_errors.end());
 	float const square_threshold = all_errors[nth_position].first
-		* 10.0;
+		* 10.0f;
 
 	/* Delete all tracks with errors above the threshold. */
 	int num_deleted_tracks = 0;
@@ -743,13 +772,13 @@ void computeReprojectionErrors(Eigen::VectorXf& vVector, std::vector<Observation
 	for (size_t i = 0; i < vVector.rows(); i++){
 		const Viewport& viewport = vViewports.at(vBAPoints2d.at(i).camera_id);
 		Eigen::Vector3f point = vBAPoints3d.at(vBAPoints2d.at(i).point_id);
-		const glm::vec2 screenPos = vBAPoints2d.at(i).pos;
+		const Eigen::Vector2f screenPos = vBAPoints2d.at(i).pos;
 
 		if (delta_x != nullptr)
 			point += *delta_x;
 
 		// Project point onto image plane.
-		point = eigenFromGLM(viewport.pose.R)*point + eigenFromGLM(viewport.pose.T);
+		point = viewport.pose.R*point + viewport.pose.T;
 		
 		point(0) = point(0) / point(2);
 		point(1) = point(1) / point(2);
@@ -973,9 +1002,9 @@ void bundleAdjustmentFull(std::vector<Viewport>& vViewports, std::vector<Track>&
 			continue;
 
 		/* Add corresponding 3D point to BA. */
-		glm::vec3 point=vTracks[i].pos;
+		Eigen::Vector3f point=vTracks[i].pos;
 		ba_tracks_mapping[i] = ba_points_3d.size();
-		ba_points_3d.push_back(eigenFromGLM(point));
+		ba_points_3d.push_back(point);
 
 		/* Add all observations to BA. */
 		for (std::size_t j = 0; j < track.tracks.size(); ++j){
@@ -985,7 +1014,7 @@ void bundleAdjustmentFull(std::vector<Viewport>& vViewports, std::vector<Track>&
 
 			int const feature_id = track.tracks[j].second;
 			Viewport const& view = vViewports.at(view_id);
-			const glm::vec2 & f2d = glm::vec2(view.keyPoints->at(feature_id).pt.x
+			const Eigen::Vector2f & f2d = Eigen::Vector2f(view.keyPoints->at(feature_id).pt.x
 				, view.keyPoints->at(feature_id).pt.y);
 
 			Observation point;
@@ -1007,7 +1036,7 @@ void bundleAdjustmentFull(std::vector<Viewport>& vViewports, std::vector<Track>&
 			continue;
 
 		const Eigen::Vector3f & point = ba_points_3d[ba_track_counter];
-		track.pos = glm::vec3(point(0), point(1) , point(2));
+		track.pos = Eigen::Vector3f(point(0), point(1) , point(2));
 		ba_track_counter += 1;
 	}
 }
@@ -1021,16 +1050,17 @@ void bundleAdjustmentFullWithCeres(std::vector<Viewport>& vViewports, std::vecto
 		baCameras.push_back(baCamera());
 		baCamera& camera = baCameras.back();
 		camera.params = new double[9];
-		glm::vec3 angleVector = glm::eulerAngles(glm::quat_cast(vViewports[i].pose.R));
+		Eigen::Vector3f angleVector = vViewports[i].pose.R.eulerAngles(0,1,2);
+		
 		camera.params[0] = angleVector[0];
 		camera.params[1] = angleVector[1];
 		camera.params[2] = angleVector[2];
 		camera.params[3] = vViewports[i].pose.T[0];
 		camera.params[4] = vViewports[i].pose.T[1];
 		camera.params[5] = vViewports[i].pose.T[2];
-		camera.params[6] = vViewports[i].pose.K[0][0];
-		camera.params[7] = vViewports[i].pose.K[0][1];
-		camera.params[8] = vViewports[i].pose.K[1][2];
+		camera.params[6] = vViewports[i].pose.K(0,0);
+		camera.params[7] = vViewports[i].pose.K(0,1);
+		camera.params[8] = vViewports[i].pose.K(1,2);
 	}
 
 	for (std::size_t i = 0; i < vTracks.size(); ++i) {
@@ -1074,17 +1104,17 @@ void bundleAdjustmentFullWithCeres(std::vector<Viewport>& vViewports, std::vecto
 	for (std::size_t i = 0; i < vViewports.size(); ++i) {
 		baCamera& camera = baCameras[i];
 
-		glm::mat4 R = glm::rotate(glm::mat4(1.f)
-			, static_cast<float>(camera.params[0]),glm::vec3(1, 0, 0));
-		R = glm::rotate(R, static_cast<float>(camera.params[1]), glm::vec3(0, 1, 0));
-		R = glm::rotate(R, static_cast<float>(camera.params[2]), glm::vec3(0, 0, 1));
+		Eigen::Matrix3f R;
+		R = Eigen::AngleAxisf(static_cast<float>(camera.params[0]), Eigen::Vector3f::UnitX())
+			* Eigen::AngleAxisf(static_cast<float>(camera.params[1]), Eigen::Vector3f::UnitY())
+			* Eigen::AngleAxisf(static_cast<float>(camera.params[2]), Eigen::Vector3f::UnitZ());
 		vViewports.at(i).pose.R = R;
-		vViewports.at(i).pose.T[0] = camera.params[3];
-		vViewports.at(i).pose.T[1] = camera.params[4];
-		vViewports.at(i).pose.T[2] = camera.params[5];
-		vViewports.at(i).pose.K[0][0] = camera.params[6];
-		vViewports.at(i).pose.K[0][1] = camera.params[7];
-		vViewports.at(i).pose.K[1][2] = camera.params[8];
+		vViewports.at(i).pose.T[0] = static_cast<float>(camera.params[3]);
+		vViewports.at(i).pose.T[1] = static_cast<float>(camera.params[4]);
+		vViewports.at(i).pose.T[2] = static_cast<float>(camera.params[5]);
+		vViewports.at(i).pose.K(0,0) = static_cast<float>(camera.params[6]);
+		vViewports.at(i).pose.K(0,1) = static_cast<float>(camera.params[7]);
+		vViewports.at(i).pose.K(1,2) = static_cast<float>(camera.params[8]);
 	}
 
 	for (std::size_t i = 0; i < vTracks.size(); ++i) {
@@ -1092,9 +1122,9 @@ void bundleAdjustmentFullWithCeres(std::vector<Viewport>& vViewports, std::vecto
 		if (!track.valied)
 			continue;
 
-		track.pos[0] = pointsWorld[i].pos[0];
-		track.pos[1] = pointsWorld[i].pos[1];
-		track.pos[2] = pointsWorld[i].pos[2];
+		track.pos[0] = static_cast<float>(pointsWorld[i].pos[0]);
+		track.pos[1] = static_cast<float>(pointsWorld[i].pos[1]);
+		track.pos[2] = static_cast<float>(pointsWorld[i].pos[2]);
 	}
 }
 
@@ -1121,7 +1151,6 @@ int main(int argc, char* argv[]){
 	bool testEnable = true;
 	if (testEnable)
 		unitTest(argc, argv);
-
 
 	std::vector<std::string> imageLists;
 	imageLists.push_back("../../../my_test/test_low/0.png");
@@ -1209,6 +1238,7 @@ int main(int argc, char* argv[]){
 			full_ba_num_skipped = 0;
 		}
 	}
+
 
     return 0;
 }
