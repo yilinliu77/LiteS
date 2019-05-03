@@ -5,11 +5,13 @@
 #include <Eigen/Dense>  
 #include <random>
 
+const float errorTriangulateThreshold = 0.05f;
+
 struct CameraPose {
 	Eigen::Matrix3f K = (Eigen::Matrix3f() << 1.0f, 0.f, 0.f, 0.f, 1.0f, 0.f, 0.f, 0.f, 1.f).finished();
 	Eigen::Vector3f T = Eigen::Vector3f(0.0f, 0.f, 0.f);
 	Eigen::Matrix3f R = (Eigen::Matrix3f()<<1.0f, 0.f, 0.f, 0.f, 1.0f, 0.f, 0.f, 0.f, 1.f).finished();
-	bool valied = true;
+	bool valied = false;
 };
 
 struct Viewport {
@@ -35,7 +37,7 @@ struct PairWiseCamera {
 };
 
 struct Track {
-	bool valied = true;
+	bool valied = false;
 	Eigen::Vector3f pos;
 	std::vector<std::pair<size_t, size_t>> tracks;
 };

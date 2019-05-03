@@ -22,6 +22,8 @@
 #include <tbb/task_scheduler_init.h>
 #include <tbb/concurrent_vector.h>
 
+#include "CPointCloudMesh.h"
+
 const float RANSAC_INLIER_THRESHOLD = 0.0015f;
 
 void getViewportFeatures(const std::vector<std::string> &vImageLists
@@ -81,11 +83,13 @@ void drawMatchResult(const std::vector<Viewport> &vViewports
 			for (int x = 0; x < companionImage.cols; x++)
 			{
 				if (x < view1.width)
-					companionImage.at<uchar>(y, x) = view1.originalImage.at(x, y)*255.0f;
+					companionImage.at<uchar>(y, x) 
+					= view1.originalImage.at(x, y);
 				else if (x >= view1.width&&x < view1.width + 5)
 					companionImage.at<uchar>(y, x) = 0;
 				else
-					companionImage.at<uchar>(y, x) = view2.originalImage.at(x - (int)view1.width - 5, y)*255.0f;
+					companionImage.at<uchar>(y, x) 
+					= view2.originalImage.at(x - (int)view1.width - 5, y);
 			}
 		}
 
@@ -395,6 +399,10 @@ bool computePose(std::vector<Viewport>& viewports, const PairWiseCamera& vPairCa
 			break;
 		}
 	}
+	if (found_pose) {
+		vPose1.valied = true;
+		vPose2.valied = true;
+	}
 	return found_pose;
 }
 
@@ -494,12 +502,12 @@ bool triangulate(std::vector<CameraPose>& vPoses,std::vector<Eigen::Vector2f>& v
 				x = vPoses[i].K * x;
 				Eigen::Vector2f x2d(x[0] / x[2], x[1] / x[2]);
 				float error = (vPositions[i]-x2d).norm();
-				if (error > 0.01f)
+				if (error > errorTriangulateThreshold)
 					tmp_outliers.push_back(i);
 			}
 
 			// Select triangulation with lowest amount of outliers.
-			if (tmp_outliers.size() < bestOutliers.size()){
+			if (tmp_outliers.size() <= bestOutliers.size()){
 				bestPos = tmp_pos;
 				std::swap(bestOutliers, tmp_outliers);
 			}
@@ -512,14 +520,14 @@ bool triangulate(std::vector<CameraPose>& vPoses,std::vector<Eigen::Vector2f>& v
 	}
 
 	// Check if required number of inliers is found.
-	if (vPoses.size() < bestOutliers.size() + 2){
-		return false;
-	}
+	//if (vPoses.size() < bestOutliers.size() + 2){
+	//	return false;
+	//}
 
 	// Return final position and outliers.
 	vPos3D = bestPos;
 
-	if (0!=(*vOutliers).size())
+	if (vOutliers!=nullptr&&0!=(*vOutliers).size())
 		std::swap(*vOutliers, bestOutliers);
 
 	return true;
@@ -629,7 +637,7 @@ void triangulateNewTracks(std::vector<Viewport>& vViewports,std::vector<Track>& 
 	for (std::size_t i = 0; i < vTracks.size(); ++i){
 		/* Skip tracks that have already been triangulated. */
 		Track const& track = vTracks[i];
-		if (!track.valied)
+		if (track.valied)
 			continue;
 
 		/*
@@ -641,11 +649,11 @@ void triangulateNewTracks(std::vector<Viewport>& vViewports,std::vector<Track>& 
 		std::vector<std::size_t> view_ids;
 		std::vector<std::size_t> feature_ids;
 		for (std::size_t trackFeaturesIndex = 0; trackFeaturesIndex < track.tracks.size(); ++trackFeaturesIndex){
-			int const view_id = track.tracks[trackFeaturesIndex].first;
+			size_t const view_id = track.tracks[trackFeaturesIndex].first;
 			if (!vViewports.at(view_id).pose.valied)
 				continue;
 			Viewport const& viewport = vViewports.at(view_id);
-			int const feature_id = track.tracks[trackFeaturesIndex].second;
+			size_t const feature_id = track.tracks[trackFeaturesIndex].second;
 			// ?????????????????????????????????????????????????????????????
 			//pos.push_back(undistortFeature(
 			//	viewport.features.positions[feature_id],
@@ -669,6 +677,7 @@ void triangulateNewTracks(std::vector<Viewport>& vViewports,std::vector<Track>& 
 		if (!triangulate(poses, pos, track_pos,  &outlier))
 			continue;
 		vTracks.at(i).pos = track_pos;
+		vTracks.at(i).valied = true;
 
 		/* Check if track contains outliers */
 		if (outlier.size() == 0)
@@ -714,8 +723,8 @@ void invalidateLargeErrorTracks(std::vector<Viewport>& vViewports,std::vector<Tr
 		int num_valid = 0;
 		for (std::size_t j = 0; j < ref.size(); ++j){
 			/* Get pose and 2D position of feature. */
-			int view_id = ref[j].first;
-			int feature_id = ref[j].second;
+			size_t view_id = ref[j].first;
+			size_t feature_id = ref[j].second;
 
 			Viewport const& viewport = vViewports.at(view_id);
 			CameraPose const& pose = viewport.pose;
@@ -728,6 +737,8 @@ void invalidateLargeErrorTracks(std::vector<Viewport>& vViewports,std::vector<Tr
 			/* Project 3D feature and compute reprojection error. */
 			Eigen::Vector3f x = pose.R * pos3d + pose.T;
 			Eigen::Vector2f x2d(x[0] / x[2], x[1] / x[2]);
+			if (x(2) == 0.f)
+				x2d = Eigen::Vector2f(0.f, 0.f);
 			float r2 = x2d.norm();
 			//x2d *= (1.0 + r2 * (viewport.radial_distortion[0]
 			//	+ viewport.radial_distortion[1] * r2))
@@ -735,7 +746,7 @@ void invalidateLargeErrorTracks(std::vector<Viewport>& vViewports,std::vector<Tr
 			total_error += (pos2d - x2d).norm();
 			num_valid += 1;
 		}
-		total_error /= static_cast<float>(num_valid);
+		total_error /= static_cast<float>(std::max(num_valid,1));
 		all_errors.push_back(std::pair<float, size_t>(total_error, i));
 	}
 
@@ -1046,7 +1057,14 @@ void bundleAdjustmentFullWithCeres(std::vector<Viewport>& vViewports, std::vecto
 	std::vector<baObservation> baObservations;
 	std::vector<baCamera> baCameras;
 	std::vector<baPoint> pointsWorld;
+	std::vector<size_t> cameraMappings(vViewports.size(), std::numeric_limits<size_t>::max());
+	std::vector<size_t> pointsMappings(vTracks.size(), std::numeric_limits<size_t>::max());
 	for (std::size_t i = 0; i < vViewports.size(); ++i) {
+		if (!vViewports[i].pose.valied)
+			continue;
+
+		cameraMappings[i] = baCameras.size();
+
 		baCameras.push_back(baCamera());
 		baCamera& camera = baCameras.back();
 		camera.params = new double[9];
@@ -1059,7 +1077,7 @@ void bundleAdjustmentFullWithCeres(std::vector<Viewport>& vViewports, std::vecto
 		camera.params[4] = vViewports[i].pose.T[1];
 		camera.params[5] = vViewports[i].pose.T[2];
 		camera.params[6] = vViewports[i].pose.K(0,0);
-		camera.params[7] = vViewports[i].pose.K(0,1);
+		camera.params[7] = vViewports[i].pose.K(0,2);
 		camera.params[8] = vViewports[i].pose.K(1,2);
 	}
 
@@ -1067,14 +1085,6 @@ void bundleAdjustmentFullWithCeres(std::vector<Viewport>& vViewports, std::vecto
 		Track const& track = vTracks.at(i);
 		if (!track.valied)
 			continue;
-
-		/* Add corresponding 3D point to BA. */
-		baPoint point;
-		point.pos = new double[3];
-		point.pos[0] = vTracks[i].pos[0];
-		point.pos[1] = vTracks[i].pos[1];
-		point.pos[2] = vTracks[i].pos[2];
-		pointsWorld.push_back(point);
 
 		/* Add all observations to BA. */
 		for (std::size_t j = 0; j < track.tracks.size(); ++j) {
@@ -1091,10 +1101,19 @@ void bundleAdjustmentFullWithCeres(std::vector<Viewport>& vViewports, std::vecto
 			point.screenPos = new double[2];
 			point.screenPos[0] = f2d[0];
 			point.screenPos[1] = f2d[1];
-			point.cameraID = view_id;
+			point.cameraID = cameraMappings[view_id];
 			point.pointID = j;
 			baObservations.push_back(point);
 		}
+
+		/* Add corresponding 3D point to BA. */
+		baPoint point;
+		point.pos = new double[3];
+		point.pos[0] = vTracks[i].pos[0];
+		point.pos[1] = vTracks[i].pos[1];
+		point.pos[2] = vTracks[i].pos[2];
+		pointsMappings[i] = pointsWorld.size();
+		pointsWorld.push_back(point);
 	}
 
 	/* Run bundle adjustment. */
@@ -1102,50 +1121,100 @@ void bundleAdjustmentFullWithCeres(std::vector<Viewport>& vViewports, std::vecto
 
 	/* Transfer tracks back to SfM data structures. */
 	for (std::size_t i = 0; i < vViewports.size(); ++i) {
-		baCamera& camera = baCameras[i];
+		if(cameraMappings[i]== std::numeric_limits<size_t>::max())
+			continue;
+		baCamera& camera = baCameras[cameraMappings[i]];
 
 		Eigen::Matrix3f R;
 		R = Eigen::AngleAxisf(static_cast<float>(camera.params[0]), Eigen::Vector3f::UnitX())
 			* Eigen::AngleAxisf(static_cast<float>(camera.params[1]), Eigen::Vector3f::UnitY())
 			* Eigen::AngleAxisf(static_cast<float>(camera.params[2]), Eigen::Vector3f::UnitZ());
 		vViewports.at(i).pose.R = R;
-		vViewports.at(i).pose.T[0] = static_cast<float>(camera.params[3]);
-		vViewports.at(i).pose.T[1] = static_cast<float>(camera.params[4]);
-		vViewports.at(i).pose.T[2] = static_cast<float>(camera.params[5]);
+		vViewports.at(i).pose.T(0) = static_cast<float>(camera.params[3]);
+		vViewports.at(i).pose.T(1) = static_cast<float>(camera.params[4]);
+		vViewports.at(i).pose.T(2) = static_cast<float>(camera.params[5]);
 		vViewports.at(i).pose.K(0,0) = static_cast<float>(camera.params[6]);
-		vViewports.at(i).pose.K(0,1) = static_cast<float>(camera.params[7]);
+		vViewports.at(i).pose.K(0,2) = static_cast<float>(camera.params[7]);
 		vViewports.at(i).pose.K(1,2) = static_cast<float>(camera.params[8]);
 	}
 
 	for (std::size_t i = 0; i < vTracks.size(); ++i) {
+		if(pointsMappings[i]==std::numeric_limits<size_t>::max())
+			continue;
 		Track & track = vTracks.at(i);
 		if (!track.valied)
 			continue;
 
-		track.pos[0] = static_cast<float>(pointsWorld[i].pos[0]);
-		track.pos[1] = static_cast<float>(pointsWorld[i].pos[1]);
-		track.pos[2] = static_cast<float>(pointsWorld[i].pos[2]);
+		track.pos[0] = static_cast<float>(pointsWorld[pointsMappings[i]].pos[0]);
+		track.pos[1] = static_cast<float>(pointsWorld[pointsMappings[i]].pos[1]);
+		track.pos[2] = static_cast<float>(pointsWorld[pointsMappings[i]].pos[2]);
 	}
 }
 
-void findNextViews(std::vector<int>& next_views) {
+bool findNextViews(std::vector<int>& next_views, std::vector<Viewport>& vViewports
+	, std::vector<Track>& vTracks, std::vector<PairWiseCamera>& vPairCameras) {
+	/* Create mapping from valid tracks to view ID. */
+	std::vector<std::pair<size_t, size_t>> valid_tracks(vPairCameras.size());
+	for (size_t i = 0; i < vPairCameras.size(); ++i)
+		valid_tracks[i]=(std::make_pair(size_t(0), i));
 
+	for (std::size_t i = 0; i < vPairCameras.size(); ++i){
+		if ((vViewports[vPairCameras[i].ID1].pose.valied
+			&& !vViewports[vPairCameras[i].ID2].pose.valied)
+			|| 
+			(!vViewports[vPairCameras[i].ID1].pose.valied
+				&& vViewports[vPairCameras[i].ID2].pose.valied))
+			valid_tracks[i].first = vPairCameras[i].matchResult.size();
+	}
+
+	/* Sort descending by number of valid tracks. */
+	std::sort(valid_tracks.rbegin(), valid_tracks.rend());
+
+	if (valid_tracks[0].first == 0)
+		return false;
+
+	/* Return unreconstructed views with most valid tracks. */
+	next_views.clear();
+	for (std::size_t i = 0; i < valid_tracks.size(); ++i){
+		//if (valid_tracks[i].first > 6)
+		next_views.push_back(valid_tracks[i].second);
+	}
+	return true;
 }
 
-bool reconstructNextView(int next_views) {
+bool reconstructNextView(size_t vPairIndex, std::vector<Viewport>& vViewports
+	, std::vector<Track>& vTracks, std::vector<PairWiseCamera>& vPairCameras) {
+	PairWiseCamera& vPairCamera = vPairCameras[vPairIndex];
+	bool firstVailed = true;
+	if (vViewports[vPairCamera.ID1].pose.valied)
+		firstVailed = true;
+	else
+		firstVailed = false;
 
-	return true;
+	return computePose(vViewports, vPairCamera,
+		firstVailed ? vViewports[vPairCamera.ID1].pose: vViewports[vPairCamera.ID2].pose
+		, firstVailed ? vViewports[vPairCamera.ID2].pose: vViewports[vPairCamera.ID1].pose);
 }
 
 void bundleAdjustmentSingleCamera(int next_views) {
 
 }
 
-void tryRestoreTracksForViews() {
+void extractPointFromTrack(const std::vector<Track>& vTracks) {
+	std::vector<Vertex> points;
+	for (auto& trackItem : vTracks) {
+		if (trackItem.valied) {
+			points.push_back(Vertex(glmVectorFromEigen<3>(trackItem.pos)
+				,glm::vec3(1.f),glm::vec3(1.f)));
+		}
 
+	}
+
+	CPointCloudMesh* mesh = new CPointCloudMesh(points);
+	saveMesh(mesh, "../../../my_test/sfm.ply");
+
+	cout << "Reconstructed " << points.size() << " of " << vTracks.size() << endl;
 }
-
-
 
 int main(int argc, char* argv[]){
 	bool testEnable = true;
@@ -1153,11 +1222,11 @@ int main(int argc, char* argv[]){
 		unitTest(argc, argv);
 
 	std::vector<std::string> imageLists;
-	imageLists.push_back("../../../my_test/test_low/0.png");
+	//imageLists.push_back("../../../my_test/test_low/0.png");
 	imageLists.push_back("../../../my_test/test_low/1.png");
-	imageLists.push_back("../../../my_test/test_low/2.png");
+	//imageLists.push_back("../../../my_test/test_low/2.png");
 	imageLists.push_back("../../../my_test/test_low/3.png");
-	imageLists.push_back("../../../my_test/test_low/4.png");
+	//imageLists.push_back("../../../my_test/test_low/4.png");
 	//imageLists.push_back("../../../my_test/test/00000.jpeg");
 	//imageLists.push_back("../../../my_test/test/00001.jpeg");
 	//imageLists.push_back("../../../my_test/test/00002.jpeg");
@@ -1171,13 +1240,13 @@ int main(int argc, char* argv[]){
 	matchViewportFeature(viewports, pairCameras);
 	//drawMatchResult(viewports, pairCameras);
 	ransac(pairCameras);
-	//drawMatchResult(viewports, pairCameras);
+	drawMatchResult(viewports, pairCameras);
 	computeTracks(pairCameras, viewports, tracks);
 	size_t initPairID=findInitPairs(viewports,pairCameras);
 
 	triangulateNewTracks(viewports,tracks,2);
 	invalidateLargeErrorTracks(viewports, tracks);
-	bundleAdjustmentFull(viewports, tracks);
+	bundleAdjustmentFullWithCeres(viewports, tracks);
 
 	/* Reconstruct remaining views. */
 	int num_cameras_reconstructed = 2;
@@ -1185,31 +1254,31 @@ int main(int argc, char* argv[]){
 	while (true){
 		/* Find suitable next views for reconstruction. */
 		std::vector<int> next_views;
-		findNextViews(next_views);
+		bool hasNextView=findNextViews(next_views,viewports,tracks,pairCameras);
 
 		/* Reconstruct the next view. */
-		int next_view_id = -1;
-		for (std::size_t i = 0; i < next_views.size(); ++i){
-			std::cout << std::endl;
-			std::cout << "Adding next view ID " << next_views[i]
-				<< " (" << (num_cameras_reconstructed + 1) << " of "
-				<< viewports.size() << ")..." << std::endl;
-			if (reconstructNextView(next_views[i])){
-				next_view_id = next_views[i];
-				break;
+		size_t pairIndex = 0;
+		if (hasNextView) {
+			while (!reconstructNextView(next_views[pairIndex], viewports, tracks, pairCameras)) {
+				pairIndex += 1;
+				if (pairIndex == next_views.size()) {
+					break;
+				}
 			}
 		}
+		else
+			pairIndex = next_views.size();
 
-		if (next_view_id < 0){
+		if (pairIndex == next_views.size()){
 			if (full_ba_num_skipped == 0){
 				std::cout << "No valid next view." << std::endl;
 				std::cout << "SfM reconstruction finished." << std::endl;
 				break;
 			}
 			else{
-				triangulateNewTracks(viewports, tracks, 3);
+				triangulateNewTracks(viewports, tracks, 2);
 				std::cout << "Running full bundle adjustment..." << std::endl;
-				bundleAdjustmentFull(viewports, tracks);
+				bundleAdjustmentFullWithCeres(viewports, tracks);
 				invalidateLargeErrorTracks(viewports, tracks);
 				full_ba_num_skipped = 0;
 				continue;
@@ -1230,15 +1299,15 @@ int main(int argc, char* argv[]){
 			full_ba_num_skipped += 1;
 		}
 		else{
-			triangulateNewTracks(viewports, tracks, 3);
-			tryRestoreTracksForViews();
+			triangulateNewTracks(viewports, tracks, 2);
 			std::cout << "Running full bundle adjustment..." << std::endl;
-			bundleAdjustmentFull(viewports, tracks);
+			bundleAdjustmentFullWithCeres(viewports, tracks);
 			invalidateLargeErrorTracks(viewports, tracks);
 			full_ba_num_skipped = 0;
 		}
 	}
 
+	extractPointFromTrack(tracks);
 
     return 0;
 }

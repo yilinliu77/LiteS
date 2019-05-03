@@ -17,6 +17,11 @@ public:
 	void optimize_nadir();
 	void simplexPoint();
 	void visualizeExistCamera();
+	void visualizeSurroundingsViewCamera();
+	void visualizeRandomViewCamera();
+	void visualizeAsiaCamera();
+        void staticsForPath(float reconThresh = 15.f);
+        void visualizeMyAsiaCamera(string vPath);
 	void extraAlgorithm() override;
 	void extraInit() override;
 

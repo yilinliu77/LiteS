@@ -101,7 +101,9 @@ void CPointCloudMesh::processPointCloudNode(aiNode *node, const aiScene *scene) 
 	vector<Vertex> vertices;
 	vector<unsigned int> indices;
 
-	aiMesh* aiMesh = scene->mMeshes[node->mMeshes[0]];
+	aiMesh* aiMesh = scene->mMeshes[0];
+	if (node->mMeshes != nullptr)
+		aiMesh = scene->mMeshes[node->mMeshes[0]];
 
 	for (unsigned int i = 0; i < aiMesh->mNumVertices; i++) {
 		Vertex vertex;

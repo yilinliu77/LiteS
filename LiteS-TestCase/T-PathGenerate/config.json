@@ -6,7 +6,8 @@
     "Model":[
       {
         "Name": "proxy_point",
-        "Path": "../../../my_test/proxy_point.ply",
+        "Path": "D:\\swap\\ny_airspace.ply",
+        "Path1": "../../../ny1_test/point_after_sampling.ply",
         "Type": "PointCloud",
         "Render": true
       },

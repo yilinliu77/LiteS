@@ -3,18 +3,18 @@
   "CompanionWindowHeight": 900,
   "CameraSpeed": 30,
 
-  "Model1": [
-    {
-      "Name": "ny_proxy",
-      "Path": "../../../ny1-test/gt_proxy.ply",
-      "Type": "Mesh",
-      "Render": false
-    }
-  ],
   "Model": [
     {
       "Name": "my_proxy",
-      "Path": "../../../my_test/proxy_point.ply",
+      "Path": "../../../my_test/Minimal_Default_m.ply",
+      "Type": "PointCloud",
+      "Render": true
+    }
+  ],
+  "Model1": [
+    {
+      "Name": "my_proxy",
+      "Path": "../../../my_test/point_after_sampling.ply",
       "Type": "PointCloud",
       "Render": true
     }

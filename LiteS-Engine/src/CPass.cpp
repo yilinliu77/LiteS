@@ -13,7 +13,7 @@ void CPass::beginPass() {
 	if (this->m_IsTargetTexture)
 		glBindFramebuffer(GL_FRAMEBUFFER, this->m_FrameBuffer);
 
-	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	glClearColor(0.55f, 0.55f, 0.35f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 
