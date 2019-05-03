@@ -12,7 +12,7 @@
 #include <opencv2/xfeatures2d/nonfree.hpp>
 
 #define EPSILON 0
-#define MATCHTHRESHOLD 0.6
+#define MATCHTHRESHOLD 0.9f
 
 struct SIFTParams {
 	int nOctave=8;
@@ -23,8 +23,9 @@ struct SIFTParams {
 
 	float sigma_in = 0.5f;
 
+	//float C_Dog = 0.013333333f;
 	float C_Dog = 0.013333333f;
-	float keysThreshold = 0.013333333f;
+	float keysThreshold = 0.013333333f;;// Change during run,change this doesn't work
 
 	float edgeThreshold =10;
 

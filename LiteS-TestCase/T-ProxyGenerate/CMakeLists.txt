@@ -30,6 +30,10 @@ link_directories (C:/Users/vcc/Documents/repo/SFM/REFERENCE/mve/libs/fssr/Debug/
 link_directories (C:/Users/vcc/Documents/repo/SFM/REFERENCE/mve/libs/mve/Debug/)
 link_directories (C:/Users/vcc/Documents/repo/SFM/REFERENCE/mve/libs/util/Debug/)
 
+include_directories ("C:/repos/Graphics/MODELING/SFM_PIPELINE/PathPlaning/REFERENCE/mve/libs/")
+link_directories ("C:/repos/Graphics/MODELING/SFM_PIPELINE/PathPlaning/REFERENCE/mve/build/libs/fssr/")
+link_directories ("C:/repos/Graphics/MODELING/SFM_PIPELINE/PathPlaning/REFERENCE/mve/build/libs/mve/")
+link_directories ("C:/repos/Graphics/MODELING/SFM_PIPELINE/PathPlaning/REFERENCE/mve/build/libs/util/")
 
 add_executable(T-ProxyGenerate ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_FILES})
 add_dependencies(T-ProxyGenerate LiteS)

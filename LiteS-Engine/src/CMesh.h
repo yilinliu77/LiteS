@@ -183,7 +183,7 @@ struct Vertex {
 	glm::vec3 Color;
 
 	Vertex():Position(glm::vec3(0,0,0)), Normal(glm::vec3(0, 0, 0))
-		, TexCoords(glm::vec2(0, 0)), Color(glm::vec3(0.5, 0.5, 0.5)){}
+		, TexCoords(glm::vec2(0, 0)), Color(glm::vec3(1.f,1.f,1.f)){}
 
 	Vertex(glm::vec3 vPosition, glm::vec3 vNormal, glm::vec3 vColor) 
 		:Position(vPosition), Normal(vNormal)

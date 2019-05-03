@@ -74,7 +74,7 @@ public:
         BVHBuildNode* root;
         std::vector<CMesh*> pClone(p);
         int totalNodes = 0;
-        root = recursiveBuildTree(totalTriangles, 0, totalTriangles.size(), &totalNodes, orderedTriangles);
+        root = recursiveBuildTree(totalTriangles, 0, (int)totalTriangles.size(), &totalNodes, orderedTriangles);
 
         // compact the tree
         nodes = (LinearBVHNode*)malloc(sizeof(LinearBVHNode) * totalNodes);
@@ -131,9 +131,8 @@ public:
 
 	std::pair<float,glm::vec3> BVHAccel::KNearest(const glm::vec3 vPoint) {
 		glm::vec3 closetPoint;
-		float closetLength = 99999999;
+		float closetLength = 99999999.f;
 		int toVisitOffset = 0, currentNodeIndex = 0;
-		int nodesToVisit[64];
 		while (true) {
 			const LinearBVHNode *node = &nodes[currentNodeIndex];
 			if (node->nObject > 0) {
@@ -219,7 +218,7 @@ private:
 
         // judge the status of recur
         if (nObjects == 1) {
-            node->initLeaf(p[start].bounds, orderedTriangles.size(), nObjects);
+            node->initLeaf(p[start].bounds, (int)orderedTriangles.size(), nObjects);
             for (int i = start; i < end; ++i)
 				orderedTriangles.push_back(&p[i]);
             return node;
@@ -255,7 +254,7 @@ private:
                 };
                 BucketInfo buckets[nBuckets];
                 for (int i = start; i < end; ++i) {
-                    int b = nBuckets * bounds.Offset(p[i].bounds.getCentroid())[dim];
+                    int b = static_cast<int>(nBuckets * bounds.Offset(p[i].bounds.getCentroid())[dim]);
                     if (b == nBuckets)
                         b -= 1;
                     ++buckets[b].count;
@@ -290,12 +289,12 @@ private:
                 float leafCost = static_cast<float>(nObjects);
                 if (nObjects > MAX_TRIANGLES_IN_NODE || minCost < leafCost) {
 					Tri* pMid = std::partition(&p[start], &p[end - 1] + 1, [=](Tri pi) {
-                        int b = nBuckets * bounds.Offset(pi.bounds.getCentroid())[dim];
+                        int b = static_cast<int>(nBuckets * bounds.Offset(pi.bounds.getCentroid())[dim]);
                         if (b == nBuckets)
                             b -= 1;
                         return b <= minCostSplitBucket;
                     });
-                    mid = pMid - &p[0];
+                    mid = static_cast<int>(pMid - &p[0]);
                     if (mid == start || mid == end) { // judge if buckets devision failed
                         mid = (start + end) / 2;
                         std::nth_element(
@@ -304,7 +303,7 @@ private:
                             });
                     }
                 } else {
-                    node->initLeaf(bounds, orderedTriangles.size(), nObjects);
+                    node->initLeaf(bounds, (int)orderedTriangles.size(), nObjects);
                     for (int i = start; i < end; ++i)
 						orderedTriangles.push_back(&p[i]);
                     return node;
