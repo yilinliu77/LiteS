@@ -3,117 +3,15 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/random.hpp>
 
-#include <assimp/config.h>
-#include <assimp/Exporter.hpp>
-
 #include <Eigen/Core>
 #include <Eigen/Dense>
-#include "CBVHACCEL.h"
-#include "CMesh.h"
-
 #include <algorithm>
 #include <array>
 #include <numeric>
+#include <sstream>
+#include <string>
 #include <vector>
-
-struct My8BitRGBImage {
-  int ncols;
-  int nrows;
-  float* data;
-};
-
-float triangleArea(glm::vec3 v1, glm::vec3 v2, glm::vec3 v3) {
-  glm::vec3 edge1 = v2 - v1;
-  glm::vec3 edge2 = v2 - v3;
-
-  return glm::length(glm::cross(edge1, edge2)) / 2;
-}
-
-void saveMesh(const CMesh* v_mesh, string v_outName) {
-  aiScene* scene = new aiScene;
-  scene->mRootNode = new aiNode;
-
-  scene->mMeshes = new aiMesh*[1];
-  scene->mMeshes[0] = new aiMesh;
-  scene->mNumMeshes = 1;
-
-  // scene->mMaterials = new aiMaterial*[1];
-  // scene->mMaterials[0] = nullptr;
-  // scene->mNumMaterials = 1;
-
-  // scene->mMaterials[0] = new aiMaterial();
-
-  // scene->mMeshes[0]->mMaterialIndex = 0;
-
-  scene->mRootNode->mMeshes = new unsigned int[1];
-  scene->mRootNode->mMeshes[0] = 0;
-  scene->mRootNode->mNumMeshes = 1;
-
-  auto pMesh = scene->mMeshes[0];
-
-  size_t numValidPoints = v_mesh->vertices.size();
-
-  pMesh->mVertices = new aiVector3D[numValidPoints];
-  pMesh->mNormals = new aiVector3D[numValidPoints];
-  pMesh->mNumVertices = (unsigned int)numValidPoints;
-
-  int i = 0;
-  for (auto& p : v_mesh->vertices) {
-    pMesh->mVertices[i] = aiVector3D(v_mesh->vertices[i].Position.x,
-                                     v_mesh->vertices[i].Position.y,
-                                     v_mesh->vertices[i].Position.z);
-    pMesh->mNormals[i] =
-        aiVector3D(v_mesh->vertices[i].Normal.x, v_mesh->vertices[i].Normal.y,
-                   v_mesh->vertices[i].Normal.z);
-    ++i;
-  }
-
-  Assimp::Exporter* mAiExporter = new Assimp::Exporter;
-  Assimp::ExportProperties* properties = new Assimp::ExportProperties;
-  properties->SetPropertyBool(AI_CONFIG_EXPORT_POINT_CLOUDS, true);
-  mAiExporter->Export(scene, "ply", v_outName, 0, properties);
-
-  cout << mAiExporter->GetErrorString() << endl;
-  // delete properties;
-  return;
-}
-
-void initializeSimplexes(float scale, glm::vec3 vPosition,
-                         std::vector<glm::vec3>& solution,
-                         size_t randomGenerator) {
-  // Initialize the simplexes
-  solution.resize(4);
-  solution[0] = vPosition;
-  for (size_t i = 1; i < solution.size(); i++) {
-    solution[i] = solution[0] +
-                  glm::linearRand(glm::vec3(-1.0f), glm::vec3(1.0f)) * scale;
-  }
-}
-
-bool strongVisible(glm::vec3 vCameraPos, glm::vec3 vCameraOrientation,
-                   glm::vec3 vSamplePosition, BVHAccel* vBVH, float vDMAX) {
-  glm::vec3 sampleToCamera = vCameraPos - vSamplePosition;
-  // Inside the frustum
-  // 0.6f ~ cos(78.0f / 2 / 180.0f * pi)
-  float viewAngleCos = glm::dot(-glm::normalize(sampleToCamera),
-                                glm::normalize(vCameraOrientation));
-  if (viewAngleCos < 0.77) return false;
-
-  if (glm::length(vSamplePosition - vCameraPos) > vDMAX) return false;
-
-  // Not occluded
-  if (!vBVH->Visible(vCameraPos, vSamplePosition, 1.0f)) return false;
-
-  return true;
-}
-
-void shrink(std::vector<glm::vec3>* vSolution, glm::vec3 vPosition) {
-  for (int i = 0; i < 4; ++i) {
-    glm::vec3& vert = vSolution->at(i);
-    vert = vPosition + (vert - vPosition) * 0.5f;
-  }
-}
-
+namespace LiteUtil {
 template <typename T>
 std::vector<T> splitString(std::string str, std::string tok) {
   size_t splitPos;
@@ -139,85 +37,38 @@ std::vector<T> splitString(std::string str, std::string tok) {
   return out;
 }
 
-template <size_t row, size_t col>
-Eigen::Matrix<float, row, col> eigenFromGLM(glm::mat<col, row, float> vM) {
-  Eigen::Matrix<float, row, col> out;
-  for (size_t y = 0; y < row; y++)
-    for (size_t x = 0; x < col; x++) out(y, x) = vM[x][y];
-  return out;
+template <typename T>
+std::string numberToString(T vNumber) {
+  std::stringstream ss;
+  ss << vNumber;
+  return ss.str();
 }
+}  // namespace LiteUtil
+struct My8BitRGBImage {
+  int ncols;
+  int nrows;
+  float* data;
+};
+
+float triangleArea(glm::vec3 v1, glm::vec3 v2, glm::vec3 v3);
+
+void initializeSimplexes(float scale, glm::vec3 vPosition,
+                         std::vector<glm::vec3>& solution,
+                         size_t randomGenerator);
+void shrink(std::vector<glm::vec3>* vSolution, glm::vec3 vPosition);
 
 template <size_t row, size_t col>
-glm::mat<col, row, float> glmFromEigen(Eigen::Matrix<float, row, col> vM) {
-  glm::mat<col, row, float> out;
-  for (size_t y = 0; y < row; y++)
-    for (size_t x = 0; x < col; x++) out[x][y] = vM(y, x);
-  return out;
-}
+Eigen::Matrix<float, row, col> eigenFromGLM(glm::mat<col, row, float> vM);
+
+template <size_t row, size_t col>
+glm::mat<col, row, float> glmFromEigen(Eigen::Matrix<float, row, col> vM);
 
 template <size_t row>
-glm::vec<row, float> glmVectorFromEigen(Eigen::Matrix<float, row, 1> vM) {
-  glm::vec<row, float> out;
-  for (size_t y = 0; y < row; y++) out[y] = vM(y);
-  return out;
-}
+glm::vec<row, float> glmVectorFromEigen(Eigen::Matrix<float, row, 1> vM);
 
 template <size_t row>
-Eigen::Matrix<float, row, 1> eigenFromGLM(glm::vec<row, float> vM) {
-  Eigen::Matrix<float, row, 1> out;
-  for (size_t y = 0; y < row; y++) out(y, 0) = vM[y];
-  return out;
-}
+Eigen::Matrix<float, row, 1> eigenFromGLM(glm::vec<row, float> vM);
 
-void postAsiaPitchYaw(float& vPitch, float& vYaw) {
-  //vYaw = -vYaw;
-  vYaw -= 90;
-}
-
-void writeFlightLog(std::vector<Vertex>& vVertexVector, string vLogPath,
-                    string vLogPathUnreal) {
-  /*
-  yaw=0 -> +y
-  +y -> -x == yaw increase
-  y = -y
-  */
-  ofstream fileOut;
-  ofstream fileOutUnreal;
-  fileOut.open(vLogPath, ios::out);
-  fileOutUnreal.open(vLogPathUnreal, ios::out);
-  int imageIndex = 0;
-  for (auto& item : vVertexVector) {
-    float x = item.Position[0] * 100;
-    float y = -item.Position[1] * 100;
-    float z = item.Position[2] * 100;
-
-    char s[30];
-    sprintf_s(s, "%04d.jpg", imageIndex);
-    string imageName(s);
-    fileOut << imageName << "," << item.Position[0] << "," << item.Position[1]
-            << "," << item.Position[2] << std::endl;
-
-    glm::vec3 direction(item.Normal[0], -item.Normal[1], item.Normal[2]);
-    direction = glm::normalize(direction);
-
-    float yaw = 0.f;
-    if (direction[0] != 0.f) yaw = std::atan(direction[1] / direction[0]);
-    if (direction[0] < 0) yaw += 3.1415926;
-    float pitch = 0;
-    if (direction[0] * direction[0] + direction[1] * direction[1] != 0.f)
-      pitch = -std::atan(direction[2] / std::sqrt(direction[0] * direction[0] +
-                                                  direction[1] * direction[1]));
-
-    pitch = pitch / 3.1415926 * 180;
-    yaw = yaw / 3.1415926 * 180;
-
-    postAsiaPitchYaw(pitch, yaw);
-
-    fileOutUnreal << imageName << "," << x << "," << y << "," << z << "," << pitch
-            << "," << 0 << "," << yaw << std::endl;
-
-    imageIndex++;
-  }
-}
+void postAsiaPitchYaw(float& vPitch, float& vYaw);
 
 #endif

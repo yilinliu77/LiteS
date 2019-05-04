@@ -15,7 +15,8 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
-
+#include <assimp/config.h>
+#include <assimp/Exporter.hpp>
 using namespace std;
 
 #define MachineEpsilon (std::numeric_limits<float>::epsilon() * 0.5)
@@ -349,6 +350,8 @@ public:
 	virtual void changeColor(glm::vec3 vNewColor, unsigned aIndex){}
 
 	virtual void changeNormal(glm::vec3 vNewNormal, unsigned aIndex){}
+
+	static void saveMesh(const CMesh* v_mesh, string v_outName);
 };
 
 #endif
