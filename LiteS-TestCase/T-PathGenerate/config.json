@@ -1,23 +1,23 @@
 {
-    "CompanionWindowWidth":1600,
-    "CompanionWindowHeight":900,
-    "CameraSpeed":30,
+  "CompanionWindowWidth": 1600,
+  "CompanionWindowHeight": 900,
+  "CameraSpeed": 30,
 
-    "Model":[
-      {
-        "Name": "proxy_point",
-        "Path": "D:\\swap\\ny_airspace.ply",
-        "Path1": "../../../ny1_test/point_after_sampling.ply",
-        "Type": "PointCloud",
-        "Render": true
-      },
-      {
-        "Name": "proxy_mesh",
-        "Path": "../../../my_test/proxy_mesh.ply",
-        "Type": "Mesh",
-        "Render": false
-      }
-    ],
+  "Model": [
+    {
+      "Name": "proxy_point",
+      "Path1": "D:\\swap\\ny_airspace.ply",
+      "Path": "D:\\swap\\jianzhu1_my_point.ply",
+      "Type": "PointCloud",
+      "Render": true
+    },
+    {
+      "Name": "proxy_mesh",
+      "Path": "D:\\swap\\jianzhu1_mesh.ply",
+      "Type": "Mesh",
+      "Render": false
+    }
+  ],
 
   "RenderPass": [
     {
@@ -27,7 +27,8 @@
     }
   ],
 
-    "Arguments":{
-        "DMAX":50
-    }
+  "Arguments": {
+    "spline_file1": "D:/swap/ny_gt.csv",
+    "spline_file": "D:/swap/jianzhu1_spline.csv"
+  }
 }

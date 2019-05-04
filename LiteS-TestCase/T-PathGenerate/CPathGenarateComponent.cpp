@@ -1,5 +1,4 @@
-#include "CPathGenarateComponent.h"
-#include <CEngine.h>
+
 #include <tbb/blocked_range.h>
 #include <tbb/blocked_range2d.h>
 #include <tbb/concurrent_vector.h>
@@ -14,13 +13,14 @@
 #include <numeric>
 #include <random>
 #include <set>
+#include <string>
 #include "CBVHACCEL.h"
 #include "CPointCloudMesh.h"
 #include "util.h"
-
 #include <glm/gtc/matrix_access.hpp>
+#include <CEngine.h>
 #include <glm/gtx/quaternion.hpp>
-
+#include "CPathGenarateComponent.h"
 const float DMAX = 60;
 const float DMIN = 5;
 const float DSUGGEST = 45;
@@ -35,6 +35,53 @@ float targetReconstrucbility = 15.f;
 float max_building_height;
 float averageSeenSample = 0;
 float averageScore = 0;
+
+void writeFlightLog(std::vector<Vertex>& vVertexVector, string vLogPath,
+                    string vLogPathUnreal) {
+  /*
+  yaw=0 -> +y
+  +y -> -x == yaw increase
+  y = -y
+  */
+  ofstream fileOut;
+  ofstream fileOutUnreal;
+  fileOut.open(vLogPath, ios::out);
+  fileOutUnreal.open(vLogPathUnreal, ios::out);
+  int imageIndex = 0;
+  for (auto& item : vVertexVector) {
+    float x = -item.Position[0] * 100;
+    float y = item.Position[1] * 100;
+    float z = item.Position[2] * 100;
+
+    char s[30];
+    sprintf_s(s, "%04d.png", imageIndex);
+    string imageName(s);
+    fileOut << imageName << "," << item.Position[0] << "," << item.Position[1]
+            << "," << item.Position[2] << std::endl;
+
+    glm::vec3 direction(-item.Normal[0], item.Normal[1], item.Normal[2]);
+    direction = glm::normalize(direction);
+
+    float yaw = 0.f;
+    if (direction[0] != 0.f) yaw = std::atan(direction[1] / direction[0]);
+    if (direction[0] < 0) yaw += 3.1415926;
+    float pitch = 0.f;
+    if (direction[0] * direction[0] + direction[1] * direction[1] > 1e-3 ||
+        std::abs(direction[2]) > 1e-3)
+      pitch = -std::atan(direction[2] / std::sqrt(direction[0] * direction[0] +
+                                                  direction[1] * direction[1]));
+
+    pitch = pitch / 3.1415926 * 180;
+    yaw = yaw / 3.1415926 * 180;
+
+    //postAsiaPitchYaw(pitch, yaw);
+
+    fileOutUnreal << imageName << "," << x << "," << y << "," << z << ","
+                  << pitch << "," << 0 << "," << yaw << std::endl;
+
+    imageIndex++;
+  }
+}
 
 // Input Mesh
 CMesh* proxyPoint;
@@ -842,7 +889,7 @@ void CPathGenarateComponent::simplexPoint() {
     }
   }
   CMesh* outMesh = new CPointCloudMesh(outVertexes);
-  saveMesh(
+  CMesh::saveMesh(
       outMesh,
       "C:/Users/vcc/Documents/repo/RENDERING/LiteS/proxy_point_simplex.ply");
 }
@@ -856,7 +903,7 @@ void CPathGenarateComponent::visualizeExistCamera() {
   while (line.length() > 5) {
     splitPos = line.find(",", 0);
     float x, y, z, dx, dy, dz;
-    std::vector<float> splitItems = splitString<float>(line, ",");
+    std::vector<float> splitItems = LiteUtil::splitString<float>(line, ",");
     x = splitItems[1];
     y = splitItems[2];
     z = splitItems[3];
@@ -999,7 +1046,7 @@ void CPathGenarateComponent::visualizeAsiaCamera() {
   while (line.length() > 5) {
     splitPos = line.find(",", 0);
     float x, y, z, dx, dy, dz;
-    std::vector<float> splitItems = splitString<float>(line, ",");
+    std::vector<float> splitItems = LiteUtil::splitString<float>(line, ",");
     x = splitItems[0];
     y = splitItems[1];
     z = splitItems[2];
@@ -1063,7 +1110,7 @@ void CPathGenarateComponent::visualizeMyAsiaCamera(string vPath) {
   while (line.length() > 5) {
     splitPos = line.find(",", 0);
     float x, y, z, qx, qy, qz, qw;
-    std::vector<float> splitItems = splitString<float>(line, ",");
+    std::vector<float> splitItems = LiteUtil::splitString<float>(line, ",");
     x = splitItems[0];
     y = splitItems[1];
     z = splitItems[2];
@@ -1078,7 +1125,7 @@ void CPathGenarateComponent::visualizeMyAsiaCamera(string vPath) {
     }
     glm::quat q = glm::quat(qw, qx, qy, qz);
     glm::vec3 unitVec(0.f, 0.f, 1.f);
-    unitVec = unitVec*q;
+    unitVec = unitVec * q;
     Vertex v;
     v.Position = glm::vec3(x, y, z);
     v.Normal = glm::normalize(glm::vec3(unitVec[0], unitVec[1], unitVec[2]));
@@ -1111,7 +1158,7 @@ void CPathGenarateComponent::extraAlgorithm() {
     optimize_nadir();
   } else {
     initVariebles();
-    visualizeMyAsiaCamera("D:/swap/ny_spline.csv");
+    visualizeMyAsiaCamera(CEngine::m_Arguments.at("spline_file"));
     // visualizeExistCamera();
     // visualizeSurroundingsViewCamera();
     // visualizeRandomViewCamera();
