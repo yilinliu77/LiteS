@@ -6,7 +6,7 @@
   "Model": [
     {
       "Name": "proxy_point",
-      "Path": "../../../../my_test/Shop House.obj",
+      "Path": "../../../../my_test/sfm.ply",
       "Type": "PointCloud",
       "Render": true
     }

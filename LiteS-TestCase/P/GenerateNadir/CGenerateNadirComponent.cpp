@@ -23,8 +23,55 @@ CGenerateNadirComponent::CGenerateNadirComponent(
   proxyPoint = vScene->m_Models.at("proxy_point")->meshes[0];
 }
 
+void writeFlightLog(std::vector<Vertex>& vVertexVector, string vLogPath,
+                    string vLogPathUnreal) {
+  /*
+  yaw=0 -> +y
+  +y -> -x == yaw increase
+  y = -y
+  */
+  ofstream fileOut;
+  ofstream fileOutUnreal;
+  fileOut.open(vLogPath, ios::out);
+  fileOutUnreal.open(vLogPathUnreal, ios::out);
+  int imageIndex = 0;
+  for (auto& item : vVertexVector) {
+    float x = -item.Position[0] * 100;
+    float y = item.Position[1] * 100;
+    float z = item.Position[2] * 100;
+
+    char s[30];
+    sprintf_s(s, "%04d.jpg", imageIndex);
+    string imageName(s);
+    fileOut << imageName << "," << item.Position[0] << "," << item.Position[1]
+            << "," << item.Position[2] << std::endl;
+
+    glm::vec3 direction(-item.Normal[0], item.Normal[1], item.Normal[2]);
+    direction = glm::normalize(direction);
+
+    float yaw = 0.f;
+    if (direction[0] != 0.f) yaw = std::atan(direction[1] / direction[0]);
+    if (direction[0] < 0) yaw += 3.1415926;
+    float pitch = 0.f;
+    if (direction[0] * direction[0] + direction[1] * direction[1] > 1e-3 ||
+        std::abs(direction[2]) > 1e-3)
+      pitch = -std::atan(direction[2] / std::sqrt(direction[0] * direction[0] +
+                                                  direction[1] * direction[1]));
+
+    pitch = pitch / 3.1415926 * 180;
+    yaw = yaw / 3.1415926 * 180;
+
+    // postAsiaPitchYaw(pitch, yaw);
+
+    fileOutUnreal << imageName << "," << x << "," << y << "," << z << ","
+                  << pitch << "," << 0 << "," << yaw << std::endl;
+
+    imageIndex++;
+  }
+}
+
 void CGenerateNadirComponent::generate_nadir() {
-  glm::vec3 pMax(24, 37, 23), pMin(-24, -37, 0);
+  glm::vec3 pMax(23, 38, 21), pMin(-23, -38, 0);
 
   glm::vec3 mesh_dim = pMax - pMin;
   float max_height = pMax[2] + 20;
@@ -35,8 +82,8 @@ void CGenerateNadirComponent::generate_nadir() {
       max_height * std::tan(glm::radians(fov) / 2) * 2 * (1 - overlap);
   float stepy = stepx / aspect;
 
-  glm::vec3 startPos = pMin - glm::vec3(40, 40, 0);
-  glm::vec3 endPos = pMax + glm::vec3(40, 40, 0);
+  glm::vec3 startPos = pMin - glm::vec3(20, 20, 0);
+  glm::vec3 endPos = pMax + glm::vec3(20, 20, 0);
 
   glm::vec3 cameraPos = startPos;
   cameraPos.z = max_height;
