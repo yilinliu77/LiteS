@@ -54,7 +54,7 @@ void writeFlightLog(std::vector<Vertex>& vVertexVector, string vLogPath,
     float z = item.Position[2] * 100;
 
     char s[30];
-    sprintf_s(s, "%04d.png", imageIndex);
+    sprintf_s(s, "%04d.jpg", imageIndex);
     string imageName(s);
     fileOut << imageName << "," << item.Position[0] << "," << item.Position[1]
             << "," << item.Position[2] << std::endl;
@@ -1126,6 +1126,8 @@ void CPathGenarateComponent::visualizeMyAsiaCamera(string vPath) {
     glm::quat q = glm::quat(qw, qx, qy, qz);
     glm::vec3 unitVec(0.f, 0.f, 1.f);
     unitVec = unitVec * q;
+    if (unitVec[2] > 0) 
+		unitVec[2] = -unitVec[2];
     Vertex v;
     v.Position = glm::vec3(x, y, z);
     v.Normal = glm::normalize(glm::vec3(unitVec[0], unitVec[1], unitVec[2]));
@@ -1135,7 +1137,7 @@ void CPathGenarateComponent::visualizeMyAsiaCamera(string vPath) {
   writeFlightLog(cameraVertexVector, "../../../my_test/camera.log",
                  "../../../my_test/cameraUnreal.log");
   cameraMesh =
-      new CPointCloudMesh(cameraVertexVector, glm::vec3(0.3f, 0.7f, 1.f), 30);
+      new CPointCloudMesh(cameraVertexVector, glm::vec3(0.3f, 0.7f, 1.f), 15);
   CModel* cameraModel = new CModel;
   cameraModel->isRender = true;
   cameraModel->meshes.push_back(cameraMesh);
