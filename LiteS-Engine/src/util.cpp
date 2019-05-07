@@ -58,5 +58,9 @@ Eigen::Matrix<float, row, 1> eigenFromGLM(glm::vec<row, float> vM) {
 
 void postAsiaPitchYaw(float& vPitch, float& vYaw) {
   // vYaw = -vYaw;
-  vYaw = vYaw - 90.f;
+  //vYaw = vYaw - 90.f;
+  if (vPitch>10.f)
+	{
+    //vPitch -= 10.f;
+	}
 }

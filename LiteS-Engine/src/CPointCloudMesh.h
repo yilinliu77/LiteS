@@ -5,7 +5,8 @@
 
 class CPointCloudMesh:public CMesh {
 public:
-	CPointCloudMesh(const std::vector<Vertex>& vPoints, const vector<unsigned int> &vIndices);
+  CPointCloudMesh(const std::vector<Vertex>& vPoints,
+                  const std::vector<unsigned int>& vIndices);
 	CPointCloudMesh(const std::vector<Vertex>& vPoints);
 
 	CPointCloudMesh(const std::vector<Vertex>& vPoints, const glm::vec3 vColor);
@@ -14,7 +15,7 @@ public:
 
 	CPointCloudMesh(const std::string& vPath);
 
-	vector<glm::mat4> normalMatrixes;
+	std::vector<glm::mat4> normalMatrixes;
 
 	void processPointCloudNode(aiNode * node, const aiScene * scene);
 
@@ -33,8 +34,8 @@ public:
 
 	std::mutex m_VAOMutex;
 
-	vector<Vertex> pointsVertexChange;
-	vector<unsigned> pointsVertexChangeIndex;
+	std::vector<Vertex> pointsVertexChange;
+        std::vector<unsigned> pointsVertexChangeIndex;
 
 	float pointSize = -1;
 

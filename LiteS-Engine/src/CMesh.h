@@ -1,14 +1,13 @@
 #ifndef CMESH_H
 #define CMESH_H
 
-#define GLM_ENABLE_EXPERIMENTAL
+//#define GLM_ENABLE_EXPERIMENTAL
 
 #include <iostream>
 #include <vector>
 #include <algorithm>
 
 #include <glm/glm.hpp>
-#include <glm/gtx/string_cast.hpp>
 
 #include "CShader.h"
 #include <assimp/types.h>
@@ -17,7 +16,6 @@
 #include <assimp/postprocess.h>
 #include <assimp/config.h>
 #include <assimp/Exporter.hpp>
-using namespace std;
 
 #define MachineEpsilon (std::numeric_limits<float>::epsilon() * 0.5)
 inline float gamma(int n) {
@@ -33,7 +31,7 @@ inline int maxDimension(glm::vec3 v) {
 }
 
 inline float maxComponent(glm::vec3 v) {
-	return max(std::max(v[0],v[1]),v[2]);
+	return std::max(std::max(v[0],v[1]),v[2]);
 }
 
 inline glm::vec3 abs(glm::vec3 v) {
@@ -53,10 +51,6 @@ struct Ray {
 		this->d = glm::normalize(d);
 	}
 	glm::vec3 operator()(float t) const { return o + d * t; }
-	friend std::ostream &operator<<(std::ostream &os, const Ray &r) {
-		os << "[o=" << glm::to_string(r.o)<< ", d=" << glm::to_string(r.d) << "]";
-		return os;
-	}
 
 	// Ray Public Data
 	glm::vec3 o;
@@ -193,7 +187,7 @@ struct Vertex {
 
 struct Texture {
 	unsigned int id;
-	string type;
+  std::string type;
 	aiString path;
 };
 
@@ -213,7 +207,7 @@ struct MeshMaterial {
 	int shadingModel;
 	float opacity;
 	int wireframe;
-	string name;
+        std::string name;
 };
 
 struct Tri {
@@ -313,10 +307,10 @@ public:
 	CMesh();
 	virtual ~CMesh() = default;
 	/*  Mesh Data  */
-	vector<Vertex> vertices;
-	vector<unsigned int> indices;
+	std::vector<Vertex> vertices;
+	std::vector<unsigned int> indices;
 	MeshMaterial material;
-	vector<Texture> textures;
+	std::vector<Texture> textures;
 
 	/*  Render data  */
 	Bounds3f bounds;
@@ -325,7 +319,7 @@ public:
 
 	glm::mat4 model;
 	static GLuint boundIndex[36];
-	vector<Vertex> NormalPoint;
+	std::vector<Vertex> NormalPoint;
 
 	virtual void Draw(CShader * shader) = 0;
 
@@ -338,7 +332,7 @@ public:
 
 	bool IntersectP(const Ray& ray);
 
-	//virtual void setMesh(vector<Vertex> vertices, vector<unsigned int> indices, MeshMaterial material) = 0;
+	//virtual void setMesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices, MeshMaterial material) = 0;
 
 	virtual void setupMeshWithIndex() {}
 	virtual void setupMesh() {}
@@ -351,7 +345,7 @@ public:
 
 	virtual void changeNormal(glm::vec3 vNewNormal, unsigned aIndex){}
 
-	static void saveMesh(const CMesh* v_mesh, string v_outName);
+	static void saveMesh(const CMesh *v_mesh, std::string v_outName);
 };
 
 #endif

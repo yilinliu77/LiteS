@@ -1,8 +1,9 @@
 #include "CPointCloudMesh.h"
 
 
-CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints
-	, const vector<unsigned> &vIndices):CMesh() {
+CPointCloudMesh::CPointCloudMesh(const std::vector<Vertex>& vPoints,
+                                 const std::vector<unsigned>& vIndices)
+    : CMesh() {
 	this->vertices = vPoints;
 	this->indices = vIndices;
 
@@ -92,14 +93,14 @@ CPointCloudMesh::CPointCloudMesh(const std::string & vPath) :CMesh()
 	scene = importer.ReadFile(vPath, NULL);
 	// check for errors
 	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) // if is Not Zero
-		throw string("ERROR::ASSIMP:: ") + importer.GetErrorString();
+          throw std::string("ERROR::ASSIMP:: ") + importer.GetErrorString();
 
 	processPointCloudNode(scene->mRootNode, scene);
 }
 
 void CPointCloudMesh::processPointCloudNode(aiNode *node, const aiScene *scene) {
-	vector<Vertex> vertices;
-	vector<unsigned int> indices;
+  std::vector<Vertex> vertices;
+  std::vector<unsigned int> indices;
 
 	aiMesh* aiMesh = scene->mMeshes[0];
 	if (node->mMeshes != nullptr)
