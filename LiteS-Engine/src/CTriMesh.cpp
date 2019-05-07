@@ -1,7 +1,7 @@
 #include "CTriMesh.h"
 
 
-CTriMesh::CTriMesh(const std::vector<Vertex>& vPoints, const vector<unsigned int> &vIndices) {
+CTriMesh::CTriMesh(const std::vector<Vertex>& vPoints, const std::vector<unsigned int> &vIndices) {
 	this->vertices = vPoints;
 	this->indices = vIndices;
 
@@ -56,8 +56,8 @@ CTriMesh::CTriMesh() {
 	setupMesh();
 }
 
-CTriMesh::CTriMesh(vector<Vertex> &vertices, vector<unsigned int> &indices
-	, MeshMaterial &material, vector<Texture> &textures) {
+CTriMesh::CTriMesh(std::vector<Vertex> &vertices, std::vector<unsigned int> &indices
+	, MeshMaterial &material, std::vector<Texture> &textures) {
 	this->vertices = vertices;
 	this->indices = indices;
 	this->textures = textures;
@@ -117,7 +117,7 @@ CTriMesh::CTriMesh(glm::vec3 c, float edge) {
 	setupMesh();
 }
 
-void CTriMesh::setMesh(vector<Vertex> vertices, vector<unsigned int> indices, MeshMaterial material) {
+void CTriMesh::setMesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices, MeshMaterial material) {
 	this->vertices = vertices;
 	this->indices = indices;
 	this->textures = textures;
@@ -182,8 +182,8 @@ void CTriMesh::Draw(CShader* shader) {
 		for (unsigned int i = 0; i < textures.size(); i++) {
 			glActiveTexture(GL_TEXTURE0 + i); // 在绑定之前激活相应的纹理单元
 											  // 获取纹理序号（diffuse_textureN 中的 N）
-			string number;
-			string name = textures[i].type;
+			std::string number;
+			std::string name = textures[i].type;
 			if (name == "texture_diffuse")
 				number = std::to_string(diffuseNr++);
 			else if (name == "texture_specular")
@@ -225,8 +225,8 @@ void CTriMesh::Draw(CShader* shader, glm::mat4 &vModelMatrix) {
 		for (unsigned int i = 0; i < textures.size(); i++) {
 			glActiveTexture(GL_TEXTURE0 + i); // 在绑定之前激活相应的纹理单元
 											  // 获取纹理序号（diffuse_textureN 中的 N）
-			string number;
-			string name = textures[i].type;
+			std::string number;
+			std::string name = textures[i].type;
 			if (name == "texture_diffuse")
 				number = std::to_string(diffuseNr++);
 			else if (name == "texture_specular")

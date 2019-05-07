@@ -1,4 +1,6 @@
 
+#include "CPathGenarateComponent.h"
+#include <CEngine.h>
 #include <tbb/blocked_range.h>
 #include <tbb/blocked_range2d.h>
 #include <tbb/concurrent_vector.h>
@@ -9,18 +11,26 @@
 #include <algorithm>
 #include <array>
 #include <fstream>
+#include <glm/gtc/matrix_access.hpp>
+#include <glm/gtx/quaternion.hpp>
 #include <iostream>
 #include <numeric>
 #include <random>
 #include <set>
 #include <string>
+
+#include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
+#include "kernel.h"
+
 #include "CBVHACCEL.h"
+#include "CCDataStructure.h"
 #include "CPointCloudMesh.h"
 #include "util.h"
-#include <glm/gtc/matrix_access.hpp>
-#include <CEngine.h>
-#include <glm/gtx/quaternion.hpp>
-#include "CPathGenarateComponent.h"
+
+#define THREADSPERBLOCK 512
+const size_t MAXCAMERAFORONEPOINT = 32;
+
 const float DMAX = 60;
 const float DMIN = 5;
 const float DSUGGEST = 45;
@@ -68,13 +78,13 @@ void writeFlightLog(std::vector<Vertex>& vVertexVector, string vLogPath,
     float pitch = 0.f;
     if (direction[0] * direction[0] + direction[1] * direction[1] > 1e-3 ||
         std::abs(direction[2]) > 1e-3)
-      pitch = -std::atan(direction[2] / std::sqrt(direction[0] * direction[0] +
-                                                  direction[1] * direction[1]));
+      pitch = std::acos(glm::dot(
+          glm::normalize(glm::vec3(direction[0], direction[1], 0)), direction));
 
     pitch = pitch / 3.1415926 * 180;
     yaw = yaw / 3.1415926 * 180;
 
-    //postAsiaPitchYaw(pitch, yaw);
+    postAsiaPitchYaw(pitch, yaw);
 
     fileOutUnreal << imageName << "," << x << "," << y << "," << z << ","
                   << pitch << "," << 0 << "," << yaw << std::endl;
@@ -85,7 +95,7 @@ void writeFlightLog(std::vector<Vertex>& vVertexVector, string vLogPath,
 
 // Input Mesh
 CMesh* proxyPoint;
-BVHAccel* bvhTree;
+BVHACCEL::BVHAccel* bvhTree;
 
 CMesh* cameraMesh;
 vector<Vertex> cameraVertexVector;
@@ -116,15 +126,6 @@ CPathGenarateComponent::CPathGenarateComponent(const map<string, CPass*>& vPass,
 CPathGenarateComponent::~CPathGenarateComponent() = default;
 
 void CPathGenarateComponent::initVariebles() {
-  proxyPoint = this->m_Scene->m_Models.at("proxy_point")->meshes[0];
-
-  obsRays.resize(proxyPoint->vertices.size());
-  for (size_t i = 0; i < obsRays.size(); ++i)
-    obsRays[i].reserve(cameraVertexVector.size());
-
-  reconstructionScore.resize(proxyPoint->vertices.size(), 0);
-  bvhTree = new BVHAccel(this->m_Scene->m_Models.at("proxy_mesh")->meshes);
-
   airspace.ncols = heightMapWidth;
   airspace.nrows = heightMapHeight;
   airspace.data = new float[heightMapWidth * heightMapHeight];
@@ -307,7 +308,7 @@ std::pair<float, float> heuristicEvaluete(size_t vPointIndex,
   glm::vec3 samplePosition = proxyPoint->vertices[vPointIndex].Position;
   bool visible = false;
 
-  visible = strongVisible(vCameraPos, vCameraDirection, samplePosition, bvhTree,
+  visible = bvhTree->strongVisible(vCameraPos, vCameraDirection, samplePosition,
                           DMAX);
   if (!visible) return {0.f, 0.f};
 
@@ -425,8 +426,8 @@ void initRays(int vi) {
     glm::vec3 direction = cameraVertexVector[j].Position - samplePos;
 
     // Not occluded
-    if (strongVisible(cameraVertexVector[j].Position,
-                      -cameraVertexVector[j].Position, samplePos, bvhTree,
+    if (bvhTree->strongVisible(cameraVertexVector[j].Position,
+                      -cameraVertexVector[j].Position, samplePos,
                       DMAX)) {
       localObsRays.push_back(
           std::make_pair(glm::vec4(direction, j),
@@ -509,8 +510,8 @@ void CPathGenarateComponent::updateRays(int vCameraIndex,
     glm::vec3 direction = proxyPoint->vertices[i].Position - vNewPosition;
 
     visible =
-        strongVisible(vNewPosition, cameraVertexVector[vCameraIndex].Normal,
-                      proxyPoint->vertices[i].Position, bvhTree, DMAX);
+		bvhTree->strongVisible(vNewPosition, cameraVertexVector[vCameraIndex].Normal,
+                      proxyPoint->vertices[i].Position, DMAX);
 
     initRaysMutex.lock();
     {
@@ -876,7 +877,7 @@ void CPathGenarateComponent::optimize_nadir() {
 void CPathGenarateComponent::simplexPoint() {
   obsRays.resize(proxyPoint->vertices.size());
 
-  bvhTree = new BVHAccel(this->m_Scene->m_Models.at("proxy_mesh")->meshes);
+  bvhTree = new BVHACCEL::BVHAccel(this->m_Scene->m_Models.at("proxy_mesh")->meshes);
 
   // update the obs rays
   tbb::parallel_for(size_t(0), proxyPoint->vertices.size(),
@@ -1126,8 +1127,7 @@ void CPathGenarateComponent::visualizeMyAsiaCamera(string vPath) {
     glm::quat q = glm::quat(qw, qx, qy, qz);
     glm::vec3 unitVec(0.f, 0.f, 1.f);
     unitVec = unitVec * q;
-    if (unitVec[2] > 0) 
-		unitVec[2] = -unitVec[2];
+    if (unitVec[2] > 0) unitVec[2] = -unitVec[2];
     Vertex v;
     v.Position = glm::vec3(x, y, z);
     v.Normal = glm::normalize(glm::vec3(unitVec[0], unitVec[1], unitVec[2]));
@@ -1150,9 +1150,53 @@ void CPathGenarateComponent::visualizeMyAsiaCamera(string vPath) {
   cameraMesh->changeColor(glm::vec3(1.f, 0.f, 0.f), 1);
 }
 
+std::ostream& operator<<(std::ostream& os, const float4& x) {
+  os << x.x << ", " << x.y;
+  return os;
+}
+
 void CPathGenarateComponent::extraAlgorithm() {
-  if (false) {
-    initVariebles();
+  if (true) {
+    CMesh* pointCloud = this->m_Scene->m_Models.at("proxy_point")->meshes[0];
+
+    thrust::device_vector<CCDataStructure::Point> dPointCloud =
+        CCDataStructure::createDevicePointCloud(pointCloud);
+    CCDataStructure::Point* dPointArrayPtr =
+        thrust::raw_pointer_cast(&dPointCloud[0]);
+
+    size_t numPoints = pointCloud->vertices.size();
+    BVHACCEL::BVHAccel* bvhTree =
+        new BVHACCEL::BVHAccel(this->m_Scene->m_Models.at("proxy_mesh")->meshes);
+
+    thrust::device_vector<float4> pointRays =
+        CCDataStructure::createDeviceVectorFloat4(
+            int(numPoints * MAXCAMERAFORONEPOINT));
+
+    float4* dRaysArray = thrust::raw_pointer_cast(&pointRays[0]);
+
+    thrust::device_vector<float> reconScore =
+        CCDataStructure::createDeviceVectorFloat(int(numPoints));
+
+	CCDataStructure::DBVHAccel *BVH=new CCDataStructure::DBVHAccel;
+	Tri *tTris = new Tri[bvhTree->getOrderedTriangles().size()];
+	for (size_t i = 0; i < bvhTree->getOrderedTriangles().size();++i) 
+		tTris[i] = *bvhTree->getOrderedTriangles()[i];
+
+	BVH->vTriangles = thrust::raw_pointer_cast(&tTris[0]);
+	BVH->numTriangles = bvhTree->getOrderedTriangles().size();
+	BVH->vNodes = thrust::raw_pointer_cast(bvhTree->getLinearNodes());
+	BVH->numNodes = bvhTree->totalLinearNodes;
+    CCDataStructure::DBVHAccel* dBVH = thrust::raw_pointer_cast(BVH);
+
+
+    dim3 grid(CCDataStructure::divup(numPoints, THREADSPERBLOCK));
+    dim3 block(THREADSPERBLOCK);
+
+    updateObsRays(grid, block,dBVH, dPointArrayPtr,numPoints ,dRaysArray, float3());
+
+	for (int i=0;i<numPoints;++i)
+		std::cout << pointRays[i] << std::endl;
+
     generate_nadir();
 
     // simplexPoint();

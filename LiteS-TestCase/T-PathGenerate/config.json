@@ -9,6 +9,7 @@
       "Path1": "D:\\swap\\ny/ny_point.ply",
       "Path12": "D:\\swap\\jianzhu1_my_point.ply",
       "Path": "D:\\swap\\jianzhu1/jianzhu1_point.ply",
+      "Path3": "D:\\swap\\aoxing/aoxing_point.ply",
       "Type": "PointCloud",
       "Render": true
     },
@@ -32,7 +33,8 @@
 
   "Arguments": {
     "spline_file3": "D:/swap/ny/ny_spline.csv",
-    "spline_file2": "D:/swap/aoxing_spline.csv",
+    "spline_file2": "D:/swap/aoxing/aoxing_spline.csv",
+    "spline_file4": "D:/swap/jianzhu1/jianzhu1_40-13-90-5.csv",
     "spline_file": "D:/swap/jianzhu1/jianzhu1_spline.csv",
     "spline_file1": "D:/swap/ny/ny_gt.csv"
   }
