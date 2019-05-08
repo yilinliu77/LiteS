@@ -50,7 +50,7 @@ class BVHAccel {
   int totalLinearNodes;
   std::vector<Tri> totalTriangles;
   std::vector<Tri> orderedTriangles;
-  LinearBVHNode* nodes = NULL;
+  std::vector<LinearBVHNode> nodes;
 
   BVHAccel(const std::vector<CMesh*>& p) : splitMethod(SAH) {
     if (p.size() == 0) return;
@@ -74,16 +74,16 @@ class BVHAccel {
                               &totalNodes, orderedTriangles);
 
     // compact the tree
-    nodes = (LinearBVHNode*)malloc(sizeof(LinearBVHNode) * totalNodes);
+    nodes.resize(totalNodes);
     int offset = 0;
     flattenBVHTree(root, &offset, -1);
   }
   ~BVHAccel() {}
-  const LinearBVHNode* getLinearNodes() const{ return nodes; }
+  const std::vector<LinearBVHNode>& getLinearNodes() const{ return nodes; }
   const std::vector<Tri>&  getOrderedTriangles() const{ return orderedTriangles; }
 
   bool BVHAccel::Intersect(Ray& ray, SurfaceInteraction* isect) const {
-    if (!nodes) return false;
+    if (nodes.empty()) return false;
     bool hit = false;
     glm::vec3 invDir(std::min(1 / ray.d.x, 99999999.0f),
                      std::min(1 / ray.d.y, 99999999.0f),

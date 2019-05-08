@@ -1,3 +1,4 @@
+#include <thrust/copy.h>
 #include "CCDataStructure.h"
 
 thrust::device_vector<CCDataStructure::Point>
@@ -99,15 +100,36 @@ __device__ bool CCDataStructure::d_visible(BVHACCEL::LinearBVHNode* vNodes,
   return false;
 }
 
-CCDataStructure::DBVHAccel::DBVHAccel(const BVHACCEL::BVHAccel* bvhTree) {
-	dTriangles;
+CCDataStructure::DBVHAccel* moveTreeToDevice(
+    const BVHACCEL::BVHAccel* bvhTree) {
+  CCDataStructure::DBVHAccel* dBVHAccel = new CCDataStructure::DBVHAccel();
+  thrust::device_vector<Tri>* dTriangles = new thrust::device_vector<Tri>();
+  thrust::device_vector<BVHACCEL::LinearBVHNode>* dBVHNodes =
+      new thrust::device_vector<BVHACCEL::LinearBVHNode>;
+
   thrust::copy(bvhTree->getOrderedTriangles().begin(),
                bvhTree->getOrderedTriangles().end(), dTriangles->begin());
-  dTrianglesPointer = thrust::raw_pointer_cast(&(dTriangles->at(0)));
-  numTriangles = bvhTree->getOrderedTriangles().size();
+  dBVHAccel->dTrianglesPointer = thrust::raw_pointer_cast(&(*dTriangles)[0]);
+  dBVHAccel->numTriangles = bvhTree->getOrderedTriangles().size();
 
-  numNodes = bvhTree->totalLinearNodes;
-  thrust::copy(bvhTree->getLinearNodes(), bvhTree->getLinearNodes() + numNodes,
+  dBVHAccel->numNodes = bvhTree->totalLinearNodes;
+  thrust::copy(bvhTree->getLinearNodes().begin(),
+               bvhTree->getLinearNodes().end(),
                dBVHNodes->begin());
-  dBVHNodesPointer = thrust::raw_pointer_cast(&dBVHNodes[0]);
+  dBVHAccel->dBVHNodesPointer = thrust::raw_pointer_cast(&(*dBVHNodes)[0]);
+
+  return dBVHAccel;
+}
+
+CCDataStructure::DBVHAccel* CCDataStructure::createDBVHAccel(
+    const BVHACCEL::BVHAccel* bvhTree) {
+  DBVHAccel* hDBVHAccel = moveTreeToDevice(bvhTree);
+
+  DBVHAccel* dDBVHAccel;
+  CUDACHECKERROR(cudaMalloc(&dDBVHAccel, sizeof(DBVHAccel)));
+  CUDACHECKERROR(cudaMemcpy(dDBVHAccel, hDBVHAccel, sizeof(DBVHAccel),
+                            cudaMemcpyHostToDevice));
+
+  delete hDBVHAccel;
+  return dDBVHAccel;
 }
