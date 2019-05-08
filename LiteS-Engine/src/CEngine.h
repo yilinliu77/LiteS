@@ -25,7 +25,7 @@ class CEngine {
 
   static CScene* m_Scene;
 
-  static map<string, CPass*> m_Pass;
+  static std::map<std::string, CPass*> m_Pass;
 
   // Post Process
   static std::mutex m_addMeshMutex;
@@ -36,10 +36,11 @@ class CEngine {
   std::thread* extraAlgorithm;
 
   static std::map<string, string> m_Arguments;
+  static std::string m_ResourceDir;
 
   CEngine();
   ~CEngine();
-  bool initEngine(string configFile);
+  bool initEngine(std::string vConfigFile,std::string vResourceDir = "../../../LiteS-Engine/resources/");
   void renderingLoop();
   void runEngine();
   bool isClicked(GLFWwindow* window, unsigned key);

@@ -17,8 +17,8 @@ const float fov = 60;
 const float aspect = 1.5;
 
 CGenerateNadirComponent::CGenerateNadirComponent(
-    const map<string, CPass*>& vPass, CScene* vScene)
-    : CPointCloudComponent(vPass, vScene) {
+    const map<string, CPass*>& vPass, CScene* vScene, std::string vResourceDir)
+    : CPointCloudComponent(vPass, vScene,vResourceDir) {
   DisplayPass = this->m_Pass.at("display");
   proxyPoint = vScene->m_Models.at("proxy_point")->meshes[0];
 }
@@ -71,7 +71,7 @@ void writeFlightLog(std::vector<Vertex>& vVertexVector, string vLogPath,
 }
 
 void CGenerateNadirComponent::generate_nadir() {
-  glm::vec3 pMax(24, 56, 35), pMin(-41, -46, 0);
+  glm::vec3 pMax(66, 50, 28), pMin(-66, -50, 0);
   //pMax = glm::vec3(64, 46, 30);
   //pMin = glm::vec3(-65, -45, 0);
 
@@ -81,13 +81,13 @@ void CGenerateNadirComponent::generate_nadir() {
   std::vector<Vertex> cameraVertexVector;
 
   float stepx =
-      max_height * std::tan(glm::radians(fov) / 2) * 2 * (1 - overlap);
+      max_height / std::tan(glm::radians(fov) / 2) * 2 * (1 - overlap);
   float stepy = stepx / aspect;
 
   glm::vec3 startPos =
-      pMin - glm::vec3(mesh_dim[0] / 3 * 2, mesh_dim[1] / 3 * 2, 0);
+      pMin - glm::vec3(mesh_dim[0] / 2, mesh_dim[1] / 2, 0);
   glm::vec3 endPos =
-      pMax + glm::vec3(mesh_dim[0] / 3 * 2, mesh_dim[1] / 3 * 2, 0);
+      pMax + glm::vec3(mesh_dim[0] / 2, mesh_dim[1] / 2, 0);
 
   glm::vec3 cameraPos = startPos;
   cameraPos.z = max_height;

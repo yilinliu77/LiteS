@@ -4,7 +4,8 @@
 
 class CPathGenarateComponent : public CPointCloudComponent {
 public:
-	CPathGenarateComponent(const map<string, CPass*>& vPass,CScene * vScene);
+  CPathGenarateComponent(const map<string, CPass*>& vPass, CScene* vScene,
+                         const std::string vResourceDir);
 	~CPathGenarateComponent();
 	void initVariebles();
 	void visualizeCamera(size_t vCameraIndex);
