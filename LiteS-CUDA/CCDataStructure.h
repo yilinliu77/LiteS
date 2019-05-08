@@ -41,28 +41,13 @@ extern __device__ bool d_visible(BVHACCEL::LinearBVHNode* vNodes,
                                  float3 vVertexPosition, float margin = 0);
 
 struct DBVHAccel {
-	DBVHAccel(const BVHACCEL::BVHAccel* bvhTree);
-
-  thrust::device_vector<Tri>* dTriangles;
-  thrust::device_vector<BVHACCEL::LinearBVHNode>* dBVHNodes;
-
   BVHACCEL::LinearBVHNode* dBVHNodesPointer;
   Tri* dTrianglesPointer;
   int numNodes;
   int numTriangles;
 };
 
-CCDataStructure::DBVHAccel* createDBVHAccel(const BVHACCEL::BVHAccel* bvhTree) {
-  DBVHAccel* hDBVHAccel = new DBVHAccel(bvhTree);
-
-  DBVHAccel* dDBVHAccel;
-  CUDACHECKERROR(cudaMalloc(&dDBVHAccel, sizeof(DBVHAccel)));
-  CUDACHECKERROR(cudaMemcpy(dDBVHAccel, hDBVHAccel, sizeof(DBVHAccel),
-                            cudaMemcpyHostToDevice));
-
-  delete hDBVHAccel;
-  return dDBVHAccel;
-}
+CCDataStructure::DBVHAccel* createDBVHAccel(const BVHACCEL::BVHAccel* bvhTree);
 
 struct myFloat4 {
   float x, y, z, w;
