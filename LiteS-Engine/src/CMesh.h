@@ -237,7 +237,7 @@ struct Tri {
 	Vertex v3;
 	Bounds3f bounds;
 
-	bool Intersect(Ray& ray, SurfaceInteraction* isect) {
+	bool const Intersect(Ray& ray, SurfaceInteraction* isect) const {
 		// E1
 		glm::vec3 E1 = v2.Position - v1.Position;
 

@@ -49,6 +49,8 @@ class BVHAccel {
  public:
   int totalLinearNodes;
   std::vector<Tri> totalTriangles;
+  std::vector<Tri> orderedTriangles;
+  LinearBVHNode* nodes = NULL;
 
   BVHAccel(const std::vector<CMesh*>& p) : splitMethod(SAH) {
     if (p.size() == 0) return;
@@ -77,8 +79,8 @@ class BVHAccel {
     flattenBVHTree(root, &offset, -1);
   }
   ~BVHAccel() {}
-  LinearBVHNode* getLinearNodes() { return nodes; }
-  std::vector<Tri*> getOrderedTriangles() { return orderedTriangles; }
+  const LinearBVHNode* getLinearNodes() const{ return nodes; }
+  const std::vector<Tri>&  getOrderedTriangles() const{ return orderedTriangles; }
 
   bool BVHAccel::Intersect(Ray& ray, SurfaceInteraction* isect) const {
     if (!nodes) return false;
@@ -97,7 +99,7 @@ class BVHAccel {
         if (node->nObject > 0) {
           // Intersect ray with primitives in leaf BVH node
           for (int i = 0; i < node->nObject; ++i)
-            if (orderedTriangles[node->objectOffset + i]->Intersect(ray, isect))
+            if (orderedTriangles[node->objectOffset + i].Intersect(ray, isect))
               hit = true;
           if (toVisitOffset == 0) break;
           currentNodeIndex = nodesToVisit[--toVisitOffset];
@@ -129,22 +131,22 @@ class BVHAccel {
       if (node->nObject > 0) {
         for (int i = 0; i < node->nObject; ++i) {
           float length1 = glm::length(
-              orderedTriangles[node->objectOffset + i]->v1.Position - vPoint);
+              orderedTriangles[node->objectOffset + i].v1.Position - vPoint);
           float length2 = glm::length(
-              orderedTriangles[node->objectOffset + i]->v2.Position - vPoint);
+              orderedTriangles[node->objectOffset + i].v2.Position - vPoint);
           float length3 = glm::length(
-              orderedTriangles[node->objectOffset + i]->v3.Position - vPoint);
+              orderedTriangles[node->objectOffset + i].v3.Position - vPoint);
           if (length1 < closetLength) {
             closetLength = length1;
-            closetPoint = orderedTriangles[node->objectOffset + i]->v1.Position;
+            closetPoint = orderedTriangles[node->objectOffset + i].v1.Position;
           }
           if (length2 < closetLength) {
             closetLength = length2;
-            closetPoint = orderedTriangles[node->objectOffset + i]->v2.Position;
+            closetPoint = orderedTriangles[node->objectOffset + i].v2.Position;
           }
           if (length3 < closetLength) {
             closetLength = length3;
-            closetPoint = orderedTriangles[node->objectOffset + i]->v3.Position;
+            closetPoint = orderedTriangles[node->objectOffset + i].v3.Position;
           }
         }
         break;
@@ -207,12 +209,10 @@ class BVHAccel {
 
  private:
   const SplitMethod splitMethod;
-  LinearBVHNode* nodes = NULL;
-  std::vector<Tri*> orderedTriangles;
 
   BVHBuildNode* recursiveBuildTree(std::vector<Tri>& p, int start, int end,
                                    int* totalNodes,
-                                   std::vector<Tri*>& orderedObjects) {
+                                   std::vector<Tri>& orderedObjects) {
     // return value,the earliest value -> root
     BVHBuildNode* node = new BVHBuildNode();
     (*totalNodes)++;
@@ -225,7 +225,7 @@ class BVHAccel {
     // judge the status of recur
     if (nObjects == 1) {
       node->initLeaf(p[start].bounds, (int)orderedTriangles.size(), nObjects);
-      for (int i = start; i < end; ++i) orderedTriangles.push_back(&p[i]);
+      for (int i = start; i < end; ++i) orderedTriangles.push_back(p[i]);
       return node;
     } else {
       // compute all the bounds now between start and end
@@ -312,7 +312,7 @@ class BVHAccel {
           }
         } else {
           node->initLeaf(bounds, (int)orderedTriangles.size(), nObjects);
-          for (int i = start; i < end; ++i) orderedTriangles.push_back(&p[i]);
+          for (int i = start; i < end; ++i) orderedTriangles.push_back(p[i]);
           return node;
         }
       }

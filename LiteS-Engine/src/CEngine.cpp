@@ -8,13 +8,13 @@
 #include "CPointCloudComponent.h"
 #include "CPointCloudMesh.h"
 
+#include <imgui.h>
+#include "CEngine.h"
 #include "rapidjson/document.h"
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 #include "stb_image.h"
 #include "util.h"
-#include <imgui.h>
-#include "CEngine.h"
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
@@ -28,8 +28,11 @@ CEngine::CEngine() : pointSize(4) { keyPreesed.assign(500, false); }
 
 CEngine::~CEngine() {}
 
-bool CEngine::initEngine(string configFile) {
-  if (!this->__initScene(configFile)) {
+bool CEngine::initEngine(
+    std::string vConfigFile,
+    std::string vResourceDir) {
+  CEngine::m_ResourceDir = vResourceDir;
+  if (!this->__initScene(vConfigFile)) {
     std::cout << "Scene init failed" << std::endl;
     return false;
   }
@@ -37,7 +40,7 @@ bool CEngine::initEngine(string configFile) {
     std::cout << "DLL init failed" << std::endl;
     return false;
   }
-  if (!this->__readProperties(configFile)) {
+  if (!this->__readProperties(vConfigFile)) {
     std::cout << "Properties init failed" << std::endl;
     return false;
   }
@@ -439,16 +442,20 @@ bool CEngine::__readProperties(string configFile) {
       pass->m_Height = height;
 
       // Shader
-      const char* VertFile = renderPasses[i]["VertexShader"].GetString();
-      const char* FragFile = renderPasses[i]["FragmentShader"].GetString();
+      std::string VertFile = renderPasses[i]["VertexShader"].GetString();
+      std::string FragFile = renderPasses[i]["FragmentShader"].GetString();
+      VertFile = CEngine::m_ResourceDir + VertFile;
+      FragFile = CEngine::m_ResourceDir + FragFile;
+
       if (renderPasses[i].HasMember("GeometryShader")) {
-        const char* GeomFile = renderPasses[i]["GeometryShader"].GetString();
-        if (!pass->setShader(VertFile, FragFile, GeomFile)) {
+        std::string GeomFile = renderPasses[i]["GeometryShader"].GetString();
+        GeomFile = CEngine::m_ResourceDir + GeomFile;
+        if (!pass->setShader(VertFile.c_str(), FragFile.c_str(), GeomFile.c_str())) {
           std::cout << "Shader for " << passName << " init failed" << std::endl;
           return false;
         }
       } else {
-        if (!pass->setShader(VertFile, FragFile)) {
+        if (!pass->setShader(VertFile.c_str(), FragFile.c_str())) {
           std::cout << "Shader for " << passName << " init failed" << std::endl;
           return false;
         }
@@ -522,8 +529,7 @@ bool CEngine::__readProperties(string configFile) {
           std::cout << "Argument not support" << itr->name.GetString()
                     << std::endl;
           throw "Argument not support";
-		}
-         
+        }
       }
     }
 
@@ -550,10 +556,13 @@ bool CEngine::__readProperties(string configFile) {
   //		const char* InternalFormatChar =
   // node->FirstChildElement("INTERNAL_FORMAT")->GetText(); 		int
   // InternalFormatInt = -1; 		if (!strcmp(InternalFormatChar, "RGBA"))
-  // InternalFormatInt = GL_RGBA; 		else if (!strcmp(InternalFormatChar,
-  // "RGB")) 			InternalFormatInt = GL_RGB; 		else if (!strcmp(InternalFormatChar,
-  //"R")) 			InternalFormatInt = GL_RED; 		else { 			cout << "Can't resolve texture
-  //internal format" << endl; 			return false;
+  // InternalFormatInt = GL_RGBA; 		else if
+  // (!strcmp(InternalFormatChar,
+  // "RGB")) 			InternalFormatInt = GL_RGB; 		else if
+  // (!strcmp(InternalFormatChar,
+  //"R")) 			InternalFormatInt = GL_RED; 		else {
+  // cout << "Can't resolve texture internal format" << endl;
+  // return false;
   //		}
 
   //		//Format
@@ -564,8 +573,8 @@ bool CEngine::__readProperties(string configFile) {
   // (!strcmp(FormatChar, "RGBA_16F")) 				FormatInt =
   // GL_RGBA16F; 			else if (!strcmp(FormatChar, "RGB_16F"))
   // FormatInt = GL_RGB16F; 			else if (!strcmp(FormatChar,
-  //"R_16F")) 				FormatInt = GL_R16F; 			else {
-  //cout << "Can't resolve texture format"
+  //"R_16F")) 				FormatInt = GL_R16F;
+  // else { cout << "Can't resolve texture format"
   //<< endl; 				return false;
   //			}
   //		}
@@ -627,7 +636,8 @@ bool CEngine::__readProperties(string configFile) {
   //				glTexParameteri(GL_TEXTURE_2D,
   // GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  // } else { 				cout << "Can't resolve texture filter type"
+  // } else { 				cout << "Can't resolve texture filter
+  // type"
   // << endl; 				return false;
   //			}
   //		} else {
@@ -650,8 +660,8 @@ bool CEngine::__readProperties(string configFile) {
   //&height,
   //&nrComponents, 0); 		if (data) { 			GLenum format;
   // if (nrComponents == 1) 				format
-  //= GL_RED; 			else if (nrComponents == 3) 				format
-  //= GL_RGB; 			else if (nrComponents
+  //= GL_RED; 			else if (nrComponents == 3)
+  // format = GL_RGB; 			else if (nrComponents
   //== 4) 				format = GL_RGBA;
 
   //			glBindTexture(GL_TEXTURE_2D, tex);
@@ -723,3 +733,4 @@ std::mutex CEngine::m_addMeshMutex;
 std::vector<std::pair<std::string, CModel*>> CEngine::toAddModels;
 map<string, CPass*> CEngine::m_Pass;
 map<string, string> CEngine::m_Arguments;
+std::string CEngine::m_ResourceDir = "../../../LiteS-Engine/resources/";

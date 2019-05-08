@@ -7,7 +7,7 @@
 class CComponent {
 public:
 
-	CComponent(const map<string, CPass*>& vPass,CScene * vScene);
+	CComponent(const map<string, CPass*>& vPass,CScene * vScene,const std::string vResourceDir);
 
 	virtual ~CComponent() = default;
 	virtual void run() = 0;
@@ -24,5 +24,6 @@ public:
 
 	map<string, CPass*> m_Pass;
 	CScene * m_Scene;
+	std::string m_ResourceDir;
 };
 #endif

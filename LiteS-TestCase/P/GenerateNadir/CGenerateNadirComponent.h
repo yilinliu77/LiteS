@@ -6,7 +6,7 @@
 
 class CGenerateNadirComponent : public CPointCloudComponent {
 public:
-	CGenerateNadirComponent(const map<string, CPass*>& vPass, CScene * vScene);
+	CGenerateNadirComponent(const map<string, CPass*>& vPass, CScene * vScene, std::string vResourceDir);
 	~CGenerateNadirComponent(){}
 	void generate_nadir();
 	void extraAlgorithm() override;

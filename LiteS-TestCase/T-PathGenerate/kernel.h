@@ -10,7 +10,7 @@
 extern __global__ void updateObsRays(dim3 vGrid, dim3 vBlock,
                                      CCDataStructure::DBVHAccel* dBVH,
                                      CCDataStructure::Point* vPointCloud,
-                                     int numPoints, float4* vRays,
+                                     int numPoints, glm::vec4* vRays,
                                      float3 vCameraPos);
 
 

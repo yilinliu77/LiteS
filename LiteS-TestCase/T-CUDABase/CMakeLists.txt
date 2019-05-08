@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.14.0)
-project(T-CUDABase LANGUAGES CXX CUDA)
+project(T-CUDABase LANGUAGES CUDA CXX)
 
 set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-gencode arch=compute_52,code=sm_52)
+LIST(APPEND CUDA_NVCC_FLAGS "-Xcompiler \"/wd 4819\"")
+add_definitions(/wd"4819" /wd"4996" /wd"4800")
 
 find_package(glfw3 CONFIG REQUIRED)
 find_package(glew CONFIG REQUIRED)

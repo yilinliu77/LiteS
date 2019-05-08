@@ -15,8 +15,8 @@
   "RenderPass": [
     {
       "Name": "display",
-      "VertexShader": "../../../../LiteS-Engine/resources/shaders/PointCloudVert.glsl",
-      "FragmentShader": "../../../../LiteS-Engine/resources/shaders/PointCloudFrag.glsl"
+      "VertexShader": "shaders/PointCloudVert.glsl",
+      "FragmentShader": "shaders/PointCloudFrag.glsl"
     }
   ],
 

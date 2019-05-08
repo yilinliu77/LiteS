@@ -18,12 +18,12 @@ CCDataStructure::createDevicePointCloud(CMesh* vPointCloud) {
   return dPoints;
 }
 
-thrust::device_vector<float4> CCDataStructure::createDeviceVectorFloat4(
+thrust::device_vector<glm::vec4> CCDataStructure::createDeviceVectorGLM4(
     int vNum) {
-  return thrust::device_vector<float4>(vNum);
+  return thrust::device_vector<glm::vec4>(vNum);
 }
 
-thrust::device_vector<float3> CCDataStructure::createDeviceVectorFloat3(
+thrust::device_vector<float3> CCDataStructure::createDeviceVectorGLM3(
     int vNum) {
   return thrust::device_vector<float3>(vNum);
 }
@@ -33,7 +33,7 @@ thrust::device_vector<float> CCDataStructure::createDeviceVectorFloat(
   return thrust::device_vector<float>(vNum);
 }
 
-__device__ bool CCDataStructure::d_intersect(){ return false; }
+__device__ bool CCDataStructure::d_intersect() { return false; }
 
 __device__ bool CCDataStructure::d_visible(BVHACCEL::LinearBVHNode* vNodes,
                                            Tri* vTriangles, float3 vCameraPos,
@@ -51,20 +51,20 @@ __device__ bool CCDataStructure::d_visible(BVHACCEL::LinearBVHNode* vNodes,
       vVertexPosition.y += -margin;
   }
 
-  //Ray ray(vCameraPos, vVertexPosition - vCameraPos);
-  //float current_t = normf(3,vVertexPosition - vCameraPos);
+  // Ray ray(vCameraPos, vVertexPosition - vCameraPos);
+  // float current_t = normf(3,vVertexPosition - vCameraPos);
 
-  //if (!nodes) return false;
-  //bool hit = false;
-  //glm::vec3 invDir(std::min(1 / ray.d.x, 99999999.0f),
+  // if (!nodes) return false;
+  // bool hit = false;
+  // glm::vec3 invDir(std::min(1 / ray.d.x, 99999999.0f),
   //                 std::min(1 / ray.d.y, 99999999.0f),
   //                 std::min(1 / ray.d.z, 99999999.0f));
-  //int dirIsNeg[3] = {invDir[0] < 0, invDir[1] < 0, invDir[2] < 0};
+  // int dirIsNeg[3] = {invDir[0] < 0, invDir[1] < 0, invDir[2] < 0};
   //// Follow ray through BVH nodes to find primitive intersections
-  //int toVisitOffset = 0, currentNodeIndex = 0;
-  //int nodesToVisit[64];
-  //SurfaceInteraction isect;
-  //while (true) {
+  // int toVisitOffset = 0, currentNodeIndex = 0;
+  // int nodesToVisit[64];
+  // SurfaceInteraction isect;
+  // while (true) {
   //  const LinearBVHNode* node = &nodes[currentNodeIndex];
   //  // Check ray against BVH node
   //  if (node->bounds.IntersectP(ray, invDir, dirIsNeg)) {
@@ -91,10 +91,23 @@ __device__ bool CCDataStructure::d_visible(BVHACCEL::LinearBVHNode* vNodes,
   //    currentNodeIndex = nodesToVisit[--toVisitOffset];
   //  }
   //}
-  //if (!hit) return false;
-  //glm::vec3 hitPosition = isect.pHit;
-  //if (current_t <= isect.t) {
+  // if (!hit) return false;
+  // glm::vec3 hitPosition = isect.pHit;
+  // if (current_t <= isect.t) {
   //  return true;
   //}
   return false;
+}
+
+CCDataStructure::DBVHAccel::DBVHAccel(const BVHACCEL::BVHAccel* bvhTree) {
+	dTriangles;
+  thrust::copy(bvhTree->getOrderedTriangles().begin(),
+               bvhTree->getOrderedTriangles().end(), dTriangles->begin());
+  dTrianglesPointer = thrust::raw_pointer_cast(&(dTriangles->at(0)));
+  numTriangles = bvhTree->getOrderedTriangles().size();
+
+  numNodes = bvhTree->totalLinearNodes;
+  thrust::copy(bvhTree->getLinearNodes(), bvhTree->getLinearNodes() + numNodes,
+               dBVHNodes->begin());
+  dBVHNodesPointer = thrust::raw_pointer_cast(&dBVHNodes[0]);
 }
