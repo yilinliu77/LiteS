@@ -1,15 +1,18 @@
 cmake_minimum_required(VERSION 3.11.0)
 project(T-PathGenerate LANGUAGES CUDA CXX)
 
-set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-gencode arch=compute_52,code=sm_52;-std=c++11)
-LIST(APPEND CUDA_NVCC_FLAGS "-Xcompiler \"/wd 4819\"")
+enable_language(CUDA)
 
+include(CheckLanguage)
+check_language(CUDA)
 
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler \"/wd 4819\"" )
+set(CMAKE_CUDA_STANDARD 11)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+set(CMAKE_CUDA_CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+set(CUDA_SEPARABLE_COMPILATION ON)
 
 find_package(TBB CONFIG REQUIRED)
-find_package(CUDA REQUIRED)
-enable_language(CUDA)
-set(CUDA_LIBRARIES PRIVATE ${CUDA_LIBRARIES})
 
 include_directories (${TBB_INCLUDE_DIRS})
 
@@ -26,5 +29,3 @@ add_dependencies(T-PathGenerate LiteS)
 add_dependencies(T-PathGenerate LiteS-CUDA)
 
 target_link_libraries(T-PathGenerate PRIVATE TBB::tbb GLEW::GLEW glfw assimp::assimp imgui::imgui LiteS LiteS-CUDA)
-set_target_properties(T-PathGenerate PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-set_property(TARGET T-PathGenerate PROPERTY CUDA_STANDARD 11)

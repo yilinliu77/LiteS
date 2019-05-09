@@ -45,7 +45,7 @@ void CVisualizeCamerasComponent::visualizeMyAsiaCamera(string vPath) {
   LiteS_Trajectory::loadTrajectoryMVESpline(vPath, cameraVertexVector);
 
   LiteS_Trajectory::saveTrajectory(CAMERALOG, cameraVertexVector);
-  LiteS_Trajectory::saveTrajectoryUnreal(CAMERALOGUNREAL, cameraVertexVector);
+  LiteS_Trajectory::saveTrajectoryUnreal(CAMERALOGUNREAL, cameraVertexVector,true);
   cameraMesh =
       new CPointCloudMesh(cameraVertexVector, glm::vec3(0.3f, 0.7f, 1.f), 15);
   CModel* cameraModel = new CModel;

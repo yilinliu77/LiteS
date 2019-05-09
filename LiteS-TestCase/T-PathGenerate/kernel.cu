@@ -11,13 +11,13 @@ __global__ void updateRaysKernel(CCDataStructure::DBVHAccel* dBVH,
   int id = bx * blockDim.x + tx;
   if (id > numPoints) return;
   float3 pointPosition = vPointCloud[id].position;
-  CCDataStructure::d_visible(dBVH->dBVHNodesPointer, dBVH->dTrianglesPointer, vCameraPos,
-                             pointPosition, 0.1f);
+  //CCDataStructure::d_visible(dBVH->dBVHNodesPointer, dBVH->dTrianglesPointer, vCameraPos,
+  //                           pointPosition, 0.1f);
 
   vRays[id] = glm::vec4(1.f, 0.f, 1.f, 0.5f);
 }
 
-__global__ void updateObsRays(dim3 vGrid, dim3 vBlock,
+void updateObsRays(dim3 vGrid, dim3 vBlock,
                               CCDataStructure::DBVHAccel* dBVH,
                               CCDataStructure::Point* vPointCloud,
                               int numPoints, glm::vec4* vRays, float3 vCameraPos) {

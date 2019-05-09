@@ -6,7 +6,7 @@ __global__ void VecAdd(float* A, float* B, float* C)
 	C[i] = A[i] + B[i];
 }
 
-__global__ void execute(float* d_A, float* d_B, float* d_C) {
+void execute(float* d_A, float* d_B, float* d_C) {
 	int threadsPerBlock = 256;
 	int blocksPerGrid =
 		(64 + threadsPerBlock - 1) / threadsPerBlock;

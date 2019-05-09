@@ -10,7 +10,7 @@
       "Path12": "D:\\swap\\jianzhu1_my_point.ply",
       "Path3": "D:\\swap\\jianzhu1/jianzhu1_point.ply",
       "Path4": "D:\\swap\\aoxing/aoxing_point.ply",
-      "Path": "D:\\swap\\qiao/qiao_point.ply",
+      "Path": "D:\\swap\\uk/uk_point.ply",
       "Type": "PointCloud",
       "Render": true
     },
@@ -35,7 +35,8 @@
   "Arguments": {
     "spline_file3": "D:/swap/ny/ny_spline.csv",
     "spline_file11": "D:/swap/aoxing/aoxing_20--40-80-20.csv",
-    "spline_file": "D:/swap/qiao/qiao_spline.csv",
+    "spline_file111": "d:/swap/qiao/qiao_spline.csv",
+    "spline_file": "d:/swap/uk/uk_20--30-40-20.csv",
     "spline_file4": "D:/swap/jianzhu1/jianzhu1_40-13-90-5.csv",
     "spline_file2": "D:/swap/jianzhu1/jianzhu1_spline.csv",
     "spline_file1": "D:/swap/ny/ny_gt.csv"
