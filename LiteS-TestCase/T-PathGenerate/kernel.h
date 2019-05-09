@@ -7,7 +7,7 @@
 
 #include "CCDataStructure.h"
 
-extern __global__ void updateObsRays(dim3 vGrid, dim3 vBlock,
+extern void updateObsRays(dim3 vGrid, dim3 vBlock,
                                      CCDataStructure::DBVHAccel* dBVH,
                                      CCDataStructure::Point* vPointCloud,
                                      int numPoints, glm::vec4* vRays,

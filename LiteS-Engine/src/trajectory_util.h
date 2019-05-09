@@ -80,8 +80,12 @@ void saveTrajectory(const std::string vPath,
   }
 }
 
+void postAsia(float& vYaw) {
+	vYaw -= 90.f;
+}
+
 void saveTrajectoryUnreal(const std::string vPath,
-                          const std::vector<Vertex>& vCameraVertexVector) {
+                          const std::vector<Vertex>& vCameraVertexVector,bool isPostProcess=false) {
   try {
     std::ofstream fileOutUnreal;
     fileOutUnreal.open(vPath, std::ios::out);
@@ -104,12 +108,15 @@ void saveTrajectoryUnreal(const std::string vPath,
       float pitch = 0.f;
       if (direction[0] * direction[0] + direction[1] * direction[1] > 1e-3 ||
           std::abs(direction[2]) > 1e-3)
-        pitch = std::acos(
+        pitch = std::acos(std::min(1.f,
             glm::dot(glm::normalize(glm::vec3(direction[0], direction[1], 0)),
-                     direction));
+                     direction)));
 
       pitch = pitch / 3.1415926f * 180;
       yaw = yaw / 3.1415926f * 180;
+
+	  if (isPostProcess)
+		  postAsia(yaw);
 
       fileOutUnreal << imageName << "," << x << "," << y << "," << z << ","
                     << pitch << "," << 0 << "," << yaw << std::endl;
