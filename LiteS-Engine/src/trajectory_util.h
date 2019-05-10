@@ -61,10 +61,12 @@ void saveTrajectory(const std::string vPath,
     fileOut.open(vPath, std::ios::out);
     int imageIndex = 0;
     for (auto& item : vCameraVertexVector) {
+		
       float x = item.Position[0];
       float y = item.Position[1];
       float z = item.Position[2];
-
+	  if (x > 1000 || x < -1000 || y > 1000 || y < -1000)
+		  continue;
       char s[30];
       sprintf_s(s, "%04d.jpg", imageIndex);
       std::string imageName(s);
@@ -94,7 +96,8 @@ void saveTrajectoryUnreal(const std::string vPath,
       float x = -item.Position[0] * 100;
       float y = item.Position[1] * 100;
       float z = item.Position[2] * 100;
-
+	  if (x > 100000 || x < -100000|| y > 100000 || y < -100000)
+		  continue;
       char s[30];
       sprintf_s(s, "%04d.jpg", imageIndex);
       std::string imageName(s);

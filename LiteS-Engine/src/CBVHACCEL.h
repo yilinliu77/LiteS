@@ -1,9 +1,11 @@
 #ifndef BVHTREE_HEADER
 #define BVHTREE_HEADER
 
+#include <stack>
+
+#include <glm/common.hpp>
 #include <glm/glm.hpp>
 #include <iostream>
-#include <glm/common.hpp>
 #include "CMesh.h"
 
 const int MAX_TRIANGLES_IN_NODE = 255;
@@ -79,8 +81,10 @@ class BVHAccel {
     flattenBVHTree(root, &offset, -1);
   }
   ~BVHAccel() {}
-  const std::vector<LinearBVHNode>& getLinearNodes() const{ return nodes; }
-  const std::vector<Tri>&  getOrderedTriangles() const{ return orderedTriangles; }
+  const std::vector<LinearBVHNode>& getLinearNodes() const { return nodes; }
+  const std::vector<Tri>& getOrderedTriangles() const {
+    return orderedTriangles;
+  }
 
   bool BVHAccel::Intersect(Ray& ray, SurfaceInteraction* isect) const {
     if (nodes.empty()) return false;
@@ -126,41 +130,55 @@ class BVHAccel {
     glm::vec3 closetPoint;
     float closetLength = 99999999.f;
     int toVisitOffset = 0, currentNodeIndex = 0;
+    std::stack<size_t> nodeIndexToVisit;
     while (true) {
       const LinearBVHNode* node = &nodes[currentNodeIndex];
       if (node->nObject > 0) {
         for (int i = 0; i < node->nObject; ++i) {
-          float length1 = glm::length(
-              orderedTriangles[node->objectOffset + i].v1.Position - vPoint);
-          float length2 = glm::length(
-              orderedTriangles[node->objectOffset + i].v2.Position - vPoint);
-          float length3 = glm::length(
-              orderedTriangles[node->objectOffset + i].v3.Position - vPoint);
-          if (length1 < closetLength) {
-            closetLength = length1;
-            closetPoint = orderedTriangles[node->objectOffset + i].v1.Position;
-          }
-          if (length2 < closetLength) {
-            closetLength = length2;
-            closetPoint = orderedTriangles[node->objectOffset + i].v2.Position;
-          }
-          if (length3 < closetLength) {
-            closetLength = length3;
-            closetPoint = orderedTriangles[node->objectOffset + i].v3.Position;
+          glm::vec3 closest =
+              orderedTriangles[node->objectOffset + i].closetPoint(vPoint);
+          float distance = glm::length(closest - vPoint);
+          if (distance < closetLength) {
+            closetLength = distance;
+            closetPoint = closest;
           }
         }
-        break;
+
+        if (nodeIndexToVisit.empty()) break;
+        currentNodeIndex = nodeIndexToVisit.top();
+        nodeIndexToVisit.pop();
       } else {
-        if (glm::length(nodes[currentNodeIndex + 1].bounds.getCentroid() -
-                        vPoint) <
-            glm::length(nodes[node->secondChildOffset].bounds.getCentroid() -
-                        vPoint)) {
-          currentNodeIndex = currentNodeIndex + 1;
+        glm::vec3 leftClosestPoint =
+            nodes[currentNodeIndex + 1].bounds.ClosestPoint(vPoint);
+        glm::vec3 rightClosestPoint =
+            nodes[node->secondChildOffset].bounds.ClosestPoint(vPoint);
+        float leftDistance = glm::length(leftClosestPoint - vPoint);
+        float rightDistance = glm::length(rightClosestPoint - vPoint);
+
+        bool leftValid = leftDistance < closetLength;
+        bool rightValid = rightDistance < closetLength;
+        if (leftValid && rightValid) {
+          if (leftDistance < rightDistance) {
+            nodeIndexToVisit.push(node->secondChildOffset);
+            currentNodeIndex = currentNodeIndex + 1;
+          } else {
+            nodeIndexToVisit.push(currentNodeIndex + 1);
+            currentNodeIndex = node->secondChildOffset;
+          }
+        } else if (leftValid || rightValid) {
+          if (rightValid) {
+            currentNodeIndex = node->secondChildOffset;
+          } else {
+            currentNodeIndex = currentNodeIndex + 1;
+          }
         } else {
-          currentNodeIndex = node->secondChildOffset;
+          if (nodeIndexToVisit.empty()) break;
+          currentNodeIndex = nodeIndexToVisit.top();
+          nodeIndexToVisit.pop();
         }
       }
     }
+
     assert(closetLength < 99999999);
     return {closetLength, closetPoint};
   }
@@ -190,8 +208,9 @@ class BVHAccel {
     return false;
   }
 
-  bool BVHAccel::strongVisible(glm::vec3 vCameraPos, glm::vec3 vCameraOrientation,
-                     glm::vec3 vSamplePosition, float vDMAX) {
+  bool BVHAccel::strongVisible(glm::vec3 vCameraPos,
+                               glm::vec3 vCameraOrientation,
+                               glm::vec3 vSamplePosition, float vDMAX) {
     glm::vec3 sampleToCamera = vCameraPos - vSamplePosition;
     // Inside the frustum
     // 0.6f ~ cos(78.0f / 2 / 180.0f * pi)
@@ -364,7 +383,7 @@ class BVHAccel {
 
     return myOffset;
   }
-};
-}
+};  // namespace BVHACCEL
+}  // namespace BVHACCEL
 
-#endif // BVHTREE_HEADER
+#endif  // BVHTREE_HEADER

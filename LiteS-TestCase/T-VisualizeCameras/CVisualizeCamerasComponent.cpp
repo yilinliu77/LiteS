@@ -19,9 +19,6 @@
 #include <set>
 #include <string>
 
-#include <thrust/device_vector.h>
-#include <thrust/host_vector.h>
-
 #include "CBVHACCEL.h"
 #include "CPointCloudMesh.h"
 #include "trajectory_util.h"
