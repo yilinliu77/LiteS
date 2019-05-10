@@ -7,7 +7,7 @@ build
 
 # Prerequisites
 *.d
-
+qiao.ply
 # Compiled Object files
 *.slo
 *.lo
