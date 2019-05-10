@@ -19,11 +19,7 @@
 #include <set>
 #include <string>
 
-#include <thrust/device_vector.h>
-#include <thrust/host_vector.h>
-
 #include "CBVHACCEL.h"
-#include "CCDataStructure.h"
 #include "CPointCloudMesh.h"
 #include "util.h"
 
@@ -90,21 +86,26 @@ void CPathGenarateComponent::extraAlgorithm() {
   size_t pointIndex = 0;
   for (auto& itemVertex : pointCloud->vertices) {
     const glm::vec3& pointPos = itemVertex.Position;
-    Ray ray(pointPos, glm::vec3(pointPos.x, 0, pointPos.z) - pointPos);
+	glm::vec3 direction = glm::vec3(pointPos.x, 0, pointPos.z) - pointPos;
+    Ray ray(pointPos, direction);
     float distance = 0.f;
     size_t countNumber = 0;
-    while (pointCloud->bounds.inside(ray.o + ray.d * distance)) {
-      distance += 1.f;
-      SurfaceInteraction sr;
-      if (bvhTree.Intersect(ray, &sr)) {
-        distance = sr.t;
-        countNumber += 1;
-      }
+	
+    while (pointCloud->bounds.inside(ray.o)) {
+	  SurfaceInteraction sr;
+	  if (bvhTree.Intersect(ray, &sr) && sr.t > 0) {
+		  ray.o = sr.pHit + glm::normalize(ray.d) * 0.001f;
+		  countNumber += 1;
+	  }
+	  else 
+		  break;
     }
 	if (countNumber % 2 != 0) {
 		pointCloud->changeColor(glm::vec3(1.f, 0.f, 0.f), pointIndex);
+		std::cout << "Now point " << pointIndex << ":"<< countNumber <<  std::endl;
 	}
 	pointIndex += 1;
+	//std::cout << "Now point " << pointIndex << std::endl;
   }
 
   std::cout << "Extra Algorithm done" << endl;
