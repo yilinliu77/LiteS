@@ -66,52 +66,68 @@ std::vector<int> ranks;
 vector<vector<std::pair<glm::vec4, glm::vec4>>> obsRays;
 
 CPathGenarateComponent::CPathGenarateComponent(const map<string, CPass*>& vPass,
-                                               CScene* vScene,
-                                               const std::string vResourceDir)
-    : CPointCloudComponent(vPass, vScene, vResourceDir) {
-  DisplayPass = this->m_Pass.at("display");
+	CScene* vScene,
+	const std::string vResourceDir)
+	: CPointCloudComponent(vPass, vScene, vResourceDir) {
+	DisplayPass = this->m_Pass.at("display");
 }
 
 CPathGenarateComponent::~CPathGenarateComponent() = default;
 
 void CPathGenarateComponent::extraAlgorithm() {
-  CMesh* pointCloud = this->m_Scene->m_Models.at("point")->meshes[0];
-  CModel* meshModel = this->m_Scene->m_Models.at("gt_mesh");
-  BVHACCEL::BVHAccel bvhTree(meshModel->meshes);
-  const glm::vec3 endPos;
+	CMesh* pointCloud = this->m_Scene->m_Models.at("point")->meshes[0];
+	CModel* meshModel = this->m_Scene->m_Models.at("gt_mesh");
+	BVHACCEL::BVHAccel bvhTree(meshModel->meshes);
+	const glm::vec3 endPos;
 
-  const glm::vec3& boundsMax = pointCloud->bounds.pMax;
-  const glm::vec3& boundsMin = pointCloud->bounds.pMin;
+	const glm::vec3& boundsMax = pointCloud->bounds.pMax;
+	const glm::vec3& boundsMin = pointCloud->bounds.pMin;
+	const size_t numPoint = pointCloud->vertices.size();
 
-  size_t pointIndex = 0;
-  for (auto& itemVertex : pointCloud->vertices) {
-    const glm::vec3& pointPos = itemVertex.Position;
-	glm::vec3 direction = glm::vec3(pointPos.x, 0, pointPos.z) - pointPos;
-    Ray ray(pointPos, direction);
-    float distance = 0.f;
-    size_t countNumber = 0;
-	
-    while (pointCloud->bounds.inside(ray.o)) {
-	  SurfaceInteraction sr;
-	  if (bvhTree.Intersect(ray, &sr) && sr.t > 0) {
-		  ray.o = sr.pHit + glm::normalize(ray.d) * 0.001f;
-		  countNumber += 1;
-	  }
-	  else 
-		  break;
-    }
-	if (countNumber % 2 != 0) {
-		pointCloud->changeColor(glm::vec3(1.f, 0.f, 0.f), pointIndex);
-		std::cout << "Now point " << pointIndex << ":"<< countNumber <<  std::endl;
+	std::vector<Vertex> outVertex;
+	std::vector<bool> pointSeen(numPoint, false);
+
+	const float height = boundsMax[2] + 10.f;
+	std::vector<glm::vec3> cameraPos;
+	float step = 15.f;
+	for (float x = boundsMin[0] - 20.f; x < boundsMax[0] + 20.f; x += step) {
+		for (float y = boundsMin[1] - 20.f; y < boundsMax[1] + 20.f; y += step) {
+			cameraPos.push_back(glm::vec3(x, y, height));
+		}
 	}
-	pointIndex += 1;
-	//std::cout << "Now point " << pointIndex << std::endl;
-  }
+	size_t cameraIndex = 0;
+	for (auto& itemCamera : cameraPos) {
+		tbb::parallel_for(tbb::blocked_range<size_t>(0, numPoint)
+			, [&](const tbb::blocked_range<size_t> & r) {
+				for (size_t i = r.begin(); i != r.end(); ++i) {
+					const glm::vec3& pointPos = pointCloud->vertices[i].Position;
+					Ray ray(itemCamera, glm::normalize(pointPos - itemCamera));
+					SurfaceInteraction sr;
+					if (bvhTree.Intersect(ray, &sr)) {
+						if (glm::length(sr.pHit - pointPos) < 1e-1f)
+							pointSeen[i] = true;
+					}
+					else
+						pointSeen[i] = true;
+				}
+			}
+		);
+		std::cout << cameraIndex << "/" << cameraPos.size() << std::endl;
+		cameraIndex += 1;
+	}
 
-  std::cout << "Extra Algorithm done" << endl;
 
-  this->waitForStepSignal();
-  return;
+	for (size_t i = 0; i < pointCloud->vertices.size(); ++i) {
+		if (pointSeen[i])
+			outVertex.push_back(pointCloud->vertices[i]);
+	}
+	CMesh* outMesh = new CPointCloudMesh(outVertex);
+	outMesh->saveMesh(outMesh, "../../../my_test/inside_cleaned.ply");
+
+	std::cout << "Extra Algorithm done" << endl;
+
+	this->waitForStepSignal();
+	return;
 }
 
 void CPathGenarateComponent::extraInit() {}
