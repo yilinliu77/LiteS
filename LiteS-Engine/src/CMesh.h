@@ -3,9 +3,9 @@
 
 //#define GLM_ENABLE_EXPERIMENTAL
 
-#include <algorithm>
 #include <iostream>
 #include <vector>
+#include <algorithm>
 
 #include <glm/glm.hpp>
 
