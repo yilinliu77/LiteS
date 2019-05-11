@@ -89,9 +89,9 @@ void CPathGenarateComponent::extraAlgorithm() {
 
 	const float height = boundsMax[2] + 10.f;
 	std::vector<glm::vec3> cameraPos;
-	float step = 15.f;
-	for (float x = boundsMin[0] - 20.f; x < boundsMax[0] + 20.f; x += step) {
-		for (float y = boundsMin[1] - 20.f; y < boundsMax[1] + 20.f; y += step) {
+	float step = 30.f;
+	for (float x = boundsMin[0] - 60.f; x < boundsMax[0] + 60.f; x += step) {
+		for (float y = boundsMin[1] - 60.f; y < boundsMax[1] + 60.f; y += step) {
 			cameraPos.push_back(glm::vec3(x, y, height));
 		}
 	}

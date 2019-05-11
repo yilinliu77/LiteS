@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14.0)
+cmake_minimum_required(VERSION 3.13.0)
 project(T-CUDABase LANGUAGES CUDA CXX)
 
 #find_package(CUDA REQUIRED)

@@ -1,14 +1,11 @@
-cmake_minimum_required (VERSION 3.1)
-if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
-  set(CMAKE_TOOLCHAIN_FILE "$ENV{vcpkg}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
-endif()
+cmake_minimum_required (VERSION 3.13)
 project (LiteS)
 
 # Compiler and Linker options
 # Platform independent
 if(${CMAKE_GENERATOR} MATCHES ".*Visual Studio.*|.*Ninja.*")
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} /MDd /Zi /Od /std:c++latest")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} /MD")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} /MD /std:c++latest")
 
     SET(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS} /Debug /Incremental")
     SET(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS} /LTCG")
@@ -41,4 +38,4 @@ SET(CMAKE_DEBUG_POSTFIX "_d")
 ADD_SUBDIRECTORY(LiteS-Engine)
 #ADD_SUBDIRECTORY(LiteS-CUDA)
 ADD_SUBDIRECTORY(LiteS-TestCase)
-ADD_SUBDIRECTORY(LiteS-Test)
+#ADD_SUBDIRECTORY(LiteS-Test)
