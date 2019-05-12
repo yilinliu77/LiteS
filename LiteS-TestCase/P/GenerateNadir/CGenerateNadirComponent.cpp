@@ -59,7 +59,7 @@ void writeFlightLog(std::vector<Vertex>& vVertexVector, string vLogPath,
                                                   direction[1] * direction[1]));
 
     pitch = pitch / 3.1415926 * 180;
-    yaw = yaw / 3.1415926 * 180;
+    yaw = yaw / 3.1415926 * 180 - 90.f;
 
     // postAsiaPitchYaw(pitch, yaw);
 
@@ -71,7 +71,7 @@ void writeFlightLog(std::vector<Vertex>& vVertexVector, string vLogPath,
 }
 
 void CGenerateNadirComponent::generate_nadir() {
-  glm::vec3 pMax(150, 150, 55), pMin(-150, -150, 0);
+  glm::vec3 pMax(112, 84, 30), pMin(-95, -73, 0);
   //pMax = glm::vec3(64, 46, 30);
   //pMin = glm::vec3(-65, -45, 0);
 
