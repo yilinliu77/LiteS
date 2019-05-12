@@ -6,7 +6,7 @@
   "Model": [
     {
       "Name": "proxy_point",
-      "Path": "../../../../my_test/aoxing_point.ply",
+      "Path": "../../../../my_test/jianzhu1_huangkai_gt.ply",
       "Type": "PointCloud",
       "Render": true
     }
