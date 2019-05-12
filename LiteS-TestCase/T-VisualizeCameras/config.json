@@ -6,21 +6,14 @@
   "Model": [
     {
       "Name": "proxy_point",
+      "Path": "../../../my_test/1.ply",
       "Path1": "D:\\swap\\ny/ny_point.ply",
       "Path12": "D:\\swap\\jianzhu1_my_point.ply",
       "Path3": "D:\\swap\\jianzhu1/jianzhu1_point.ply",
       "Path4": "D:\\swap\\aoxing/aoxing_point.ply",
-      "Path": "D:\\swap\\uk/uk_point.ply",
+      "Path11": "D:\\swap\\uk/uk_point.ply",
       "Type": "PointCloud",
       "Render": true
-    },
-    {
-      "Name": "proxy_mesh",
-      "Path1": "D:\\swap\\aoxing_mesh.ply",
-      "Path2": "D:\\swap\\ny/ny_mesh.ply",
-      "Path": "D:\\swap\\jianzhu1/jianzhu1_mesh.ply",
-      "Type": "Mesh",
-      "Render": false
     }
   ],
 
@@ -36,7 +29,7 @@
     "spline_file3": "D:/swap/ny/ny_spline.csv",
     "spline_file11": "D:/swap/aoxing/aoxing_20--40-80-20.csv",
     "spline_file111": "d:/swap/qiao/qiao_spline.csv",
-    "spline_file": "d:/swap/uk/uk_20--15-60-15.csv",
+    "spline_file": "../../../my_test/test_spline.csv",
     "spline_file4": "D:/swap/jianzhu1/jianzhu1_40-13-90-5.csv",
     "spline_file2": "D:/swap/jianzhu1/jianzhu1_spline.csv",
     "spline_file1": "D:/swap/ny/ny_gt.csv"

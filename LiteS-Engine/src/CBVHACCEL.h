@@ -1,8 +1,6 @@
 #ifndef BVHTREE_HEADER
 #define BVHTREE_HEADER
 
-#include <stack>
-
 #include <glm/common.hpp>
 #include <glm/glm.hpp>
 #include <iostream>
@@ -130,55 +128,41 @@ class BVHAccel {
     glm::vec3 closetPoint;
     float closetLength = 99999999.f;
     int toVisitOffset = 0, currentNodeIndex = 0;
-    std::stack<size_t> nodeIndexToVisit;
     while (true) {
       const LinearBVHNode* node = &nodes[currentNodeIndex];
       if (node->nObject > 0) {
         for (int i = 0; i < node->nObject; ++i) {
-          glm::vec3 closest =
-              orderedTriangles[node->objectOffset + i].closetPoint(vPoint);
-          float distance = glm::length(closest - vPoint);
-          if (distance < closetLength) {
-            closetLength = distance;
-            closetPoint = closest;
+          float length1 = glm::length(
+              orderedTriangles[node->objectOffset + i].v1.Position - vPoint);
+          float length2 = glm::length(
+              orderedTriangles[node->objectOffset + i].v2.Position - vPoint);
+          float length3 = glm::length(
+              orderedTriangles[node->objectOffset + i].v3.Position - vPoint);
+          if (length1 < closetLength) {
+            closetLength = length1;
+            closetPoint = orderedTriangles[node->objectOffset + i].v1.Position;
+          }
+          if (length2 < closetLength) {
+            closetLength = length2;
+            closetPoint = orderedTriangles[node->objectOffset + i].v2.Position;
+          }
+          if (length3 < closetLength) {
+            closetLength = length3;
+            closetPoint = orderedTriangles[node->objectOffset + i].v3.Position;
           }
         }
-
-        if (nodeIndexToVisit.empty()) break;
-        currentNodeIndex = nodeIndexToVisit.top();
-        nodeIndexToVisit.pop();
+        break;
       } else {
-        glm::vec3 leftClosestPoint =
-            nodes[currentNodeIndex + 1].bounds.ClosestPoint(vPoint);
-        glm::vec3 rightClosestPoint =
-            nodes[node->secondChildOffset].bounds.ClosestPoint(vPoint);
-        float leftDistance = glm::length(leftClosestPoint - vPoint);
-        float rightDistance = glm::length(rightClosestPoint - vPoint);
-
-        bool leftValid = leftDistance < closetLength;
-        bool rightValid = rightDistance < closetLength;
-        if (leftValid && rightValid) {
-          if (leftDistance < rightDistance) {
-            nodeIndexToVisit.push(node->secondChildOffset);
-            currentNodeIndex = currentNodeIndex + 1;
-          } else {
-            nodeIndexToVisit.push(currentNodeIndex + 1);
-            currentNodeIndex = node->secondChildOffset;
-          }
-        } else if (leftValid || rightValid) {
-          if (rightValid) {
-            currentNodeIndex = node->secondChildOffset;
-          } else {
-            currentNodeIndex = currentNodeIndex + 1;
-          }
+        if (glm::length(nodes[currentNodeIndex + 1].bounds.getCentroid() -
+                        vPoint) <
+            glm::length(nodes[node->secondChildOffset].bounds.getCentroid() -
+                        vPoint)) {
+          currentNodeIndex = currentNodeIndex + 1;
         } else {
-          if (nodeIndexToVisit.empty()) break;
-          currentNodeIndex = nodeIndexToVisit.top();
-          nodeIndexToVisit.pop();
+          currentNodeIndex = node->secondChildOffset;
         }
       }
     }
-
     assert(closetLength < 99999999);
     return {closetLength, closetPoint};
   }
@@ -284,13 +268,6 @@ class BVHAccel {
           ++buckets[b].count;
           buckets[b].bounds = buckets->bounds.unionBounds(p[i].bounds);
         }
-      }
-      node->initInterior(
-          dim, recursiveBuildTree(p, start, mid, totalNodes, orderedTriangles),
-          recursiveBuildTree(p, mid, end, totalNodes, orderedTriangles));
-    }
-    return node;
-  }
 
         // compute the cost
         float cost[nBuckets - 1];
@@ -390,7 +367,7 @@ class BVHAccel {
 
     return myOffset;
   }
-};  // namespace BVHACCEL
+};
 }  // namespace BVHACCEL
 
 #endif  // BVHTREE_HEADER

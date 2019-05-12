@@ -22,6 +22,15 @@ inline float gamma(int n) {
   return static_cast<float>((n * MachineEpsilon) / (1 - n * MachineEpsilon));
 }
 
+inline float myClamp(float v, float a, float b) {
+  if (v < a)
+    return a;
+  else if (v > b)
+    return b;
+  else
+    return v;
+}
+
 enum ModelType { Mesh, Window, PointCloud };
 
 inline int maxDimension(glm::vec3 v) {
@@ -264,18 +273,18 @@ struct Tri {
       if (s < 0.f) {
         if (t < 0.f) {
           if (d < 0.f) {
-            s = std::clamp(-d / a, 0.f, 1.f);
+            s = myClamp(-d / a, 0.f, 1.f);
             t = 0.f;
           } else {
             s = 0.f;
-            t = std::clamp(-e / c, 0.f, 1.f);
+            t = myClamp(-e / c, 0.f, 1.f);
           }
         } else {
           s = 0.f;
-          t = std::clamp(-e / c, 0.f, 1.f);
+          t = myClamp(-e / c, 0.f, 1.f);
         }
       } else if (t < 0.f) {
-        s = std::clamp(-d / a, 0.f, 1.f);
+        s = myClamp(-d / a, 0.f, 1.f);
         t = 0.f;
       } else {
         float invDet = 1.f / det;
@@ -289,26 +298,26 @@ struct Tri {
         if (tmp1 > tmp0) {
           float numer = tmp1 - tmp0;
           float denom = a - 2 * b + c;
-          s = std::clamp(numer / denom, 0.f, 1.f);
+          s = myClamp(numer / denom, 0.f, 1.f);
           t = 1 - s;
         } else {
-          t = std::clamp(-e / c, 0.f, 1.f);
+          t = myClamp(-e / c, 0.f, 1.f);
           s = 0.f;
         }
       } else if (t < 0.f) {
         if (a + d > b + e) {
           float numer = c + e - b - d;
           float denom = a - 2 * b + c;
-          s = std::clamp(numer / denom, 0.f, 1.f);
+          s = myClamp(numer / denom, 0.f, 1.f);
           t = 1 - s;
         } else {
-          s = std::clamp(-e / c, 0.f, 1.f);
+          s = myClamp(-e / c, 0.f, 1.f);
           t = 0.f;
         }
       } else {
         float numer = c + e - b - d;
         float denom = a - 2 * b + c;
-        s = std::clamp(numer / denom, 0.f, 1.f);
+        s = myClamp(numer / denom, 0.f, 1.f);
         t = 1.f - s;
       }
     }

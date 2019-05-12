@@ -12,8 +12,8 @@
 #include "CPointCloudMesh.h"
 #include "util.h"
 
-const float overlap = 0.8;
-const float fov = 60;
+const float overlap = 0.5;
+const float fov = 90;
 const float aspect = 1.5;
 
 CGenerateNadirComponent::CGenerateNadirComponent(
@@ -71,7 +71,7 @@ void writeFlightLog(std::vector<Vertex>& vVertexVector, string vLogPath,
 }
 
 void CGenerateNadirComponent::generate_nadir() {
-  glm::vec3 pMax(66, 50, 28), pMin(-66, -50, 0);
+  glm::vec3 pMax(150, 150, 55), pMin(-150, -150, 0);
   //pMax = glm::vec3(64, 46, 30);
   //pMin = glm::vec3(-65, -45, 0);
 

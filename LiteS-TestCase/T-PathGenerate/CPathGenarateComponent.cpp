@@ -336,9 +336,8 @@ std::pair<float, float> heuristicEvaluete(size_t vPointIndex,
 }
 
 // Camera Pos, Camera Direction, Camera Index
-std::function<float(const glm::vec3, const glm::vec3, const size_t)> func =
-    [&](const glm::vec3 const& vCameraPos, const glm::vec3 vCameraDirection,
-        const size_t vCameraIndex) -> float {
+float func(const glm::vec3 const& vCameraPos, const glm::vec3 vCameraDirection,
+        const size_t vCameraIndex) {
   if (isValidPosition(vCameraPos) >= 0) return -1;
 
   float totalScore = 0;
@@ -367,6 +366,8 @@ std::function<float(const glm::vec3, const glm::vec3, const size_t)> func =
   // minPointNotSeenScore = 1 / max(minPointNotSeenScore, 1.0f);
   return minPointNotSeenScore + totalScore;
 };
+
+
 
 void initRays(int vi) {
   glm::vec3 samplePos = proxyPoint->vertices[vi].Position;
@@ -550,8 +551,7 @@ glm::vec3 CPathGenarateComponent::optimizeOrientation(glm::vec3 vCameraPosition,
 }
 
 std::pair<glm::vec3, float> CPathGenarateComponent::downhillSimplex(
-    std::vector<glm::vec3>* solution, size_t vCameraIndex,
-    std::function<float(glm::vec3, glm::vec3, size_t)> const& func) {
+    std::vector<glm::vec3>* solution, size_t vCameraIndex) {
   // Evaluate the 4 candidate
   float myValues[4];
   glm::vec3 cameraDirection =
@@ -663,7 +663,7 @@ void CPathGenarateComponent::optimize(size_t vCameraIndex, int vIter) {
 
   // Optimize, if downhill failed(return 0), increase scale and reinitialize
   std::pair<glm::vec3, float> optimizeResult =
-      downhillSimplex(&(simplexes[iCameraIndex]), iCameraIndex, func);
+      downhillSimplex(&(simplexes[iCameraIndex]), iCameraIndex);
   if (optimizeResult.second <= 0 ||
       optimizeResult.first == simplexes[iCameraIndex][0]) {
     if (5 <= cameraInitializeTimes[iCameraIndex]) {
