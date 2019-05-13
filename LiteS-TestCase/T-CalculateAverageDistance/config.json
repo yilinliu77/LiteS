@@ -12,7 +12,7 @@
       "Path": "d:/swap/huangkai_gt/jianzhu1_gt.ply",
       "Path1": "D:\\swap\\aoxing/aoxing_point.ply",
       "Type": "PointCloud",
-      "Render": true
+      "Render": false
     },
     {
       "Name": "gt_mesh",
@@ -20,7 +20,7 @@
       "Path": "d:/swap/huangkai_gt/jianzhu1_gt.ply",
       "Path1": "D:\\swap\\jianzhu1_mesh.ply",
       "Type": "Mesh",
-      "Render": false
+      "Render": true
     }
   ],
 

@@ -5,21 +5,15 @@ CTriMesh::CTriMesh(const std::vector<Vertex>& vPoints, const std::vector<unsigne
 	this->vertices = vPoints;
 	this->indices = vIndices;
 
-	glm::vec3 pmin(INFINITY, INFINITY, INFINITY);
-	glm::vec3 pmax(-INFINITY, -INFINITY, -INFINITY);
-	for (int i = 0; i < vPoints.size(); ++i) {
-		pmin[0] = std::min(pmin[0], vPoints[i].Position[0]);
-		pmin[1] = std::min(pmin[1], vPoints[i].Position[1]);
-		pmin[2] = std::min(pmin[2], vPoints[i].Position[2]);
-		pmax[0] = std::max(pmax[0], vPoints[i].Position[0]);
-		pmax[1] = std::max(pmax[1], vPoints[i].Position[1]);
-		pmax[2] = std::max(pmax[2], vPoints[i].Position[2]);
-	}
-	bounds = Bounds3f();
-	bounds.pMin = pmin;
-	bounds.pMax = pmax;
+	bounds = Bounds3f(this->vertices);
 
 	setupMesh();
+}
+
+CTriMesh::CTriMesh(const std::string &vPath, bool vIsRender) {
+  this->isRender = vIsRender;
+  loadMeshFromFile(vPath, vIsRender);
+  setupMesh();
 }
 
 CTriMesh::CTriMesh() {
@@ -66,55 +60,7 @@ CTriMesh::CTriMesh(std::vector<Vertex> &vertices, std::vector<unsigned int> &ind
 	setupMesh();
 
 	//deal with bounds
-	float minx = 99999999.0f, miny = 99999999.0f, minz = 99999999.0f;
-	float maxx = -99999999.0f, maxy = -99999999.0f, maxz = -99999999.0f;
-	size_t countTemp = vertices.size();
-	for (int i = 0; i < countTemp; ++i) {
-		minx = vertices[i].Position.x < minx ? vertices[i].Position.x : minx;
-		miny = vertices[i].Position.y < miny ? vertices[i].Position.y : miny;
-		minz = vertices[i].Position.z < minz ? vertices[i].Position.z : minz;
-		maxx = vertices[i].Position.x > maxx ? vertices[i].Position.x : maxx;
-		maxy = vertices[i].Position.y > maxy ? vertices[i].Position.y : maxy;
-		maxz = vertices[i].Position.z > maxz ? vertices[i].Position.z : maxz;
-	}
-	this->bounds = Bounds3f(glm::vec3(minx, miny, minz), glm::vec3(maxx, maxy, maxz));
-}
-
-CTriMesh::CTriMesh(glm::vec3 c, float edge) {
-	glm::vec3 boundVerticesVector[] = {
-		c + glm::vec3(edge / 2, edge / 2, edge / 2),
-		glm::vec3(1, 1, 1),
-		c + glm::vec3(edge / 2, -edge / 2, edge / 2),
-		glm::vec3(1, -1, 1),
-		c + glm::vec3(edge / 2, -edge / 2, -edge / 2),
-		glm::vec3(1, -1, -1),
-		c + glm::vec3(edge / 2, edge / 2, -edge / 2),
-		glm::vec3(1, 1, -1),
-		c + glm::vec3(-edge / 2, -edge / 2, -edge / 2),
-		glm::vec3(-1, -1, -1),
-		c + glm::vec3(-edge / 2, -edge / 2, edge / 2),
-		glm::vec3(-1, -1, 1),
-		c + glm::vec3(-edge / 2, edge / 2, edge / 2),
-		glm::vec3(-1, 1, 1),
-		c + glm::vec3(-edge / 2, edge / 2, -edge / 2),
-		glm::vec3(-1, 1, -1)
-	};
-	Vertex vertex;
-	for (int i = 0; i < 8; ++i) {
-		vertex.Position = boundVerticesVector[2 * i];
-		vertex.Normal = boundVerticesVector[2 * i + 1];
-		this->vertices.push_back(vertex);
-	}
-	for (int i = 0; i < 36; i++)
-		this->indices.push_back(boundIndex[i]);
-	this->material = MeshMaterial();
-	this->material.diffuse = glm::vec3(0, 1, 0);
-	this->bounds = Bounds3f(c + glm::vec3(-edge / 2, -edge / 2, -edge / 2)
-		, c + glm::vec3(edge / 2, edge / 2, edge / 2));
-	this->model = glm::translate(glm::mat4(1), c) * glm::scale(glm::mat4(1), glm::vec3(edge, edge, edge));
-
-	//this->UseTexture = false;
-	setupMesh();
+	this->bounds = Bounds3f(this->vertices);
 }
 
 void CTriMesh::setMesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices, MeshMaterial material) {
@@ -150,7 +96,7 @@ void CTriMesh::setupMesh() {
 	glBindVertexArray(VAO);
 	// load data into vertex buffers
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	// A great thing about structs is that their memory layout is sequential for all its items.
+	// A great thing about struct is that their memory layout is sequential for all its items.
 	// The effect is that we can simply pass a pointer to the struct and it translates perfectly to a glm::vec3/2 array which
 	// again translates to 3/2 floats which translates to a byte array.
 	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
@@ -172,7 +118,8 @@ void CTriMesh::setupMesh() {
 	glBindVertexArray(0);
 }
 
-void CTriMesh::Draw(CShader* shader) {
+void CTriMesh::Draw(CShader *shader, bool vIsNormal) {
+  if (vIsNormal && !isRenderNormal || !isRender) return;
 
 	if (this->textures.size() != 0) {
 		shader->setBool("useTexture", true);

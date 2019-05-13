@@ -7,6 +7,7 @@
 #include "CDifferPass.h"
 #include "CPointCloudComponent.h"
 #include "CPointCloudMesh.h"
+#include "CTriMesh.h"
 
 #include <imgui.h>
 #include "CEngine.h"
@@ -28,9 +29,7 @@ CEngine::CEngine() : pointSize(4) { keyPreesed.assign(500, false); }
 
 CEngine::~CEngine() {}
 
-bool CEngine::initEngine(
-    std::string vConfigFile,
-    std::string vResourceDir) {
+bool CEngine::initEngine(std::string vConfigFile, std::string vResourceDir) {
   CEngine::m_ResourceDir = vResourceDir;
   if (!this->__initScene(vConfigFile)) {
     std::cout << "Scene init failed" << std::endl;
@@ -113,9 +112,8 @@ void CEngine::runEngine() {
     for (size_t i = 0; i < toAddModels.size(); ++i) {
       CEngine::m_Scene->m_Models.insert(
           std::make_pair(toAddModels[i].first, toAddModels[i].second));
-      for (auto* mesh : this->m_Scene->m_Models[toAddModels[i].first]->meshes) {
-        mesh->setupMesh();
-      }
+      this->m_Scene->m_Models[toAddModels[i].first]->setupMesh();
+      
     }
     toAddModels.clear();
 
@@ -385,9 +383,9 @@ void CEngine::__generateAxis() {
     v.Position = glm::vec3(0, 0, i);
     AxisPoint.push_back(v);
   }
-  CMesh* AxisMesh = new CPointCloudMesh(AxisPoint, glm::vec3(0, 1, 0));
+  CMesh* AxisMesh = new CPointCloudMesh(AxisPoint, glm::vec3(0, 1, 0),1.f);
   AxisMesh->setupMesh();
-  CEngine::m_Scene->m_SystemModel->meshes.push_back(AxisMesh);
+  CEngine::m_Scene->m_SystemModel.push_back(AxisMesh);
 }
 
 bool CEngine::__readProperties(string configFile) {
@@ -402,28 +400,29 @@ bool CEngine::__readProperties(string configFile) {
   d.ParseStream(isw);
 
   try {
-    // Model support
-    const rapidjson::Value& models = d["Model"];
-    assert(models.IsArray());
-    for (rapidjson::SizeType i = 0; i < models.Size(); i++) {
-      string modelName = models[i]["Name"].GetString();
-      string path = models[i]["Path"].GetString();
-      string modelType = models[i]["Type"].GetString();
-      bool isRender = models[i]["Render"].GetBool();
+    if (d.HasMember("Model")) {
+      const rapidjson::Value& meshes = d["Model"];
+      assert(meshes.IsArray());
+      for (rapidjson::SizeType i = 0; i < meshes.Size(); i++) {
+        string modelName = meshes[i]["Name"].GetString();
+        string path = meshes[i]["Path"].GetString();
+        string modelType = meshes[i]["Type"].GetString();
+        bool isRender = meshes[i]["Render"].GetBool();
 
-      if ("Mesh" == modelType)
-        CEngine::m_Scene->m_Models.insert(
-            std::make_pair(modelName, new CModel(path, Mesh, isRender)));
-      else if ("PointCloud" == modelType)
-        CEngine::m_Scene->m_Models.insert(
-            std::make_pair(modelName, new CModel(path, PointCloud, isRender)));
-      else if ("Window" == modelType)
-        CEngine::m_Scene->m_Models.insert(
-            std::make_pair(modelName, new CModel("", Window, isRender)));
+        if ("Mesh" == modelType)
+          CEngine::m_Scene->m_Models.insert(
+              std::make_pair(modelName, new CTriMesh(path, isRender)));
+        else if ("PointCloud" == modelType)
+          CEngine::m_Scene->m_Models.insert(
+              std::make_pair(modelName, new CPointCloudMesh(path, isRender)));
+        else if ("Window" == modelType) {
+          std::cout << "Unsupported Window now" << std::endl;
+          throw "Unsupported Window now";
+        }
+      }
     }
 
     // TODO Texture support
-
     // Render Pass support
     const rapidjson::Value& renderPasses = d["RenderPass"];
     assert(renderPasses.IsArray());
@@ -450,7 +449,8 @@ bool CEngine::__readProperties(string configFile) {
       if (renderPasses[i].HasMember("GeometryShader")) {
         std::string GeomFile = renderPasses[i]["GeometryShader"].GetString();
         GeomFile = CEngine::m_ResourceDir + GeomFile;
-        if (!pass->setShader(VertFile.c_str(), FragFile.c_str(), GeomFile.c_str())) {
+        if (!pass->setShader(VertFile.c_str(), FragFile.c_str(),
+                             GeomFile.c_str())) {
           std::cout << "Shader for " << passName << " init failed" << std::endl;
           return false;
         }
@@ -514,8 +514,8 @@ bool CEngine::__readProperties(string configFile) {
     }
 
     // Argument Support
-    const rapidjson::Value& arguments = d["Arguments"];
-    if (!arguments.IsNull()) {
+    if (d.HasMember("Arguments")) {
+      const rapidjson::Value& arguments = d["Arguments"];
       for (rapidjson::Value::ConstMemberIterator itr = arguments.MemberBegin();
            itr != arguments.MemberEnd(); ++itr) {
         if (itr->value.IsString())
@@ -730,7 +730,7 @@ float CEngine::m_deltaTime = 0;
 float CEngine::m_lastFrame = 0;
 bool CEngine::m_mouseClicked = false;
 std::mutex CEngine::m_addMeshMutex;
-std::vector<std::pair<std::string, CModel*>> CEngine::toAddModels;
+std::vector<std::pair<std::string, CMesh*>> CEngine::toAddModels;
 map<string, CPass*> CEngine::m_Pass;
 map<string, string> CEngine::m_Arguments;
 std::string CEngine::m_ResourceDir = "../../../LiteS-Engine/resources/";

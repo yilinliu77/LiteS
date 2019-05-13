@@ -45,13 +45,11 @@ void CVisualizeCamerasComponent::visualizeMyAsiaCamera(string vPath) {
   LiteS_Trajectory::saveTrajectoryUnreal(CAMERALOGUNREAL, cameraVertexVector,true);
   cameraMesh =
       new CPointCloudMesh(cameraVertexVector, glm::vec3(0.3f, 0.7f, 1.f), 15);
-  CModel* cameraModel = new CModel;
-  cameraModel->isRender = true;
-  cameraModel->meshes.push_back(cameraMesh);
-  cameraModel->isRenderNormal = true;
+  cameraMesh->isRender = true;
+  cameraMesh->isRenderNormal = true;
   // Lock the target arrays
   std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
-  CEngine::toAddModels.push_back(std::make_pair("camera", cameraModel));
+  CEngine::toAddModels.push_back(std::make_pair("camera", cameraMesh));
 
   cameraMesh->changeColor(glm::vec3(1.f, 0.f, 0.f), 0);
   cameraMesh->changeColor(glm::vec3(1.f, 0.f, 0.f), 1);

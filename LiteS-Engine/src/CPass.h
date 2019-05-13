@@ -3,7 +3,9 @@
 #define CPASS_H
 
 #include"CShader.h"
-#include"CModel.h"
+#include"CMesh.h"
+#include"CTriMesh.h"
+#include"CPointCloudMesh.h"
 #include "CScene.h"
 #include <GL/glew.h>
 

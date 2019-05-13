@@ -22,7 +22,7 @@ public:
 	bool m_shouldContinue;
 	bool m_shouldStep;
 
-	map<string, CPass*> m_Pass;
+	std::map<string, CPass*> m_Pass;
 	CScene * m_Scene;
 	std::string m_ResourceDir;
 };

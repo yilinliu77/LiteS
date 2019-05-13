@@ -2,11 +2,11 @@
 #ifndef CSCENE_H
 #define CSCENE_H
 
-#include"CModel.h"
 #include"CCamera.h"
 #include<map>
-
-using namespace std;
+#include <string>
+#include "CTriMesh.h"
+#include "CPointCloudMesh.h"
 
 class CScene {
 public:
@@ -17,11 +17,11 @@ public:
 
 	CCamera *m_Camera;
 
-	map<string, GLuint> m_Texture;
+	std::map<std::string, GLuint> m_Texture;
 
-	CModel* m_SystemModel;
+	std::vector<CMesh*> m_SystemModel;
 	
-	map<string, CModel*> m_Models;
+	std::map<std::string, CMesh*> m_Models;
 };
 
 #endif

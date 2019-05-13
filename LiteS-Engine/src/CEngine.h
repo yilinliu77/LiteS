@@ -29,7 +29,7 @@ class CEngine {
 
   // Post Process
   static std::mutex m_addMeshMutex;
-  static std::vector<std::pair<std::string, CModel*>> CEngine::toAddModels;
+  static std::vector<std::pair<std::string, CMesh*>> CEngine::toAddModels;
 
   CComponent* m_Component;
 

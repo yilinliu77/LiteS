@@ -5,6 +5,9 @@ build
 .vs
 .vscode
 
+my_test/*
+ny_test/*
+
 # Prerequisites
 *.d
 

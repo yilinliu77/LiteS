@@ -52,23 +52,22 @@ class BVHAccel {
   std::vector<Tri> orderedTriangles;
   std::vector<LinearBVHNode> nodes;
 
-  BVHAccel(const std::vector<CMesh*>& p) : splitMethod(SAH) {
-    if (p.size() == 0) return;
+  BVHAccel(const CMesh* p) : splitMethod(SAH) {
+    if (p== nullptr) return;
 
-    for (auto* mesh : p) {
-      for (int i = 0; i < mesh->indices.size() / 3; ++i) {
-        Tri t(mesh->vertices[mesh->indices[i * 3]],
-              mesh->vertices[mesh->indices[i * 3 + 1]],
-              mesh->vertices[mesh->indices[i * 3 + 2]]);
-        totalTriangles.push_back(t);
-      }
+
+    for (int i = 0; i < p->indices.size() / 3; ++i) {
+      Tri t(p->vertices[p->indices[i * 3]],
+            p->vertices[p->indices[i * 3 + 1]],
+            p->vertices[p->indices[i * 3 + 2]]);
+      totalTriangles.push_back(t);
     }
+
 
     totalLinearNodes = 0;
 
     // init
     BVHBuildNode* root;
-    std::vector<CMesh*> pClone(p);
     int totalNodes = 0;
     root = recursiveBuildTree(totalTriangles, 0, (int)totalTriangles.size(),
                               &totalNodes, orderedTriangles);

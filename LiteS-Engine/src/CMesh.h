@@ -3,9 +3,10 @@
 
 //#define GLM_ENABLE_EXPERIMENTAL
 
-#include <iostream>
-#include <vector>
 #include <algorithm>
+#include <iostream>
+#include <string>
+#include <vector>
 
 #include <glm/glm.hpp>
 
@@ -66,6 +67,60 @@ struct Ray {
   float tMin;
 };
 
+struct SurfaceInteraction {
+  glm::vec3 pHit;
+  float t;
+  SurfaceInteraction() {
+    t = std::numeric_limits<float>::max();
+    pHit = glm::vec3(0.f);
+  }
+  SurfaceInteraction(glm::vec3 pHit, float t) : pHit(pHit), t(t) {}
+};
+
+struct Vertex {
+  glm::vec3 Position;
+  glm::vec3 Normal;
+  glm::vec2 TexCoords;
+  glm::vec3 Color;
+
+  Vertex()
+      : Position(glm::vec3(0, 0, 0)),
+        Normal(glm::vec3(0, 0, 0)),
+        TexCoords(glm::vec2(0, 0)),
+        Color(glm::vec3(1.f, 1.f, 1.f)) {}
+
+  Vertex(glm::vec3 vPosition, glm::vec3 vNormal, glm::vec3 vColor)
+      : Position(vPosition),
+        Normal(vNormal),
+        TexCoords(glm::vec2(0, 0)),
+        Color(vColor) {}
+};
+
+struct Texture {
+  unsigned int id;
+  std::string type;
+  aiString path;
+};
+
+struct MeshMaterial {
+  MeshMaterial() {
+    diffuse = glm::vec3(0.0f);
+    specular = glm::vec3(0.0f);
+    shininess = 1;
+    shadingModel = 0;
+    opacity = 1;
+    wireframe = 0;
+    name = "";
+  }
+  glm::vec3 diffuse;
+  glm::vec3 specular;
+  float shininess;
+  int shadingModel;
+  float opacity;
+  int wireframe;
+  std::string name;
+};
+
 struct Bounds3f {
   glm::vec3 pMin, pMax;
 
@@ -74,6 +129,19 @@ struct Bounds3f {
 
   Bounds3f(const glm::vec3& pMin, const glm::vec3& pMax)
       : pMin(pMin), pMax(pMax) {}
+
+  Bounds3f(std::vector<Vertex> const& vVertex) {
+    pMin = glm::vec3(INFINITY, INFINITY, INFINITY);
+    pMax = glm::vec3(-INFINITY, -INFINITY, -INFINITY);
+    for (int i = 0; i < vVertex.size(); ++i) {
+      pMin[0] = std::min(pMin[0], vVertex[i].Position[0]);
+      pMin[1] = std::min(pMin[1], vVertex[i].Position[1]);
+      pMin[2] = std::min(pMin[2], vVertex[i].Position[2]);
+      pMax[0] = std::max(pMax[0], vVertex[i].Position[0]);
+      pMax[1] = std::max(pMax[1], vVertex[i].Position[1]);
+      pMax[2] = std::max(pMax[2], vVertex[i].Position[2]);
+    }
+  }
 
   Bounds3f unionBounds(const Bounds3f& b) {
     if (pMax == glm::vec3(0, 0, 0) && pMin == glm::vec3(0, 0, 0)) return b;
@@ -172,60 +240,6 @@ struct Bounds3f {
   }
 };
 
-struct SurfaceInteraction {
-  glm::vec3 pHit;
-  float t;
-  SurfaceInteraction() {
-    t = std::numeric_limits<float>::max();
-    pHit = glm::vec3(0.f);
-  }
-  SurfaceInteraction(glm::vec3 pHit, float t) : pHit(pHit), t(t) {}
-};
-
-struct Vertex {
-  glm::vec3 Position;
-  glm::vec3 Normal;
-  glm::vec2 TexCoords;
-  glm::vec3 Color;
-
-  Vertex()
-      : Position(glm::vec3(0, 0, 0)),
-        Normal(glm::vec3(0, 0, 0)),
-        TexCoords(glm::vec2(0, 0)),
-        Color(glm::vec3(1.f, 1.f, 1.f)) {}
-
-  Vertex(glm::vec3 vPosition, glm::vec3 vNormal, glm::vec3 vColor)
-      : Position(vPosition),
-        Normal(vNormal),
-        TexCoords(glm::vec2(0, 0)),
-        Color(vColor) {}
-};
-
-struct Texture {
-  unsigned int id;
-  std::string type;
-  aiString path;
-};
-
-struct MeshMaterial {
-  MeshMaterial() {
-    diffuse = glm::vec3(0.0f);
-    specular = glm::vec3(0.0f);
-    shininess = 1;
-    shadingModel = 0;
-    opacity = 1;
-    wireframe = 0;
-    name = "";
-  }
-  glm::vec3 diffuse;
-  glm::vec3 specular;
-  float shininess;
-  int shadingModel;
-  float opacity;
-  int wireframe;
-  std::string name;
-};
-
 struct Tri {
   Tri() {}
   Tri(Vertex vVertex1, Vertex vVertex3, Vertex vVertex2)
@@ -259,11 +273,11 @@ struct Tri {
     glm::vec3 edge1 = v3.Position - v1.Position;
     glm::vec3 v0 = v1.Position - v;
 
-    float a =glm::dot(edge0,edge0);
-    float b = glm::dot(edge0,edge1);
-    float c =glm::dot(edge1,edge1);
-    float d =glm::dot(edge0,v0);
-    float e =glm::dot(edge1,v0);
+    float a = glm::dot(edge0, edge0);
+    float b = glm::dot(edge0, edge1);
+    float c = glm::dot(edge1, edge1);
+    float d = glm::dot(edge0, v0);
+    float e = glm::dot(edge1, v0);
 
     float det = a * c - b * b;
     float s = b * e - c * d;
@@ -368,6 +382,8 @@ class CMesh {
   std::vector<unsigned int> indices;
   MeshMaterial material;
   std::vector<Texture> textures;
+  std::vector<Texture> textures_loaded;
+  std::string directory;
 
   /*  Render data  */
   Bounds3f bounds;
@@ -378,19 +394,15 @@ class CMesh {
   static GLuint boundIndex[36];
   std::vector<Vertex> NormalPoint;
 
-  virtual void Draw(CShader* shader) = 0;
+  bool isRenderNormal;
+  bool isRender;
+
+  virtual void Draw(CShader* shader, bool vIsNormal)=0;
 
   virtual void Draw(CShader* shader, glm::mat4& vModelMatrix) = 0;
 
   Bounds3f getBounds() { return this->bounds; }
   glm::vec3 getCentroid() { return this->bounds.getCentroid(); }
-
-  bool Intersect(Ray& ray, SurfaceInteraction* isect);
-
-  bool IntersectP(const Ray& ray);
-
-  // virtual void setMesh(std::vector<Vertex> vertices, std::vector<unsigned
-  // int> indices, MeshMaterial material) = 0;
 
   virtual void setupMeshWithIndex() {}
   virtual void setupMesh() {}
@@ -404,6 +416,14 @@ class CMesh {
   virtual void changeNormal(glm::vec3 vNewNormal, unsigned aIndex) {}
 
   static void saveMesh(const CMesh* v_mesh, std::string v_outName);
+
+  void loadMaterialTextures(aiMaterial* mat, aiTextureType type,
+                            std::string typeName,
+                            std::vector<Texture>& textures);
+
+  void processNode(aiNode* node, const aiScene* scene);
+
+  void loadMeshFromFile(const std::string& vPath, bool vIsRender = false);
 };
 
 #endif

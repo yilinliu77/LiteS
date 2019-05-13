@@ -1,5 +1,5 @@
 
-#include "CRemovePointInsideComponent.h"
+#include "CCalculateAverageDistanceComponent.h"
 #include <CEngine.h>
 #include <tbb/blocked_range.h>
 #include <tbb/blocked_range2d.h>
@@ -65,64 +65,18 @@ std::vector<int> ranks;
 // Normal.z, distance) )
 vector<vector<std::pair<glm::vec4, glm::vec4>>> obsRays;
 
-CPathGenarateComponent::CPathGenarateComponent(const map<string, CPass*>& vPass,
+CCalculateAverageComponent::CCalculateAverageComponent(
+    const map<string, CPass*>& vPass,
 	CScene* vScene,
 	const std::string vResourceDir)
 	: CPointCloudComponent(vPass, vScene, vResourceDir) {
 	DisplayPass = this->m_Pass.at("display");
 }
 
-CPathGenarateComponent::~CPathGenarateComponent() = default;
+CCalculateAverageComponent::~CCalculateAverageComponent() = default;
 
-void CPathGenarateComponent::extraAlgorithm() {
-  return;
-	CMesh* pointCloud = this->m_Scene->m_Models.at("point");
-  CMesh* meshModel = this->m_Scene->m_Models.at("gt_mesh");
-        BVHACCEL::BVHAccel bvhTree(meshModel);
-
-	const glm::vec3& boundsMax = pointCloud->bounds.pMax;
-	const glm::vec3& boundsMin = pointCloud->bounds.pMin;
-	const size_t numPoint = pointCloud->vertices.size();
-
-	std::vector<Vertex> outVertex;
-	std::vector<bool> pointSeen(numPoint, false);
-
-	const float height = boundsMax[2] + 10.f;
-	std::vector<glm::vec3> cameraPos;
-	float step = 30.f;
-	for (float x = boundsMin[0] - 60.f; x < boundsMax[0] + 60.f; x += step) {
-		for (float y = boundsMin[1] - 60.f; y < boundsMax[1] + 60.f; y += step) {
-			cameraPos.push_back(glm::vec3(x, y, height));
-		}
-	}
-	size_t cameraIndex = 0;
-	for (auto& itemCamera : cameraPos) {
-		tbb::parallel_for(tbb::blocked_range<size_t>(0, numPoint)
-			, [&](const tbb::blocked_range<size_t> & r) {
-				for (size_t i = r.begin(); i != r.end(); ++i) {
-					const glm::vec3& pointPos = pointCloud->vertices[i].Position;
-					Ray ray(itemCamera, glm::normalize(pointPos - itemCamera));
-					SurfaceInteraction sr;
-					if (bvhTree.Intersect(ray, &sr)) {
-						if (glm::length(sr.pHit - pointPos) < 1e-1f)
-							pointSeen[i] = true;
-					}
-					else
-						pointSeen[i] = true;
-				}
-			}
-		);
-		std::cout << cameraIndex << "/" << cameraPos.size() << std::endl;
-		cameraIndex += 1;
-	}
-
-
-	for (size_t i = 0; i < pointCloud->vertices.size(); ++i) {
-		if (pointSeen[i])
-			outVertex.push_back(pointCloud->vertices[i]);
-	}
-	CMesh* outMesh = new CPointCloudMesh(outVertex);
-	outMesh->saveMesh(outMesh, "../../../my_test/inside_cleaned.ply");
+void CCalculateAverageComponent::extraAlgorithm() {
+  
 
 	std::cout << "Extra Algorithm done" << endl;
 
@@ -130,4 +84,4 @@ void CPathGenarateComponent::extraAlgorithm() {
 	return;
 }
 
-void CPathGenarateComponent::extraInit() {}
+void CCalculateAverageComponent::extraInit() {}
