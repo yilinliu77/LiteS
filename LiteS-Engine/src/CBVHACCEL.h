@@ -83,7 +83,7 @@ class BVHAccel {
     return orderedTriangles;
   }
 
-  bool BVHAccel::Intersect(Ray& ray, SurfaceInteraction* isect) const {
+  bool Intersect(Ray& ray, SurfaceInteraction* isect) const {
     if (nodes.empty()) return false;
     bool hit = false;
     glm::vec3 invDir(std::min(1 / ray.d.x, 99999999.0f),
@@ -123,7 +123,7 @@ class BVHAccel {
     return hit;
   }
 
-  std::pair<float, glm::vec3> BVHAccel::KNearest(const glm::vec3 vPoint) {
+  std::pair<float, glm::vec3> KNearest(const glm::vec3 vPoint) {
     glm::vec3 closetPoint;
     float closetLength = 99999999.f;
     int toVisitOffset = 0, currentNodeIndex = 0;
@@ -166,7 +166,7 @@ class BVHAccel {
     return {closetLength, closetPoint};
   }
 
-  bool BVHAccel::Visible(glm::vec3 vOberveVertex, glm::vec3 vVertex,
+  bool Visible(glm::vec3 vOberveVertex, glm::vec3 vVertex,
                          float margin = 0) {
     if (margin > 0) {
       vVertex.z += margin;
@@ -191,7 +191,7 @@ class BVHAccel {
     return false;
   }
 
-  bool BVHAccel::strongVisible(glm::vec3 vCameraPos,
+  bool strongVisible(glm::vec3 vCameraPos,
                                glm::vec3 vCameraOrientation,
                                glm::vec3 vSamplePosition, float vDMAX) {
     glm::vec3 sampleToCamera = vCameraPos - vSamplePosition;

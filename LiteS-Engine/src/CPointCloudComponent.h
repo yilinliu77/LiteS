@@ -1,6 +1,7 @@
 #ifndef CPOINTCLOUDCOMPONENT_H
 #define CPOINTCLOUDCOMPONENT_H
 #include <mutex>
+#include<condition_variable>
 #include "CComponent.h"
 #include "CPass.h"
 

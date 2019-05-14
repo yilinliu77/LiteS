@@ -16,7 +16,7 @@ template <typename T>
 std::vector<T> splitString(std::string str, std::string tok) {
   size_t splitPos;
   size_t psplitPos;
-  istringstream ss;
+  std::istringstream ss;
   std::vector<T> out;
   T temp;
   splitPos = str.find(tok, 0);

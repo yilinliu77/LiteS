@@ -3,6 +3,7 @@
 #ifndef CENGINE_H
 #define CENGINE_H
 #include <mutex>
+#include<thread>
 #include "CComponent.h"
 #include "CPass.h"
 #include "CScene.h"
@@ -29,7 +30,7 @@ class CEngine {
 
   // Post Process
   static std::mutex m_addMeshMutex;
-  static std::vector<std::pair<std::string, CMesh*>> CEngine::toAddModels;
+  static std::vector<std::pair<std::string, CMesh*>> toAddModels;
 
   CComponent* m_Component;
 

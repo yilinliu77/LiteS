@@ -18,9 +18,9 @@ add_executable(T-VisualizeCameras ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_FI
 add_dependencies(T-VisualizeCameras LiteS)
 #add_dependencies(T-VisualizeCameras LiteS-CUDA)
 
-#target_link_libraries(T-VisualizeCameras PRIVATE TBB::tbb GLEW::GLEW glfw assimp::assimp imgui::imgui
+#target_link_libraries(T-VisualizeCameras PRIVATE TBB::tbb GLEW::GLEW glfw ${ASSIMP_LIBRARIES} imgui::imgui
 #LiteS LiteS-CUDA)
-target_link_libraries(T-VisualizeCameras PRIVATE TBB::tbb GLEW::GLEW glfw assimp::assimp imgui::imgui
+target_link_libraries(T-VisualizeCameras PRIVATE TBB::tbb GLEW::GLEW glfw ${ASSIMP_LIBRARIES} imgui::imgui
 LiteS)
 #set_target_properties(T-VisualizeCameras PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 

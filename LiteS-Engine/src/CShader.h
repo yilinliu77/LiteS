@@ -4,8 +4,8 @@
 #define CSHADER_H
 
 #include <GL/glew.h>
-#include <GLM/glm.hpp>
-#include <GLM/gtc/matrix_transform.hpp>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include <string>
 #include <fstream>
