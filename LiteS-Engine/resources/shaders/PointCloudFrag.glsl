@@ -7,7 +7,9 @@ in VS_OUT {
     vec3 Color;  
 } gs_in;
 
+in vec3 fColor;
+
 void main()
 {
-	FragColor = vec4(gs_in.Color, 1.0);
+  FragColor = vec4(gs_in.Color, 1.0);
 }

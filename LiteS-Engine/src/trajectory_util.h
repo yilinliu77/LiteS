@@ -44,7 +44,8 @@ void loadTrajectoryMVESpline(const std::string vPath,
       vCameraVertexVector.back().Position = glm::vec3(x, y, z);
       vCameraVertexVector.back().Normal =
           glm::normalize(glm::vec3(unitVec[0], unitVec[1], unitVec[2]));
-      getline(ifs, line);
+      line = "";
+	  getline(ifs, line);
     }
 
     ifs.close();

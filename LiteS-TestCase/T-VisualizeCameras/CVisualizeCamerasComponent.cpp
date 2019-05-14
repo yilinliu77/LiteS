@@ -27,9 +27,10 @@
 const char CAMERALOG[] = "../../../my_test/camera.log";
 const char CAMERALOGUNREAL[] = "../../../my_test/cameraUnreal.log";
 
-CVisualizeCamerasComponent::CVisualizeCamerasComponent(const map<string, CPass*>& vPass,
-                                               CScene* vScene,const std::string vResourceDir)
-    : CPointCloudComponent(vPass, vScene,vResourceDir) {
+CVisualizeCamerasComponent::CVisualizeCamerasComponent(
+    const map<string, CPass*>& vPass, CScene* vScene,
+    const std::string vResourceDir)
+    : CPointCloudComponent(vPass, vScene, vResourceDir) {
   DisplayPass = this->m_Pass.at("display");
 }
 
@@ -37,12 +38,16 @@ CVisualizeCamerasComponent::~CVisualizeCamerasComponent() = default;
 
 void CVisualizeCamerasComponent::visualizeMyAsiaCamera(string vPath) {
   CMesh* cameraMesh;
+  CMesh* triMesh = this->m_Scene->m_Models.at("proxy_mesh");
+  CMesh* pointMesh = this->m_Scene->m_Models.at("proxy_point");
+
   vector<Vertex> cameraVertexVector;
 
   LiteS_Trajectory::loadTrajectoryMVESpline(vPath, cameraVertexVector);
 
   LiteS_Trajectory::saveTrajectory(CAMERALOG, cameraVertexVector);
-  LiteS_Trajectory::saveTrajectoryUnreal(CAMERALOGUNREAL, cameraVertexVector,true);
+  LiteS_Trajectory::saveTrajectoryUnreal(CAMERALOGUNREAL, cameraVertexVector,
+                                         true);
   cameraMesh =
       new CPointCloudMesh(cameraVertexVector, glm::vec3(0.3f, 0.7f, 1.f), 15);
   cameraMesh->isRender = true;
@@ -51,8 +56,32 @@ void CVisualizeCamerasComponent::visualizeMyAsiaCamera(string vPath) {
   std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
   CEngine::toAddModels.push_back(std::make_pair("camera", cameraMesh));
 
-  cameraMesh->changeColor(glm::vec3(1.f, 0.f, 0.f), 0);
-  cameraMesh->changeColor(glm::vec3(1.f, 0.f, 0.f), 1);
+  BVHACCEL::BVHAccel bvhTree(triMesh);
+  std::vector<float> distances(cameraVertexVector.size());
+  tbb::parallel_for(tbb::blocked_range<size_t>(0, cameraMesh->vertices.size()),
+                    [&](tbb::blocked_range<size_t>& r) {
+                      for (size_t i = r.begin(); i < r.end(); i++) {
+                        SurfaceInteraction sr;
+                        Ray ray(cameraVertexVector[i].Position,
+                                cameraVertexVector[i].Normal);
+                        
+						if (bvhTree.Intersect(ray, &sr)) {
+                          distances[i] = sr.t;
+                        }
+                      }
+                    });
+  float totalDistance = std::reduce(distances.begin(), distances.end());
+  std::vector<float>::iterator minDistanceIter =
+      std::min_element(distances.begin(), distances.end());
+  cameraMesh->changeColor(glm::vec3(1.f, 0.f, 0.f),
+                          std::distance(distances.begin(), minDistanceIter));
+  float maxDistance = *std::max_element(distances.begin(), distances.end());
+
+  std::cout << "Distance Size: " << cameraVertexVector.size() << std::endl;
+  std::cout << "Min Distance: " << *minDistanceIter << std::endl;
+  std::cout << "Max Distance: " << maxDistance << std::endl;
+  std::cout << "Average Distance: " << totalDistance / cameraVertexVector.size()
+            << std::endl;
 }
 
 void CVisualizeCamerasComponent::extraAlgorithm() {

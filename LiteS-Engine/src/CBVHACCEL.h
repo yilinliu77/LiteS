@@ -53,7 +53,7 @@ class BVHAccel {
   std::vector<LinearBVHNode> nodes;
 
   BVHAccel(const CMesh* p) : splitMethod(SAH) {
-    if (p== nullptr) return;
+    if (p == nullptr) return;
 
 
     for (int i = 0; i < p->indices.size() / 3; ++i) {
@@ -96,7 +96,9 @@ class BVHAccel {
     while (true) {
       const LinearBVHNode* node = &nodes[currentNodeIndex];
       // Check ray against BVH node
-      if (node->bounds.IntersectP(ray, invDir, dirIsNeg)) {
+      //if (node->bounds.IntersectP(ray, invDir, dirIsNeg)) {
+      float a, b;
+      if (node->bounds.Intersect(ray,&a,&b)){
         if (node->nObject > 0) {
           // Intersect ray with primitives in leaf BVH node
           for (int i = 0; i < node->nObject; ++i)
