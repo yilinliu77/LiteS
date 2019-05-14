@@ -190,6 +190,29 @@ struct Bounds3f {
     return ret;
   }
 
+  bool Intersect(const Ray& ray, float* hitt0,
+                                     float* hitt1) const {
+    float t0 = 0, t1 = ray.tMax;
+    for (int i = 0; i < 3; ++i) {
+      // Update interval for _i_th bounding box slab
+      float invRayDir = 1 / ray.d[i];
+      float tNear = (pMin[i] - ray.o[i]) * invRayDir;
+      float tFar = (pMax[i] - ray.o[i]) * invRayDir;
+
+      // Update parametric interval from slab intersection $t$ values
+      if (tNear > tFar) std::swap(tNear, tFar);
+
+      // Update _tFar_ to ensure robust ray--bounds intersection
+      tFar *= 1 + 2 * gamma(3);
+      t0 = tNear > t0 ? tNear : t0;
+      t1 = tFar < t1 ? tFar : t1;
+      if (t0 > t1) return false;
+    }
+    if (hitt0) *hitt0 = t0;
+    if (hitt1) *hitt1 = t1;
+    return true;
+  }
+
   bool IntersectP(const Ray& ray, const glm::vec3& invDir,
                   const int dirIsNeg[3]) const {
     // Check for ray intersection against $x$ and $y$ slabs
