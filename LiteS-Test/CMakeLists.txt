@@ -27,5 +27,5 @@ include_directories (../LiteS-Engine/src/)
 add_executable(LiteS-UnitTest ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_FILES})
 add_dependencies(LiteS-UnitTest LiteS)
 
-target_link_libraries(LiteS-UnitTest GLEW::GLEW glfw assimp::assimp imgui::imgui LiteS PNG::PNG TIFF::TIFF ${JPEG_LIBRARIES} GTest::GTest GTest::Main)
+target_link_libraries(LiteS-UnitTest GLEW::GLEW glfw ${ASSIMP_LIBRARIES} imgui::imgui LiteS PNG::PNG TIFF::TIFF ${JPEG_LIBRARIES} GTest::GTest GTest::Main)
 

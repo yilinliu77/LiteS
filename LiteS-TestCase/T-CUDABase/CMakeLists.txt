@@ -8,7 +8,7 @@ include(CheckLanguage)
 check_language(CUDA)
 
 #set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-gencode arch=compute_52,code=sm_52)
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler \"/wd 4819\"" )
+#set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler \"/wd 4819\"" )
 set(CMAKE_CUDA_STANDARD 11)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_EXTENSIONS ON)
@@ -34,5 +34,5 @@ file(GLOB HEADER_FILES ./*.h)
 
 add_executable(T-CUDABase ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_FILES})
 
-#target_link_libraries(T-CUDABase GLEW::GLEW glfw assimp::assimp imgui::imgui)
+#target_link_libraries(T-CUDABase GLEW::GLEW glfw ${ASSIMP_LIBRARIES} imgui::imgui)
 #set_target_properties(T-CUDABase PROPERTIES CUDA_SEPARABLE_COMPILATION ON)

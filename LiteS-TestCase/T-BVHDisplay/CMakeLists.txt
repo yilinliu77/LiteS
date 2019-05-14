@@ -35,5 +35,5 @@ include_directories (../../LiteS-Engine/src/)
 add_executable(T-BVHDisplay ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_FILES})
 add_dependencies(T-BVHDisplay LiteS)
 
-target_link_libraries(T-BVHDisplay GLEW::GLEW glfw assimp::assimp imgui::imgui LiteS)
+target_link_libraries(T-BVHDisplay GLEW::GLEW glfw ${ASSIMP_LIBRARIES} imgui::imgui LiteS)
 

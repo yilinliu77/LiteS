@@ -29,5 +29,5 @@ include_directories (${ASSIMP_INCLUDE_DIRS})
 add_executable(T-SFM ${SOURCE_FILES} ${HEADER_FILES})
 add_dependencies(T-SFM LiteS)
 
-target_link_libraries(T-SFM LiteS ${OpenCV_LIBS} ${FREEIMAGE_LIBRARY} GLEW::GLEW TBB::tbb ceres assimp::assimp GTest::GTest GTest::Main)
+target_link_libraries(T-SFM LiteS ${OpenCV_LIBS} ${FREEIMAGE_LIBRARY} GLEW::GLEW TBB::tbb ceres ${ASSIMP_LIBRARIES} GTest::GTest GTest::Main)
  

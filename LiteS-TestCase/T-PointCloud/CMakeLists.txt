@@ -5,7 +5,7 @@ project(T-PointCloud)
 #set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build)
 
 find_package(glfw3 CONFIG REQUIRED)
-find_package(glew CONFIG REQUIRED)
+find_package(GLEW REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
@@ -28,5 +28,5 @@ add_executable(T-PointCloud ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_FILES})
 
 add_dependencies(T-PointCloud LiteS)
 
-target_link_libraries(T-PointCloud GLEW::GLEW glfw assimp::assimp imgui::imgui LiteS)
+target_link_libraries(T-PointCloud GLEW::GLEW glfw ${ASSIMP_LIBRARIES} imgui::imgui LiteS)
 

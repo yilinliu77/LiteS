@@ -38,5 +38,5 @@ link_directories ("C:/repos/Graphics/MODELING/SFM_PIPELINE/PathPlaning/REFERENCE
 add_executable(T-ProxyGenerate ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_FILES})
 add_dependencies(T-ProxyGenerate LiteS)
 
-target_link_libraries(T-ProxyGenerate GLEW::GLEW glfw assimp::assimp imgui::imgui LiteS mve_fssr_d.lib mve_d.lib mve_util_d.lib PNG::PNG TIFF::TIFF ${JPEG_LIBRARIES})
+target_link_libraries(T-ProxyGenerate GLEW::GLEW glfw ${ASSIMP_LIBRARIES} imgui::imgui LiteS mve_fssr_d.lib mve_d.lib mve_util_d.lib PNG::PNG TIFF::TIFF ${JPEG_LIBRARIES})
 
