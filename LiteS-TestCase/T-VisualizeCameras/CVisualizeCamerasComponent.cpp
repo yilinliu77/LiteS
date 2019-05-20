@@ -44,6 +44,7 @@ void CVisualizeCamerasComponent::visualizeMyAsiaCamera(string vPath) {
   vector<Vertex> cameraVertexVector;
 
   LiteS_Trajectory::loadTrajectoryMVESpline(vPath, cameraVertexVector);
+  //LiteS_Trajectory::loadTrajectoryUnreal(vPath, cameraVertexVector);
 
   LiteS_Trajectory::saveTrajectory(CAMERALOG, cameraVertexVector);
   LiteS_Trajectory::saveTrajectoryUnreal(CAMERALOGUNREAL, cameraVertexVector,true);
@@ -69,7 +70,11 @@ void CVisualizeCamerasComponent::visualizeMyAsiaCamera(string vPath) {
                         }
                       }
                     });
-  float totalDistance = std::accumulate(distances.begin(), distances.end(),0.f);
+  size_t numInvalid = 0;
+  for (auto item : distances) {
+    if (item == 0) numInvalid += 1;
+  }
+  float totalDistance = std::reduce(distances.begin(), distances.end());
   std::vector<float>::iterator minDistanceIter =
       std::min_element(distances.begin(), distances.end());
   cameraMesh->changeColor(glm::vec3(1.f, 0.f, 0.f),
@@ -79,7 +84,7 @@ void CVisualizeCamerasComponent::visualizeMyAsiaCamera(string vPath) {
   std::cout << "Distance Size: " << cameraVertexVector.size() << std::endl;
   std::cout << "Min Distance: " << *minDistanceIter << std::endl;
   std::cout << "Max Distance: " << maxDistance << std::endl;
-  std::cout << "Average Distance: " << totalDistance / cameraVertexVector.size()
+  std::cout << "Average Distance: " << totalDistance / (cameraVertexVector.size()-numInvalid)
             << std::endl;
 }
 
