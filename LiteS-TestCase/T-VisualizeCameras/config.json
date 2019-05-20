@@ -7,7 +7,8 @@
     {
       "Name": "proxy_point",
       "Path1": "../../../my_test/1.ply",
-      "Path": "D:\\swap\\qiao/qiao_point.ply",
+      "Path": "D:\\swap\\cross/cross_point.ply",
+      "Path33": "D:\\swap\\goth/goth_point.ply",
       "Path11": "../../../my_test/qiao_point.ply",
       "Path111": "D:\\swap\\test/test_point.ply",
       "Path12": "D:\\swap\\jianzhu1_my_point.ply",
@@ -21,8 +22,9 @@
       "Name": "proxy_mesh",
       "Path5": "../../../my_test/qiao_mesh.ply",
       "Path1": "D:\\swap\\aoxing_mesh.ply",
-      "Path4": "D:\\swap\\ny/ny_mesh.ply",
-      "Path": "D:\\swap\\qiao/qiao_mesh.ply",
+      "Path33": "D:\\swap\\goth/goth_mesh.ply",
+      "Path": "D:\\swap\\cross/cross_mesh.ply",
+      "Path4": "D:\\swap\\uk/uk_mesh.ply",
       "Path3": "D:\\swap\\test/test_mesh.ply",
       "Path2": "D:\\swap\\cross/cross_mesh.ply",
       "Type": "Mesh",
@@ -42,9 +44,11 @@
     "spline_file3": "D:/swap/ny/ny_spline.csv",
     "spline_file11": "D:/swap/aoxing/aoxing_20--40-80-20.csv",
     "spline_file111": "d:/EXPERIEMENT/qiao_new/3-30-20-50-15/qiao_spline.csv",
-    "spline_file": "d:/EXPERIEMENT/qiao_new/3-30-20-50-15/qiao_spline.csv",
+    "spline_file223": "d:/EXPERIEMENT/qiao_new/3-30-20-50-15/qiao_spline.csv",
+    "spline_file1": "d:/EXPERIEMENT/uk_new/1-15-45-50-15/uk_spline.csv",
     "spline_file4": "D:/swap/jianzhu1/jianzhu1_40-13-90-5.csv",
     "spline_file2": "D:/swap/jianzhu1/jianzhu1_spline.csv",
-    "spline_file1": "D:/swap/ny/ny_gt.csv"
+    "spline_file4444": "d:/swap/cross/cross_spline.csv",
+    "spline_file": "d:/swap/LAST/uk_575.csv"
   }
 }
