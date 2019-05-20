@@ -43,7 +43,7 @@ float averageScore = 0;
 
 // Input Mesh
 CMesh* proxyPoint;
-BVHACCEL::BVHAccel* bvhTree;
+ACCEL::BVHAccel* bvhTree;
 
 CMesh* cameraMesh;
 vector<Vertex> cameraVertexVector;

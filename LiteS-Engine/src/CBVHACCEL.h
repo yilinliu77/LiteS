@@ -6,9 +6,11 @@
 #include <iostream>
 #include "CMesh.h"
 
+#include <stack>
+
 const int MAX_TRIANGLES_IN_NODE = 255;
 
-namespace BVHACCEL {
+namespace ACCEL {
 enum SplitMethod { SAH, HLBVH, Middle, EqualCounts };
 
 struct BVHBuildNode {
@@ -37,7 +39,7 @@ struct BVHBuildNode {
 
 struct LinearBVHNode {
   Bounds3f bounds;
-  float boundVertices[24];
+  float boundVertices[108];
   int objectOffset = -1;
   int secondChildOffset;
   int parentOffset;  // LAST
@@ -55,14 +57,11 @@ class BVHAccel {
   BVHAccel(const CMesh* p) : splitMethod(SAH) {
     if (p == nullptr) return;
 
-
     for (int i = 0; i < p->indices.size() / 3; ++i) {
-      Tri t(p->vertices[p->indices[i * 3]],
-            p->vertices[p->indices[i * 3 + 1]],
+      Tri t(p->vertices[p->indices[i * 3]], p->vertices[p->indices[i * 3 + 1]],
             p->vertices[p->indices[i * 3 + 2]]);
       totalTriangles.push_back(t);
     }
-
 
     totalLinearNodes = 0;
 
@@ -96,9 +95,9 @@ class BVHAccel {
     while (true) {
       const LinearBVHNode* node = &nodes[currentNodeIndex];
       // Check ray against BVH node
-      //if (node->bounds.IntersectP(ray, invDir, dirIsNeg)) {
+      // if (node->bounds.IntersectP(ray, invDir, dirIsNeg)) {
       float a, b;
-      if (node->bounds.Intersect(ray,&a,&b)){
+      if (node->bounds.Intersect(ray, &a, &b)) {
         if (node->nObject > 0) {
           // Intersect ray with primitives in leaf BVH node
           for (int i = 0; i < node->nObject; ++i)
@@ -128,39 +127,48 @@ class BVHAccel {
   std::pair<float, glm::vec3> KNearest(const glm::vec3 vPoint) {
     glm::vec3 closetPoint;
     float closetLength = 99999999.f;
-    int toVisitOffset = 0, currentNodeIndex = 0;
+    int currentNodeIndex = 0;
+    std::stack<int> nodeToVisit;
     while (true) {
       const LinearBVHNode* node = &nodes[currentNodeIndex];
       if (node->nObject > 0) {
         for (int i = 0; i < node->nObject; ++i) {
-          float length1 = glm::length(
-              orderedTriangles[node->objectOffset + i].v1.Position - vPoint);
-          float length2 = glm::length(
-              orderedTriangles[node->objectOffset + i].v2.Position - vPoint);
-          float length3 = glm::length(
-              orderedTriangles[node->objectOffset + i].v3.Position - vPoint);
-          if (length1 < closetLength) {
-            closetLength = length1;
-            closetPoint = orderedTriangles[node->objectOffset + i].v1.Position;
-          }
-          if (length2 < closetLength) {
-            closetLength = length2;
-            closetPoint = orderedTriangles[node->objectOffset + i].v2.Position;
-          }
-          if (length3 < closetLength) {
-            closetLength = length3;
-            closetPoint = orderedTriangles[node->objectOffset + i].v3.Position;
+          glm::vec3 localClosestPoint =
+              orderedTriangles[node->objectOffset + i].closetPoint(vPoint);
+          float localLength = glm::length(localClosestPoint - vPoint);
+
+          if (localLength < closetLength) {
+            closetLength = localLength;
+            closetPoint = localClosestPoint;
           }
         }
-        break;
+        if (nodeToVisit.empty()) break;
+        currentNodeIndex = nodeToVisit.top();
+        nodeToVisit.pop();
       } else {
-        if (glm::length(nodes[currentNodeIndex + 1].bounds.getCentroid() -
-                        vPoint) <
-            glm::length(nodes[node->secondChildOffset].bounds.getCentroid() -
-                        vPoint)) {
+        float leftLength = glm::length(
+            nodes[currentNodeIndex + 1].bounds.ClosestPoint(vPoint) - vPoint);
+        float rightLength = glm::length(
+            nodes[node->secondChildOffset].bounds.ClosestPoint(vPoint) -
+            vPoint);
+        bool leftIn = leftLength < closetLength;
+        bool rightIn = rightLength < closetLength;
+        if (leftIn && rightIn) {
+          if (leftLength < rightLength) {
+            nodeToVisit.push(node->secondChildOffset);
+            currentNodeIndex = currentNodeIndex + 1;
+          } else {
+            nodeToVisit.push(currentNodeIndex + 1);
+            currentNodeIndex = node->secondChildOffset;
+          }
+        } else if (leftIn)
           currentNodeIndex = currentNodeIndex + 1;
-        } else {
+        else if (rightIn)
           currentNodeIndex = node->secondChildOffset;
+        else {
+          if (nodeToVisit.empty()) break;
+          currentNodeIndex = nodeToVisit.top();
+          nodeToVisit.pop();
         }
       }
     }
@@ -168,8 +176,7 @@ class BVHAccel {
     return {closetLength, closetPoint};
   }
 
-  bool Visible(glm::vec3 vOberveVertex, glm::vec3 vVertex,
-                         float margin = 0) {
+  bool Visible(glm::vec3 vOberveVertex, glm::vec3 vVertex, float margin = 0) {
     if (margin > 0) {
       vVertex.z += margin;
       if (vOberveVertex.x > 0)
@@ -193,9 +200,8 @@ class BVHAccel {
     return false;
   }
 
-  bool strongVisible(glm::vec3 vCameraPos,
-                               glm::vec3 vCameraOrientation,
-                               glm::vec3 vSamplePosition, float vDMAX) {
+  bool strongVisible(glm::vec3 vCameraPos, glm::vec3 vCameraOrientation,
+                     glm::vec3 vSamplePosition, float vDMAX) {
     glm::vec3 sampleToCamera = vCameraPos - vSamplePosition;
     // Inside the frustum
     // 0.6f ~ cos(78.0f / 2 / 180.0f * pi)
@@ -329,46 +335,82 @@ class BVHAccel {
 
   int flattenBVHTree(BVHBuildNode* node, int* offset, int parentOffset) {
     totalLinearNodes++;
-    LinearBVHNode* linearBVHNode = &nodes[*offset];
-    linearBVHNode->parentOffset = parentOffset;
-    linearBVHNode->bounds = node->bounds;
+    LinearBVHNode& linearBVHNode = nodes[*offset];
+    linearBVHNode.parentOffset = parentOffset;
+    linearBVHNode.bounds = node->bounds;
     int myOffset = (*offset)++;
     if (node->leftChild != NULL && node->rightChild != NULL) {
-      linearBVHNode->axis = node->splitAxis;
+      linearBVHNode.axis = node->splitAxis;
       flattenBVHTree(node->leftChild, offset, myOffset);
-      linearBVHNode->secondChildOffset =
+      linearBVHNode.secondChildOffset =
           flattenBVHTree(node->rightChild, offset, myOffset);
-      linearBVHNode->nObject = 0;
-      linearBVHNode->objectOffset = -1;
+      linearBVHNode.nObject = 0;
+      linearBVHNode.objectOffset = -1;
     } else {
-      linearBVHNode->objectOffset = node->index;
-      linearBVHNode->nObject = node->nObjects;
+      linearBVHNode.objectOffset = node->index;
+      linearBVHNode.nObject = node->nObjects;
     }
-    float x =
-        (linearBVHNode->bounds.pMax[0] - linearBVHNode->bounds.pMin[0]) / 2;
-    float y =
-        (linearBVHNode->bounds.pMax[1] - linearBVHNode->bounds.pMin[1]) / 2;
-    float z =
-        (linearBVHNode->bounds.pMax[2] - linearBVHNode->bounds.pMin[2]) / 2;
+    float x = (linearBVHNode.bounds.pMax[0] - linearBVHNode.bounds.pMin[0]) / 2;
+    float y = (linearBVHNode.bounds.pMax[1] - linearBVHNode.bounds.pMin[1]) / 2;
+    float z = (linearBVHNode.bounds.pMax[2] - linearBVHNode.bounds.pMin[2]) / 2;
     glm::vec3 boundVerticesVector[] = {
-        linearBVHNode->bounds.getCentroid() + glm::vec3(x, y, z),
-        linearBVHNode->bounds.getCentroid() + glm::vec3(x, -y, z),
-        linearBVHNode->bounds.getCentroid() + glm::vec3(x, -y, -z),
-        linearBVHNode->bounds.getCentroid() + glm::vec3(x, y, -z),
-        linearBVHNode->bounds.getCentroid() + glm::vec3(-x, -y, -z),
-        linearBVHNode->bounds.getCentroid() + glm::vec3(-x, -y, z),
-        linearBVHNode->bounds.getCentroid() + glm::vec3(-x, y, z),
-        linearBVHNode->bounds.getCentroid() + glm::vec3(-x, y, -z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(x, y, z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(x, -y, z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(x, -y, -z),
+
+        linearBVHNode.bounds.getCentroid() + glm::vec3(x, y, z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(x, y, -z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(x, -y, -z),
+
+        linearBVHNode.bounds.getCentroid() + glm::vec3(-x, y, z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(-x, -y, z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(-x, -y, -z),
+
+        linearBVHNode.bounds.getCentroid() + glm::vec3(-x, y, z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(-x, y, -z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(-x, -y, -z),
+
+        linearBVHNode.bounds.getCentroid() + glm::vec3(x, y, -z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(-x, -y, -z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(-x, y, -z),
+
+        linearBVHNode.bounds.getCentroid() + glm::vec3(x, y, -z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(-x, -y, -z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(x, -y, -z),
+
+        linearBVHNode.bounds.getCentroid() + glm::vec3(x, y, z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(-x, -y, z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(-x, y, z),
+
+        linearBVHNode.bounds.getCentroid() + glm::vec3(x, y, z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(-x, -y, z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(x, -y, z),
+
+        linearBVHNode.bounds.getCentroid() + glm::vec3(x, y, z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(-x, y, z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(-x, y, -z),
+
+        linearBVHNode.bounds.getCentroid() + glm::vec3(x, y, z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(x, y, -z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(-x, y, -z),
+
+        linearBVHNode.bounds.getCentroid() + glm::vec3(x, -y, z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(-x, -y, z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(-x, -y, -z),
+
+        linearBVHNode.bounds.getCentroid() + glm::vec3(x, -y, z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(x, -y, -z),
+        linearBVHNode.bounds.getCentroid() + glm::vec3(-x, -y, -z),
     };
-    for (int i = 0; i < 8; ++i) {
-      linearBVHNode->boundVertices[3 * i] = boundVerticesVector[i][0];
-      linearBVHNode->boundVertices[3 * i + 1] = boundVerticesVector[i][1];
-      linearBVHNode->boundVertices[3 * i + 2] = boundVerticesVector[i][2];
+    for (int i = 0; i < 36; ++i) {
+      linearBVHNode.boundVertices[3 * i] = boundVerticesVector[i][0];
+      linearBVHNode.boundVertices[3 * i + 1] = boundVerticesVector[i][1];
+      linearBVHNode.boundVertices[3 * i + 2] = boundVerticesVector[i][2];
     }
 
     return myOffset;
   }
 };
-}  // namespace BVHACCEL
+}  // namespace ACCEL
 
 #endif  // BVHTREE_HEADER

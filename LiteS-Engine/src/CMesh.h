@@ -291,7 +291,7 @@ struct Tri {
   Vertex v3;
   Bounds3f bounds;
 
-  glm::vec3 closetPoint(const glm::vec3& v) {
+  const glm::vec3 closetPoint(const glm::vec3& v) const {
     glm::vec3 edge0 = v2.Position - v1.Position;
     glm::vec3 edge1 = v3.Position - v1.Position;
     glm::vec3 v0 = v1.Position - v;
@@ -419,6 +419,7 @@ class CMesh {
 
   bool isRenderNormal;
   bool isRender;
+  bool isLineRender;
 
   virtual void Draw(CShader* shader, bool vIsNormal)=0;
 

@@ -23,12 +23,13 @@ inline unsigned int divup(unsigned int a, unsigned int b) {
 }
 
 struct Point {
-  float3 position;
-  float3 normal;
+  glm::vec3 position;
+  glm::vec3 normal;
 };
 
-extern thrust::device_vector<CCDataStructure::Point> createDevicePointCloud(
-    CMesh* vPointCloud);
+extern void createDevicePointCloud(
+    CMesh* vPointCloud,
+    thrust::device_vector<CCDataStructure::Point>& vDPoints);
 
 extern thrust::device_vector<glm::vec4> createDeviceVectorGLM4(int vNum);
 extern thrust::device_vector<float3> createDeviceVectorGLM3(int vNum);
@@ -36,18 +37,18 @@ extern thrust::device_vector<float> createDeviceVectorFloat(int vNum);
 
 extern __device__ bool d_intersect();
 
-extern __device__ bool d_visible(BVHACCEL::LinearBVHNode* vNodes,
+extern __device__ bool d_visible(ACCEL::LinearBVHNode* vNodes,
                                  Tri* vTriangles, float3 vCameraPos,
                                  float3 vVertexPosition, float margin = 0);
 
 struct DBVHAccel {
-  BVHACCEL::LinearBVHNode* dBVHNodesPointer;
+  ACCEL::LinearBVHNode* dBVHNodesPointer;
   Tri* dTrianglesPointer;
   int numNodes;
   int numTriangles;
 };
 
-CCDataStructure::DBVHAccel* createDBVHAccel(const BVHACCEL::BVHAccel* bvhTree);
+CCDataStructure::DBVHAccel* createDBVHAccel(const ACCEL::BVHAccel* bvhTree);
 
 struct myFloat4 {
   float x, y, z, w;

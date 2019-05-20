@@ -46,7 +46,7 @@ void CVisualizeCamerasComponent::visualizeMyAsiaCamera(string vPath) {
   LiteS_Trajectory::loadTrajectoryMVESpline(vPath, cameraVertexVector);
 
   LiteS_Trajectory::saveTrajectory(CAMERALOG, cameraVertexVector);
-  LiteS_Trajectory::saveTrajectoryUnreal(CAMERALOGUNREAL, cameraVertexVector,false);
+  LiteS_Trajectory::saveTrajectoryUnreal(CAMERALOGUNREAL, cameraVertexVector,true);
   cameraMesh =
       new CPointCloudMesh(cameraVertexVector, glm::vec3(0.3f, 0.7f, 1.f), 15);
   cameraMesh->isRender = true;
@@ -55,7 +55,7 @@ void CVisualizeCamerasComponent::visualizeMyAsiaCamera(string vPath) {
   std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
   CEngine::toAddModels.push_back(std::make_pair("camera", cameraMesh));
 
-  BVHACCEL::BVHAccel bvhTree(triMesh);
+  ACCEL::BVHAccel bvhTree(triMesh);
   std::vector<float> distances(cameraVertexVector.size());
   tbb::parallel_for(tbb::blocked_range<size_t>(0, cameraMesh->vertices.size()),
                     [&](tbb::blocked_range<size_t>& r) {
@@ -69,7 +69,7 @@ void CVisualizeCamerasComponent::visualizeMyAsiaCamera(string vPath) {
                         }
                       }
                     });
-  float totalDistance = std::reduce(distances.begin(), distances.end());
+  float totalDistance = std::accumulate(distances.begin(), distances.end(),0.f);
   std::vector<float>::iterator minDistanceIter =
       std::min_element(distances.begin(), distances.end());
   cameraMesh->changeColor(glm::vec3(1.f, 0.f, 0.f),

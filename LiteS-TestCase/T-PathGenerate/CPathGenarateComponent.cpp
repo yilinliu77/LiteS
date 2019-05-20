@@ -48,7 +48,7 @@ float averageScore = 0;
 
 // Input Mesh
 CMesh* proxyPoint;
-BVHACCEL::BVHAccel* bvhTree;
+ACCEL::BVHAccel* bvhTree;
 
 CMesh* cameraMesh;
 vector<Vertex> cameraVertexVector;
@@ -240,15 +240,14 @@ void CPathGenarateComponent::generate_nadir() {
   cameraCandidate.resize(cameraVertexVector.size() * 4);
   cameraCandidateMesh =
       new CPointCloudMesh(cameraCandidate, glm::vec3(0.0f, 0.0f, 1.0f), 10);
-  CModel* cameraModel = new CModel;
-  cameraModel->isRender = true;
-  // cameraModel->meshes.push_back(cameraMesh);
-  cameraModel->meshes.push_back(cameraAdjustMesh);
-  cameraModel->meshes.push_back(cameraCandidateMesh);
-  cameraModel->isRenderNormal = true;
+  cameraAdjustMesh->isRender = true;
+  cameraCandidateMesh->isRender = true;
+  cameraAdjustMesh->isRenderNormal = true;
+  cameraCandidateMesh->isRenderNormal = true;
   // Lock the target arrays
   std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
-  CEngine::toAddModels.push_back(std::make_pair("camera", cameraModel));
+  CEngine::toAddModels.push_back(std::make_pair("camera", cameraAdjustMesh));
+  CEngine::toAddModels.push_back(std::make_pair("camera", cameraCandidateMesh));
 }
 
 std::pair<float, float> heuristicEvaluete(size_t vPointIndex,
@@ -832,7 +831,7 @@ void CPathGenarateComponent::simplexPoint() {
   obsRays.resize(proxyPoint->vertices.size());
 
   bvhTree =
-      new BVHACCEL::BVHAccel(this->m_Scene->m_Models.at("proxy_mesh")->meshes);
+      new ACCEL::BVHAccel(this->m_Scene->m_Models.at("proxy_mesh"));
 
   // update the obs rays
   tbb::parallel_for(size_t(0), proxyPoint->vertices.size(),
@@ -874,13 +873,11 @@ void CPathGenarateComponent::visualizeExistCamera() {
   }
   cameraMesh =
       new CPointCloudMesh(cameraVertexVector, glm::vec3(0.3f, 0.7f, 1.f), 20);
-  CModel* cameraModel = new CModel;
-  cameraModel->isRender = true;
-  cameraModel->meshes.push_back(cameraMesh);
-  cameraModel->isRenderNormal = true;
+  cameraMesh->isRender = true;
+  cameraMesh->isRenderNormal = true;
   // Lock the target arrays
   std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
-  CEngine::toAddModels.push_back(std::make_pair("camera", cameraModel));
+  CEngine::toAddModels.push_back(std::make_pair("camera", cameraMesh));
 
   tbb::parallel_for(size_t(0), proxyPoint->vertices.size(),
                     [=](const size_t vi) { initRays(vi); });
@@ -933,13 +930,11 @@ void CPathGenarateComponent::visualizeSurroundingsViewCamera() {
   }
   cameraMesh =
       new CPointCloudMesh(cameraVertexVector, glm::vec3(0.3f, 0.4f, 0.6f), 30);
-  CModel* cameraModel = new CModel;
-  cameraModel->isRender = true;
-  cameraModel->meshes.push_back(cameraMesh);
-  cameraModel->isRenderNormal = true;
+  cameraMesh->isRender = true;
+  cameraMesh->isRenderNormal = true;
   // Lock the target arrays
   std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
-  CEngine::toAddModels.push_back(std::make_pair("camera", cameraModel));
+  CEngine::toAddModels.push_back(std::make_pair("camera", cameraMesh));
 
   tbb::parallel_for(size_t(0), proxyPoint->vertices.size(),
                     [=](const size_t vi) { initRays(vi); });
@@ -973,13 +968,11 @@ void CPathGenarateComponent::visualizeRandomViewCamera() {
   }
   cameraMesh =
       new CPointCloudMesh(cameraVertexVector, glm::vec3(0.3f, 0.4f, 0.6f), 30);
-  CModel* cameraModel = new CModel;
-  cameraModel->isRender = true;
-  cameraModel->meshes.push_back(cameraMesh);
-  cameraModel->isRenderNormal = true;
+  cameraMesh->isRender = true;
+  cameraMesh->isRenderNormal = true;
   // Lock the target arrays
   std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
-  CEngine::toAddModels.push_back(std::make_pair("camera", cameraModel));
+  CEngine::toAddModels.push_back(std::make_pair("camera", cameraMesh));
 
   tbb::parallel_for(size_t(0), proxyPoint->vertices.size(),
                     [=](const size_t vi) { initRays(vi); });
@@ -1017,13 +1010,11 @@ void CPathGenarateComponent::visualizeAsiaCamera() {
   }
   cameraMesh =
       new CPointCloudMesh(cameraVertexVector, glm::vec3(0.3f, 0.7f, 1.f), 30);
-  CModel* cameraModel = new CModel;
-  cameraModel->isRender = true;
-  cameraModel->meshes.push_back(cameraMesh);
-  cameraModel->isRenderNormal = true;
+  cameraMesh->isRender = true;
+  cameraMesh->isRenderNormal = true;
   // Lock the target arrays
   std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
-  CEngine::toAddModels.push_back(std::make_pair("camera", cameraModel));
+  CEngine::toAddModels.push_back(std::make_pair("camera", cameraMesh));
 
   tbb::parallel_for(size_t(0), proxyPoint->vertices.size(),
                     [=](const size_t vi) { initRays(vi); });
@@ -1062,15 +1053,15 @@ std::ostream& operator<<(std::ostream& os, const float4& x) {
 }
 
 void CPathGenarateComponent::extraAlgorithm() {
-  CMesh* pointCloud = this->m_Scene->m_Models.at("proxy_point")->meshes[0];
+  CMesh* pointCloud = this->m_Scene->m_Models.at("proxy_point");
   size_t numPoints = pointCloud->vertices.size();
-  thrust::device_vector<CCDataStructure::Point> dPointCloud =
-      CCDataStructure::createDevicePointCloud(pointCloud);
+  thrust::device_vector<CCDataStructure::Point> dPointCloud;
+  CCDataStructure::createDevicePointCloud(pointCloud, dPointCloud);
   CCDataStructure::Point* dPointsPtr =
       thrust::raw_pointer_cast(&dPointCloud[0]);
 
-  BVHACCEL::BVHAccel* bvhTree =
-      new BVHACCEL::BVHAccel(this->m_Scene->m_Models.at("proxy_mesh")->meshes);
+  ACCEL::BVHAccel* bvhTree =
+      new ACCEL::BVHAccel(this->m_Scene->m_Models.at("proxy_mesh"));
   
   CCDataStructure::DBVHAccel* dBVHPointer = CCDataStructure::createDBVHAccel(bvhTree);
 

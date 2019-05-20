@@ -11,67 +11,21 @@
 #include "CBVHACCEL.h"
 #include "CPointCloudMesh.h"
 #include "util.h"
+#include "trajectory_util.h"
 
-const float overlap = 0.5;
-const float fov = 90;
+const float overlap = 0.8;
+const float fov = 60;
 const float aspect = 1.5;
 
 CGenerateNadirComponent::CGenerateNadirComponent(
     const map<string, CPass*>& vPass, CScene* vScene, std::string vResourceDir)
     : CPointCloudComponent(vPass, vScene,vResourceDir) {
   DisplayPass = this->m_Pass.at("display");
-  proxyPoint = vScene->m_Models.at("proxy_point")->meshes[0];
-}
-
-void writeFlightLog(std::vector<Vertex>& vVertexVector, string vLogPath,
-                    string vLogPathUnreal) {
-  /*
-  yaw=0 -> +y
-  +y -> -x == yaw increase
-  y = -y
-  */
-  ofstream fileOut;
-  ofstream fileOutUnreal;
-  fileOut.open(vLogPath, ios::out);
-  fileOutUnreal.open(vLogPathUnreal, ios::out);
-  int imageIndex = 0;
-  for (auto& item : vVertexVector) {
-    float x = -item.Position[0] * 100;
-    float y = item.Position[1] * 100;
-    float z = item.Position[2] * 100;
-
-    char s[30];
-    sprintf_s(s, "%04d.jpg", imageIndex);
-    string imageName(s);
-    fileOut << imageName << "," << item.Position[0] << "," << item.Position[1]
-            << "," << item.Position[2] << std::endl;
-
-    glm::vec3 direction(-item.Normal[0], item.Normal[1], item.Normal[2]);
-    direction = glm::normalize(direction);
-
-    float yaw = 0.f;
-    if (direction[0] != 0.f) yaw = std::atan(direction[1] / direction[0]);
-    if (direction[0] < 0) yaw += 3.1415926;
-    float pitch = 0.f;
-    if (direction[0] * direction[0] + direction[1] * direction[1] > 1e-3 ||
-        std::abs(direction[2]) > 1e-3)
-      pitch = -std::atan(direction[2] / std::sqrt(direction[0] * direction[0] +
-                                                  direction[1] * direction[1]));
-
-    pitch = pitch / 3.1415926 * 180;
-    yaw = yaw / 3.1415926 * 180 - 90.f;
-
-    // postAsiaPitchYaw(pitch, yaw);
-
-    fileOutUnreal << imageName << "," << x << "," << y << "," << z << ","
-                  << pitch << "," << 0 << "," << yaw << std::endl;
-
-    imageIndex++;
-  }
+  proxyPoint = vScene->m_Models.at("proxy_point");
 }
 
 void CGenerateNadirComponent::generate_nadir() {
-  glm::vec3 pMax(112, 84, 30), pMin(-95, -73, 0);
+  glm::vec3 pMax(70, 70, 40), pMin(-70, -70, 0);
   //pMax = glm::vec3(64, 46, 30);
   //pMin = glm::vec3(-65, -45, 0);
 
@@ -103,21 +57,20 @@ void CGenerateNadirComponent::generate_nadir() {
     cameraPos.y = startPos.y;
   }
 
-  writeFlightLog(cameraVertexVector 
-	  ,"../../../../my_test/nadir.log"
-	  ,"../../../../my_test/nadirUnreal.log" );
+  LiteS_Trajectory::saveTrajectory("../../../../my_test/nadir.log",
+                                   cameraVertexVector);
+  LiteS_Trajectory::saveTrajectoryUnreal("../../../../my_test/nadirUnreal.log",
+                                   cameraVertexVector,true);
 
   CPointCloudMesh* cameraMesh =
       new CPointCloudMesh(cameraVertexVector, glm::vec3(1.0f, 0.0f, 0.0f), 10);
 
-  CModel* cameraModel = new CModel;
-  cameraModel->isRender = true;
-  cameraModel->meshes.push_back(cameraMesh);
+  cameraMesh->isRender = true;
 
-  cameraModel->isRenderNormal = true;
+  cameraMesh->isRenderNormal = true;
   // Lock the target arrays
   std::lock_guard<std::mutex> lg(CEngine::m_addMeshMutex);
-  CEngine::toAddModels.push_back(std::make_pair("camera", cameraModel));
+  CEngine::toAddModels.push_back(std::make_pair("camera", cameraMesh));
 }
 
 void CGenerateNadirComponent::extraAlgorithm() {

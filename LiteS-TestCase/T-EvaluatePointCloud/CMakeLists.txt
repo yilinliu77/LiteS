@@ -16,5 +16,5 @@ add_executable(T-EvaluatePointCloud ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_
 
 add_dependencies(T-EvaluatePointCloud LiteS)
 
-target_link_libraries(T-EvaluatePointCloud ${ASSIMP_LIBRARIES} 
+target_link_libraries(T-EvaluatePointCloud assimp::assimp 
 TBB::tbb LiteS GLEW::GLEW  glfw imgui::imgui)

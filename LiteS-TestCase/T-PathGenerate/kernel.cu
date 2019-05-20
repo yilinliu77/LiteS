@@ -10,7 +10,7 @@ __global__ void updateRaysKernel(CCDataStructure::DBVHAccel* dBVH,
 
   int id = bx * blockDim.x + tx;
   if (id > numPoints) return;
-  float3 pointPosition = vPointCloud[id].position;
+  glm::vec3 pointPosition = vPointCloud[id].position;
   //CCDataStructure::d_visible(dBVH->dBVHNodesPointer, dBVH->dTrianglesPointer, vCameraPos,
   //                           pointPosition, 0.1f);
 

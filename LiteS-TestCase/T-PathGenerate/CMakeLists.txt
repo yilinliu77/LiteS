@@ -29,4 +29,4 @@ add_executable(T-PathGenerate ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_FILES}
 add_dependencies(T-PathGenerate LiteS)
 add_dependencies(T-PathGenerate LiteS-CUDA)
 
-target_link_libraries(T-PathGenerate PRIVATE TBB::tbb GLEW::GLEW glfw ${ASSIMP_LIBRARIES} imgui::imgui LiteS LiteS-CUDA)
+target_link_libraries(T-PathGenerate PRIVATE TBB::tbb GLEW::GLEW glfw assimp::assimp imgui::imgui LiteS LiteS-CUDA)

@@ -3,7 +3,7 @@
 
 int main() {
   CEngine engine;
-  if (!engine.initEngine("../../../LiteS-TestCase/T-RemovePointInside/config.json",
+  if (!engine.initEngine("../../../LiteS-TestCase/T-EvaluatePointCloud/config.json",
                          "../../../LiteS-Engine/resources/")) {
     // if
     // (!engine.initEngine("C:/repos/GRAPHICS/RENDERING/LiteS/LiteS-TestCase/T-PathGenerate/config.json"))

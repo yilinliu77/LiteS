@@ -45,7 +45,7 @@ void loadTrajectoryMVESpline(const std::string vPath,
       vCameraVertexVector.back().Normal =
           glm::normalize(glm::vec3(unitVec[0], unitVec[1], unitVec[2]));
       line = "";
-	  getline(ifs, line);
+      getline(ifs, line);
     }
 
     ifs.close();
@@ -65,10 +65,9 @@ void saveTrajectory(const std::string vPath,
       float x = item.Position[0];
       float y = item.Position[1];
       float z = item.Position[2];
-	  if (x > 1000 || x < -1000 || y > 1000 || y < -1000)
-		  continue;
+      if (x > 1000 || x < -1000 || y > 1000 || y < -1000) continue;
       char s[30];
-      sprintf_s(s, "%04d.jpg", imageIndex);
+      snprintf(s, 20, "%04d.jpg", imageIndex);
       std::string imageName(s);
       fileOut << imageName << "," << item.Position[0] << "," << item.Position[1]
               << "," << item.Position[2] << std::endl;
@@ -82,12 +81,11 @@ void saveTrajectory(const std::string vPath,
   }
 }
 
-void postAsia(float& vYaw) {
-	vYaw -= 90.f;
-}
+void postAsia(float& vYaw) { vYaw -= 90.f; }
 
 void saveTrajectoryUnreal(const std::string vPath,
-                          const std::vector<Vertex>& vCameraVertexVector,bool isPostProcess=false) {
+                          const std::vector<Vertex>& vCameraVertexVector,
+                          bool isPostProcess = false) {
   try {
     std::ofstream fileOutUnreal;
     fileOutUnreal.open(vPath, std::ios::out);
@@ -96,10 +94,9 @@ void saveTrajectoryUnreal(const std::string vPath,
       float x = -item.Position[0] * 100;
       float y = item.Position[1] * 100;
       float z = item.Position[2] * 100;
-	  if (x > 100000 || x < -100000|| y > 100000 || y < -100000)
-		  continue;
+      if (x > 100000 || x < -100000 || y > 100000 || y < -100000) continue;
       char s[30];
-      sprintf_s(s, "%04d.jpg", imageIndex);
+      snprintf(s, 20, "%04d.jpg", imageIndex);
       std::string imageName(s);
 
       glm::vec3 direction(-item.Normal[0], item.Normal[1], item.Normal[2]);
@@ -111,15 +108,15 @@ void saveTrajectoryUnreal(const std::string vPath,
       float pitch = 0.f;
       if (direction[0] * direction[0] + direction[1] * direction[1] > 1e-3 ||
           std::abs(direction[2]) > 1e-3)
-        pitch = std::acos(std::min(1.f,
+        pitch = std::acos(std::min(
+            1.f,
             glm::dot(glm::normalize(glm::vec3(direction[0], direction[1], 0)),
                      direction)));
 
       pitch = pitch / 3.1415926f * 180;
       yaw = yaw / 3.1415926f * 180;
 
-	  if (isPostProcess)
-		  postAsia(yaw);
+      if (isPostProcess) postAsia(yaw);
 
       fileOutUnreal << imageName << "," << x << "," << y << "," << z << ","
                     << pitch << "," << 0 << "," << yaw << std::endl;

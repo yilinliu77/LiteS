@@ -15,6 +15,7 @@ CPointCloudMesh::CPointCloudMesh(const std::string& vPath, bool vIsRender)
   this->isRender = vIsRender;
   loadMeshFromFile(vPath, vIsRender);
   setupMesh();
+  bounds = Bounds3f(this->vertices);
 }
 
 void CPointCloudMesh::setupMesh() {

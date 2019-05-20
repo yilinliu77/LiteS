@@ -3,10 +3,11 @@
 #include <mutex>
 #include "CPointCloudComponent.h"
 
-class CPathGenarateComponent : public CPointCloudComponent {
-public:
-	CPathGenarateComponent(CScene * vScene);
-	~CPathGenarateComponent();
+class CBVHDisplay : public CPointCloudComponent {
+ public:
+  CBVHDisplay(const map<string, CPass*>& vPass, CScene* vScene,
+              const std::string vResourceDir);
+  ~CBVHDisplay();
 	void generate_nadir();
 	void optimize_nadir();
 	void extraAlgorithm() override;
