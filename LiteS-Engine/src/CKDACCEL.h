@@ -108,9 +108,9 @@ class KDTree {
   bool find_nn(Vertex point, std::pair<size_t, float>& nn,
                float max_dist = std::numeric_limits<float>::infinity()) const {
     std::vector<std::pair<size_t, float> > nns;
-    if (!find_nns(point, 1, &nns, max_dist)) return false;
+    if (!find_nns(point, 1, nns, max_dist)) return false;
 
-    if (nn_ptr != nullptr) *nn_ptr = nns[0];
+    nn = nns[0];
     return true;
   }
 
@@ -137,14 +137,14 @@ class KDTree {
           if (nns.size() < n) {
             nns.emplace_back(node.vertexID, dist);
           } else {
-            typename std::vector<std::pair<size_t, float> >::iterator it;
-            it = std::max_element(nns.begin(), nns.end(), compare<size_t>);
+            std::vector<std::pair<size_t, float> >::iterator it;
+            it = std::max_element(nns.begin(), nns.end(), f_nodeCompare);
             *it = std::make_pair(node.vertexID, dist);
           }
 
           if (nns.size() == n) {
             std::vector<std::pair<size_t, float> >::iterator it;
-            it = std::max_element(nns.begin(), nns.end(), compare<size_t>);
+            it = std::max_element(nns.begin(), nns.end(), f_nodeCompare);
             max_dist = it->second;
           }
         }
@@ -186,17 +186,15 @@ class KDTree {
       }
     }
 
-    std::sort(nns.begin(), nns.end(), compare<size_t>);
+    std::sort(nns.begin(), nns.end(), f_nodeCompare);
 
     bool success = nns.size() == n;
-
-    if (nns_ptr != nullptr) nns_ptr->swap(nns);
 
     return success;
   }
 };
 
-static bool compare(std::pair<size_t, float> l, std::pair<size_t, float> r) {
+static bool f_nodeCompare(std::pair<size_t, float> l, std::pair<size_t, float> r) {
   return l.second < r.second;
 }
 

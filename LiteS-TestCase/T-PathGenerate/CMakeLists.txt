@@ -7,11 +7,11 @@ include(CheckLanguage)
 check_language(CUDA)
 
 
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -std=cxx11")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS}")
 set(CMAKE_CUDA_STANDARD 11)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
-set(CMAKE_CUDA_CUDA_RESOLVE_DEVICE_SYMBOLS ON)
-set(CUDA_SEPARABLE_COMPILATION ON)
+set(CMAKE_CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 
 find_package(TBB CONFIG REQUIRED)
 
@@ -29,4 +29,9 @@ add_executable(T-PathGenerate ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_FILES}
 add_dependencies(T-PathGenerate LiteS)
 add_dependencies(T-PathGenerate LiteS-CUDA)
 
-target_link_libraries(T-PathGenerate PRIVATE TBB::tbb GLEW::GLEW glfw assimp::assimp imgui::imgui LiteS LiteS-CUDA)
+target_link_libraries(T-PathGenerate PRIVATE LiteS LiteS-CUDA TBB::tbb GLEW::GLEW glfw 
+assimp::assimp imgui::imgui tinyply)
+
+set_target_properties(T-PathGenerate PROPERTIES
+                            CUDA_SEPERABLE_COMPILATION ON)
+set_target_properties(T-PathGenerate PROPERTIES POSITION_INDEPENDENT_CODE ON)

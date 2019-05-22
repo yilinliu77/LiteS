@@ -8,10 +8,8 @@
 #include "CCDataStructure.h"
 
 extern void updateObsRays(dim3 vGrid, dim3 vBlock,
-                                     CCDataStructure::DBVHAccel* dBVH,
-                                     CCDataStructure::Point* vPointCloud,
-                                     int numPoints, glm::vec4* vRays,
-                                     float3 vCameraPos);
-
+                          CCDataStructure::DBVHAccel* dBVH,
+                          CCDataStructure::Point* vPointCloud, int numPoints,
+                          glm::vec4* vRays, float3 vCameraPos);
 
 #endif

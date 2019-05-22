@@ -18,7 +18,12 @@
 #include <assimp/Importer.hpp>
 #include "CShader.h"
 
+#include <cuda_runtime.h>
+#include <cuda_runtime_api.h>
+
 #define MachineEpsilon (std::numeric_limits<float>::epsilon() * 0.5)
+#define FloatNAI std::numeric_limits<float>::max()
+__device__ __host__
 inline float gamma(int n) {
   return static_cast<float>((n * MachineEpsilon) / (1 - n * MachineEpsilon));
 }
@@ -53,11 +58,13 @@ inline glm::vec3 Permute(const glm::vec3& p, int x, int y, int z) {
 // Ray Declarations
 struct Ray {
   // Ray Public Methods
-  Ray() : tMax(INFINITY), tMin(1e-5f) {}
+  __device__ __host__ Ray() : tMax(FloatNAI), tMin(1e-5f) {}
+  __device__ __host__
   Ray(const glm::vec3& o, const glm::vec3& d)
-      : o(o), d(d), tMax(INFINITY), tMin(1e-5f) {
+      : o(o), d(d), tMax(FloatNAI), tMin(1e-5f) {
     this->d = glm::normalize(d);
   }
+  __device__ __host__
   glm::vec3 operator()(float t) const { return o + d * t; }
 
   // Ray Public Data
@@ -70,10 +77,12 @@ struct Ray {
 struct SurfaceInteraction {
   glm::vec3 pHit;
   float t;
+  __device__ __host__
   SurfaceInteraction() {
-    t = std::numeric_limits<float>::max();
+    t = FloatNAI;
     pHit = glm::vec3(0.f);
   }
+  __device__ __host__
   SurfaceInteraction(glm::vec3 pHit, float t) : pHit(pHit), t(t) {}
 };
 
@@ -190,6 +199,7 @@ struct Bounds3f {
     return ret;
   }
 
+  __device__ __host__
   bool Intersect(const Ray& ray, float* hitt0,
                                      float* hitt1) const {
     float t0 = 0, t1 = ray.tMax;
@@ -200,7 +210,11 @@ struct Bounds3f {
       float tFar = (pMax[i] - ray.o[i]) * invRayDir;
 
       // Update parametric interval from slab intersection $t$ values
-      if (tNear > tFar) std::swap(tNear, tFar);
+      if (tNear > tFar) {
+        float t = tNear;
+        tNear = tFar;
+        tFar = t;
+      }
 
       // Update _tFar_ to ensure robust ray--bounds intersection
       tFar *= 1 + 2 * gamma(3);
@@ -362,7 +376,8 @@ struct Tri {
     return v1.Position + s * edge0 + t * edge1;
   }
 
-  bool const Intersect(Ray& ray, SurfaceInteraction* isect) const {
+  __device__ __host__
+  bool Intersect(Ray& ray, SurfaceInteraction* isect) const {
     // Get triangle vertices in _p1_, _p2_, and _p3_
     glm::vec3 e1 = v2.Position - v1.Position;
     glm::vec3 e2 = v3.Position - v1.Position;

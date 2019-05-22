@@ -1078,7 +1078,7 @@ void CPathGenarateComponent::extraAlgorithm() {
   dim3 block(THREADSPERBLOCK);
 
   updateObsRays(grid, block, dBVHPointer, dPointsPtr, numPoints, dRaysPointer,
-                float3());
+                make_float3(1.f,2.f,3.f));
 
   thrust::host_vector<glm::vec4> hRays = dRays;
 
