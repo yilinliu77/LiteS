@@ -4,6 +4,7 @@
 
 #include "CBVHACCEL.h"
 #include "CPointCloudMesh.h"
+#include <thrust/copy.h>
 
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
@@ -46,18 +47,20 @@ extern thrust::device_vector<glm::vec4> createDeviceVectorGLM4(int vNum);
 extern thrust::device_vector<float3> createDeviceVectorGLM3(int vNum);
 extern thrust::device_vector<float> createDeviceVectorFloat(int vNum);
 
-extern __device__ bool d_intersect();
-
-extern __device__ bool d_visible(ACCEL::LinearBVHNode* vNodes, Tri* vTriangles,
-                      glm::vec3 vCameraPos, glm::vec3 vVertexPosition,
-                      float margin = 0);
-
 struct DBVHAccel {
   ACCEL::LinearBVHNode* dBVHNodesPointer;
   Tri* dTrianglesPointer;
   int numNodes;
   int numTriangles;
 };
+
+extern __device__ bool d_intersect();
+
+extern __device__ bool d_visible(const DBVHAccel* vBVHPointer,
+                      glm::vec3 vCameraPos, glm::vec3 vVertexPosition,
+                      float margin = 0);
+
+
 
 CCDataStructure::DBVHAccel* createDBVHAccel(const ACCEL::BVHAccel* bvhTree);
 

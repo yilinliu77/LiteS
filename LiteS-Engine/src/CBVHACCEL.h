@@ -1,8 +1,6 @@
 #ifndef BVHTREE_HEADER
 #define BVHTREE_HEADER
 
-#include <glm/common.hpp>
-#include <glm/glm.hpp>
 #include <iostream>
 #include "CMesh.h"
 

@@ -8,8 +8,6 @@
 #include <string>
 #include <vector>
 
-#include <glm/glm.hpp>
-
 #include <assimp/config.h>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
@@ -21,12 +19,9 @@
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
 
-#define MachineEpsilon (std::numeric_limits<float>::epsilon() * 0.5)
-#define FloatNAI std::numeric_limits<float>::max()
-__device__ __host__
-inline float gamma(int n) {
-  return static_cast<float>((n * MachineEpsilon) / (1 - n * MachineEpsilon));
-}
+#define MachineEpsilon (1e-6 * 0.5)
+#define FloatNAI 1e6f
+__device__ __host__ inline float gamma(int n);
 
 inline float myClamp(float v, float a, float b) {
   if (v < a)
@@ -44,11 +39,11 @@ inline int maxDimension(glm::vec3 v) {
 }
 
 inline float maxComponent(glm::vec3 v) {
-  return std::max(std::max(v[0], v[1]), v[2]);
+  return glm::max(glm::max(v[0], v[1]), v[2]);
 }
 
 inline glm::vec3 abs(glm::vec3 v) {
-  return glm::vec3(std::abs(v[0]), std::abs(v[1]), std::abs(v[2]));
+  return glm::vec3(glm::abs(v[0]), glm::abs(v[1]), glm::abs(v[2]));
 }
 
 inline glm::vec3 Permute(const glm::vec3& p, int x, int y, int z) {
@@ -58,14 +53,9 @@ inline glm::vec3 Permute(const glm::vec3& p, int x, int y, int z) {
 // Ray Declarations
 struct Ray {
   // Ray Public Methods
-  __device__ __host__ Ray() : tMax(FloatNAI), tMin(1e-5f) {}
-  __device__ __host__
-  Ray(const glm::vec3& o, const glm::vec3& d)
-      : o(o), d(d), tMax(FloatNAI), tMin(1e-5f) {
-    this->d = glm::normalize(d);
-  }
-  __device__ __host__
-  glm::vec3 operator()(float t) const { return o + d * t; }
+  __device__ __host__ Ray();
+  __device__ __host__ Ray(const glm::vec3& o, const glm::vec3& d);
+  __device__ __host__ glm::vec3 operator()(float t) const;
 
   // Ray Public Data
   glm::vec3 o;
@@ -77,13 +67,8 @@ struct Ray {
 struct SurfaceInteraction {
   glm::vec3 pHit;
   float t;
-  __device__ __host__
-  SurfaceInteraction() {
-    t = FloatNAI;
-    pHit = glm::vec3(0.f);
-  }
-  __device__ __host__
-  SurfaceInteraction(glm::vec3 pHit, float t) : pHit(pHit), t(t) {}
+  __device__ __host__ SurfaceInteraction();
+  __device__ __host__ SurfaceInteraction(glm::vec3 pHit, float t);
 };
 
 struct Vertex {
@@ -143,21 +128,21 @@ struct Bounds3f {
     pMin = glm::vec3(INFINITY, INFINITY, INFINITY);
     pMax = glm::vec3(-INFINITY, -INFINITY, -INFINITY);
     for (int i = 0; i < vVertex.size(); ++i) {
-      pMin[0] = std::min(pMin[0], vVertex[i].Position[0]);
-      pMin[1] = std::min(pMin[1], vVertex[i].Position[1]);
-      pMin[2] = std::min(pMin[2], vVertex[i].Position[2]);
-      pMax[0] = std::max(pMax[0], vVertex[i].Position[0]);
-      pMax[1] = std::max(pMax[1], vVertex[i].Position[1]);
-      pMax[2] = std::max(pMax[2], vVertex[i].Position[2]);
+      pMin[0] = glm::min(pMin[0], vVertex[i].Position[0]);
+      pMin[1] = glm::min(pMin[1], vVertex[i].Position[1]);
+      pMin[2] = glm::min(pMin[2], vVertex[i].Position[2]);
+      pMax[0] = glm::max(pMax[0], vVertex[i].Position[0]);
+      pMax[1] = glm::max(pMax[1], vVertex[i].Position[1]);
+      pMax[2] = glm::max(pMax[2], vVertex[i].Position[2]);
     }
   }
 
   Bounds3f unionBounds(const Bounds3f& b) {
     if (pMax == glm::vec3(0, 0, 0) && pMin == glm::vec3(0, 0, 0)) return b;
-    glm::vec3 x(std::min(b.pMin[0], pMin[0]), std::min(b.pMin[1], pMin[1]),
-                std::min(b.pMin[2], pMin[2]));
-    glm::vec3 y(std::max(b.pMax[0], pMax[0]), std::max(b.pMax[1], pMax[1]),
-                std::max(b.pMax[2], pMax[2]));
+    glm::vec3 x(glm::min(b.pMin[0], pMin[0]), glm::min(b.pMin[1], pMin[1]),
+                glm::min(b.pMin[2], pMin[2]));
+    glm::vec3 y(glm::max(b.pMax[0], pMax[0]), glm::max(b.pMax[1], pMax[1]),
+                glm::max(b.pMax[2], pMax[2]));
     return Bounds3f(x, y);
   }
 
@@ -194,87 +179,13 @@ struct Bounds3f {
   glm::vec3 ClosestPoint(glm::vec3 const& v) {
     glm::vec3 ret;
     for (int i = 0; i < 3; ++i) {
-      ret[i] = std::max(pMin[i], std::min(v[i], pMax[i]));
+      ret[i] = glm::max(pMin[i], glm::min(v[i], pMax[i]));
     }
     return ret;
   }
 
-  __device__ __host__
-  bool Intersect(const Ray& ray, float* hitt0,
-                                     float* hitt1) const {
-    float t0 = 0, t1 = ray.tMax;
-    for (int i = 0; i < 3; ++i) {
-      // Update interval for _i_th bounding box slab
-      float invRayDir = 1 / ray.d[i];
-      float tNear = (pMin[i] - ray.o[i]) * invRayDir;
-      float tFar = (pMax[i] - ray.o[i]) * invRayDir;
-
-      // Update parametric interval from slab intersection $t$ values
-      if (tNear > tFar) {
-        float t = tNear;
-        tNear = tFar;
-        tFar = t;
-      }
-
-      // Update _tFar_ to ensure robust ray--bounds intersection
-      tFar *= 1 + 2 * gamma(3);
-      t0 = tNear > t0 ? tNear : t0;
-      t1 = tFar < t1 ? tFar : t1;
-      if (t0 > t1) return false;
-    }
-    if (hitt0) *hitt0 = t0;
-    if (hitt1) *hitt1 = t1;
-    return true;
-  }
-
-  bool IntersectP(const Ray& ray, const glm::vec3& invDir,
-                  const int dirIsNeg[3]) const {
-    // Check for ray intersection against $x$ and $y$ slabs
-    float tMin = ((dirIsNeg[0] ? pMax : pMin)[0] - ray.o[0]) * invDir[0];
-    float tMax = ((dirIsNeg[0] ? pMin : pMax)[0] - ray.o[0]) * invDir[0];
-    float tyMin = ((dirIsNeg[1] ? pMax : pMin)[1] - ray.o[1]) * invDir[1];
-    float tyMax = ((dirIsNeg[1] ? pMin : pMax)[1] - ray.o[1]) * invDir[1];
-
-    // Update _tMax_ and _tyMax_ to ensure robust bounds intersection
-    tMax *= 1 + 2 * gamma(3);
-    tyMax *= 1 + 2 * gamma(3);
-    if (tMin > tyMax || tyMin > tMax) return false;
-    if (tyMin > tMin) tMin = tyMin;
-    if (tyMax < tMax) tMax = tyMax;
-
-    // Check for ray intersection against $z$ slab
-    float tzMin = ((dirIsNeg[2] ? pMax : pMin)[2] - ray.o[2]) * invDir[2];
-    float tzMax = ((dirIsNeg[2] ? pMin : pMax)[2] - ray.o[2]) * invDir[2];
-
-    // Update _tzMax_ to ensure robust bounds intersection
-    tzMax *= 1 + 2 * gamma(3);
-    if (tMin > tzMax || tzMin > tMax) return false;
-    if (tzMin > tMin) tMin = tzMin;
-    if (tzMax < tMax) tMax = tzMax;
-    return (tMin < ray.tMax) && (tMax > 0);
-  }
-
-  bool IntersectP(const Ray& ray, float* hitt0, float* hitt1) const {
-    float t0 = 0, t1 = INFINITY;
-    for (int i = 0; i < 3; ++i) {
-      // Update interval for _i_th bounding box slab
-      float invRayDir = 1 / ray.d[i];
-      float tNear = (pMin[i] - ray.o[i]) * invRayDir;
-      float tFar = (pMax[i] - ray.o[i]) * invRayDir;
-
-      // Update parametric interval from slab intersection $t$ values
-      if (tNear > tFar) std::swap(tNear, tFar);
-
-      // Update _tFar_ to ensure robust ray--bounds intersection
-      tFar *= 1 + 2 * gamma(3);
-      t0 = tNear > t0 ? tNear : t0;
-      t1 = tFar < t1 ? tFar : t1;
-      if (t0 > t1) return false;
-    }
-    if (hitt0) *hitt0 = t0;
-    if (hitt1) *hitt1 = t1;
-    return true;
-  }
+  __device__ __host__ bool Intersect(const Ray& ray, float* hitt0,
+                                     float* hitt1) const;
 };
 
 struct Tri {
@@ -282,19 +193,19 @@ struct Tri {
   Tri(Vertex vVertex1, Vertex vVertex3, Vertex vVertex2)
       : v1(vVertex1), v2(vVertex2), v3(vVertex3) {
     glm::vec3 pmin = v1.Position, pmax = v1.Position;
-    pmin[0] = std::min(pmin[0], v2.Position[0]);
-    pmin[0] = std::min(pmin[0], v3.Position[0]);
-    pmin[1] = std::min(pmin[1], v2.Position[1]);
-    pmin[1] = std::min(pmin[1], v3.Position[1]);
-    pmin[2] = std::min(pmin[2], v2.Position[2]);
-    pmin[2] = std::min(pmin[2], v3.Position[2]);
+    pmin[0] = glm::min(pmin[0], v2.Position[0]);
+    pmin[0] = glm::min(pmin[0], v3.Position[0]);
+    pmin[1] = glm::min(pmin[1], v2.Position[1]);
+    pmin[1] = glm::min(pmin[1], v3.Position[1]);
+    pmin[2] = glm::min(pmin[2], v2.Position[2]);
+    pmin[2] = glm::min(pmin[2], v3.Position[2]);
 
-    pmax[0] = std::max(pmax[0], v2.Position[0]);
-    pmax[0] = std::max(pmax[0], v3.Position[0]);
-    pmax[1] = std::max(pmax[1], v2.Position[1]);
-    pmax[1] = std::max(pmax[1], v3.Position[1]);
-    pmax[2] = std::max(pmax[2], v2.Position[2]);
-    pmax[2] = std::max(pmax[2], v3.Position[2]);
+    pmax[0] = glm::max(pmax[0], v2.Position[0]);
+    pmax[0] = glm::max(pmax[0], v3.Position[0]);
+    pmax[1] = glm::max(pmax[1], v2.Position[1]);
+    pmax[1] = glm::max(pmax[1], v3.Position[1]);
+    pmax[2] = glm::max(pmax[2], v2.Position[2]);
+    pmax[2] = glm::max(pmax[2], v3.Position[2]);
     bounds = Bounds3f();
     bounds.pMin = pmin;
     bounds.pMax = pmax;
@@ -376,39 +287,7 @@ struct Tri {
     return v1.Position + s * edge0 + t * edge1;
   }
 
-  __device__ __host__
-  bool Intersect(Ray& ray, SurfaceInteraction* isect) const {
-    // Get triangle vertices in _p1_, _p2_, and _p3_
-    glm::vec3 e1 = v2.Position - v1.Position;
-    glm::vec3 e2 = v3.Position - v1.Position;
-    glm::vec3 s1 = glm::cross(ray.d, e2);
-    float divisor = glm::dot(s1, e1);
-
-    if (divisor == 0.) return false;
-    float invDivisor = 1.f / divisor;
-
-    // Compute first barycentric coordinate
-    glm::vec3 d = ray.o - v1.Position;
-    float b1 = glm::dot(d, s1) * invDivisor;
-    if (b1 < 0. || b1 > 1.) return false;
-
-    // Compute second barycentric coordinate
-    glm::vec3 s2 = glm::cross(d, e1);
-    float b2 = glm::dot(ray.d, s2) * invDivisor;
-    if (b2 < 0. || b1 + b2 > 1.) return false;
-
-    // Compute _t_ to intersection point
-    float t = glm::dot(e2, s2) * invDivisor;
-    if (t > ray.tMax || t <= ray.tMin) return false;
-
-    if (t < isect->t) {
-      isect->t = t;
-      isect->pHit = ray.o + ray.d * t;
-      return true;
-    }
-
-    return true;
-  }
+  __device__ __host__ bool Intersect(Ray& ray, SurfaceInteraction* isect) const;
 };
 
 class CMesh {

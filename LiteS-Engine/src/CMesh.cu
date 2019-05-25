@@ -7,27 +7,32 @@
 using namespace std;
 using namespace tinyply;
 
-inline float gamma(int n) {
-  return static_cast<float>((n * MachineEpsilon) / (1 - n * MachineEpsilon));
+__device__ __host__ inline float gamma(int n) {
+  return (float)((n * MachineEpsilon) / (1 - n * MachineEpsilon));
 }
 
-Ray::Ray() : tMax(FloatNAI), tMin(1e-5f) {}
+__device__ __host__ Ray::Ray() : tMax(FloatNAI), tMin(1e-5f) {}
 
-Ray::Ray(const glm::vec3& o, const glm::vec3& d)
+__device__ __host__ Ray::Ray(const glm::vec3& o, const glm::vec3& d)
     : o(o), d(d), tMax(FloatNAI), tMin(1e-5f) {
   this->d = glm::normalize(d);
 }
 
-glm::vec3 Ray::operator()(float t) const { return o + d * t; }
+__device__ __host__ glm::vec3 Ray::operator()(float t) const {
+  return o + d * t;
+}
 
-SurfaceInteraction::SurfaceInteraction() {
+__device__ __host__ SurfaceInteraction::SurfaceInteraction() {
   t = FloatNAI;
   pHit = glm::vec3(0.f);
 }
-SurfaceInteraction::SurfaceInteraction(glm::vec3 pHit, float t)
+__device__ __host__ SurfaceInteraction::SurfaceInteraction(glm::vec3 pHit,
+                                                           float t)
     : pHit(pHit), t(t) {}
 
-bool Bounds3f::Intersect(const Ray& ray, float* hitt0, float* hitt1) const {
+__device__ __host__ bool Bounds3f::Intersect(const Ray& ray, float* hitt0,
+                                             float* hitt1) const {
+  return true;
   float t0 = 0, t1 = ray.tMax;
   for (int i = 0; i < 3; ++i) {
     // Update interval for _i_th bounding box slab
@@ -53,7 +58,7 @@ bool Bounds3f::Intersect(const Ray& ray, float* hitt0, float* hitt1) const {
   return true;
 }
 
-bool Tri::Intersect(Ray& ray, SurfaceInteraction* isect) const {
+__device__ __host__ bool Tri::Intersect(Ray& ray, SurfaceInteraction* isect) const {
   //// Get triangle vertices in _p1_, _p2_, and _p3_
   glm::vec3 e1 = v2.Position - v1.Position;
   glm::vec3 e2 = v3.Position - v1.Position;

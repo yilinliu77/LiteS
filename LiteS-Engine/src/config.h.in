@@ -1,0 +1,2 @@
+#pragma once
+#define LITES_CUDA_ON @LITES_CUDA_ON@

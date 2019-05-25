@@ -1,5 +1,8 @@
 #ifndef LITE_UTIL_H
 #define LITE_UTIL_H
+
+#define GLM_FORCE_SILENT_WARNINGS
+
 #include <glm/glm.hpp>
 #include <glm/gtc/random.hpp>
 

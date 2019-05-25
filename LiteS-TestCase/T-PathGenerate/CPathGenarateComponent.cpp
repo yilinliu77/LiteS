@@ -1,6 +1,6 @@
-
 #include "CPathGenarateComponent.h"
 #include <CEngine.h>
+#include <tbb/atomic.h>
 #include <tbb/blocked_range.h>
 #include <tbb/blocked_range2d.h>
 #include <tbb/concurrent_vector.h>
@@ -10,7 +10,11 @@
 #include <tbb/task_scheduler_init.h>
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <fstream>
+#include <mutex>
+#include <thread>
+
 #include <glm/gtc/matrix_access.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <iostream>
@@ -20,15 +24,18 @@
 #include <string>
 
 #include <thrust/device_vector.h>
+#include <thrust/extrema.h>
 #include <thrust/host_vector.h>
 #include "kernel.h"
 
 #include "CBVHACCEL.h"
 #include "CCDataStructure.h"
+#include "CCVectorArray.cuh"
 #include "CPointCloudMesh.h"
+#include "trajectory_util.h"
 #include "util.h"
 
-#define THREADSPERBLOCK 512
+#define THREADSPERBLOCK 64
 const size_t MAXCAMERAFORONEPOINT = 32;
 
 const float DMAX = 60;
@@ -80,6 +87,10 @@ CPathGenarateComponent::CPathGenarateComponent(const map<string, CPass*>& vPass,
 CPathGenarateComponent::~CPathGenarateComponent() = default;
 
 void CPathGenarateComponent::initVariebles() {
+  proxyPoint = this->m_Scene->m_Models.at("proxy_point");
+  obsRays.resize(proxyPoint->vertices.size());
+
+  bvhTree = new ACCEL::BVHAccel(this->m_Scene->m_Models.at("proxy_mesh"));
   airspace.ncols = heightMapWidth;
   airspace.nrows = heightMapHeight;
   airspace.data = new float[heightMapWidth * heightMapHeight];
@@ -265,7 +276,7 @@ std::pair<float, float> heuristicEvaluete(size_t vPointIndex,
                                    DMAX);
   if (!visible) return {0.f, 0.f};
 
-  float currentScore = reconstructionScore[vPointIndex];
+  const float currentScore = reconstructionScore[vPointIndex];
   if (currentScore > targetReconstrucbility) return {0.f, 0.f};
   if (currentScore < targetReconstrucbility)
     minPointNotSeenScore += max(targetReconstrucbility - currentScore, 0.f);
@@ -336,7 +347,7 @@ std::pair<float, float> heuristicEvaluete(size_t vPointIndex,
 
 // Camera Pos, Camera Direction, Camera Index
 float func(const glm::vec3 const& vCameraPos, const glm::vec3 vCameraDirection,
-        const size_t vCameraIndex) {
+           const size_t vCameraIndex) {
   if (isValidPosition(vCameraPos) >= 0) return -1;
 
   float totalScore = 0;
@@ -365,8 +376,6 @@ float func(const glm::vec3 const& vCameraPos, const glm::vec3 vCameraDirection,
   // minPointNotSeenScore = 1 / max(minPointNotSeenScore, 1.0f);
   return minPointNotSeenScore + totalScore;
 };
-
-
 
 void initRays(int vi) {
   glm::vec3 samplePos = proxyPoint->vertices[vi].Position;
@@ -830,8 +839,7 @@ void CPathGenarateComponent::optimize_nadir() {
 void CPathGenarateComponent::simplexPoint() {
   obsRays.resize(proxyPoint->vertices.size());
 
-  bvhTree =
-      new ACCEL::BVHAccel(this->m_Scene->m_Models.at("proxy_mesh"));
+  bvhTree = new ACCEL::BVHAccel(this->m_Scene->m_Models.at("proxy_mesh"));
 
   // update the obs rays
   tbb::parallel_for(size_t(0), proxyPoint->vertices.size(),
@@ -1052,6 +1060,35 @@ std::ostream& operator<<(std::ostream& os, const float4& x) {
   return os;
 }
 
+void visulizeVisibility(CMesh* vCameraMesh,
+                        const thrust::host_vector<float>& vRenconScore) {
+  for (size_t i = 0; i < vRenconScore.size(); i++) {
+    if (vRenconScore[i] > 0)
+      vCameraMesh->changeColor(glm::vec3(0.f, 1.f, 0.f), i);
+  }
+}
+
+void visulizeReconstruction(CMesh* vPointCloud,
+                            const thrust::host_vector<float>& vRenconScore) {
+  float maxRecon =
+      *thrust::max_element(vRenconScore.begin(), vRenconScore.end());
+  float minRecon =
+      *thrust::min_element(vRenconScore.begin(), vRenconScore.end());
+  float averageScore = thrust::reduce(vRenconScore.begin(), vRenconScore.end(),
+                                      (float)0, thrust::plus<float>()) /
+                       vRenconScore.size();
+  float dimRecon = maxRecon - minRecon;
+  for (size_t i = 0; i < vRenconScore.size(); i++) {
+    float colorLevel = (vRenconScore[i] - minRecon) / dimRecon;
+    vPointCloud->changeColor(
+        glm::vec3(colorLevel * 255.f, colorLevel * 255.f, colorLevel * 255.f),
+        i);
+  }
+  std::cout << "Max :" << maxRecon << std::endl;
+  std::cout << "Min :" << minRecon << std::endl;
+  std::cout << "Average :" << averageScore << std::endl;
+}
+
 void CPathGenarateComponent::extraAlgorithm() {
   CMesh* pointCloud = this->m_Scene->m_Models.at("proxy_point");
   size_t numPoints = pointCloud->vertices.size();
@@ -1062,13 +1099,11 @@ void CPathGenarateComponent::extraAlgorithm() {
 
   ACCEL::BVHAccel* bvhTree =
       new ACCEL::BVHAccel(this->m_Scene->m_Models.at("proxy_mesh"));
-  
-  CCDataStructure::DBVHAccel* dBVHPointer = CCDataStructure::createDBVHAccel(bvhTree);
 
-  thrust::device_vector<glm::vec4> dRays =
-      CCDataStructure::createDeviceVectorGLM4(
-          int(numPoints * MAXCAMERAFORONEPOINT));
-  glm::vec4* dRaysPointer = thrust::raw_pointer_cast(&dRays[0]);
+  CCDataStructure::DBVHAccel* dBVHPointer =
+      CCDataStructure::createDBVHAccel(bvhTree);
+
+  CCDataStructure::CCVectorArray<glm::vec4> myObsRays(numPoints, 64);
 
   thrust::device_vector<float> dReconScore =
       CCDataStructure::createDeviceVectorFloat(int(numPoints));
@@ -1077,18 +1112,70 @@ void CPathGenarateComponent::extraAlgorithm() {
   dim3 grid(CCDataStructure::divup(numPoints, THREADSPERBLOCK));
   dim3 block(THREADSPERBLOCK);
 
-  updateObsRays(grid, block, dBVHPointer, dPointsPtr, numPoints, dRaysPointer,
-                make_float3(1.f,2.f,3.f));
+  // 1 Generate Nadir view
+  std::vector<Vertex> cameraVertexVector;
+  LiteS_Trajectory::generateNadir(glm::vec3(70, 70, 30), glm::vec3(-70, -70, 0),
+                                  90.f, 0.8, cameraVertexVector);
+  CMesh* cameraMesh =
+      new CPointCloudMesh(cameraVertexVector, glm::vec3(0.f, 1.f, 0.f), 10.f);
+  cameraMesh->isRenderNormal = true;
+   std::unique_lock<std::mutex> ul(CEngine::m_addMeshMutex);
+   CEngine::toAddModels.push_back(std::make_pair("camera", cameraMesh));
+   ul.unlock();
 
-  thrust::host_vector<glm::vec4> hRays = dRays;
+   tbb::task_scheduler_init init(1); 
+  tbb::atomic<size_t> countUpdate = 0;
+  // 2 Update rays and evaluate re constructibility
+  tbb::parallel_for(
+      tbb::blocked_range<size_t>(size_t(0), cameraVertexVector.size()),
+      [&](tbb::blocked_range<size_t>& r) {
+        cudaStream_t stream;
+        CUDACHECKERROR(cudaStreamCreate(&stream));
 
-  for (int i = 0; i < 50; ++i) std::cout << hRays[i].x << std::endl;
+        cudaEvent_t event;
+        CUDACHECKERROR(cudaEventCreateWithFlags(
+            &event, cudaEventDefault | cudaEventDisableTiming));
 
-  generate_nadir();
+        for (size_t i = r.begin(); i < r.end(); i++) {
+          updateObsRays(
+              grid, block, stream, dBVHPointer, dPointsPtr, numPoints,
+              myObsRays.data,
+              CCDataStructure::glmToFloat3(cameraVertexVector[i].Position),
+              CCDataStructure::glmToFloat3(cameraVertexVector[i].Normal));
+          CUDACHECKERROR(cudaEventRecord(event, stream));
+          // CUDACHECKERROR(cudaEventQuery(event));
+          cudaEventSynchronize(event);
+        }
+        countUpdate.fetch_and_add(r.end() - r.begin());
+        std::cout << countUpdate << "/" << cameraVertexVector.size()
+                  << "			";
+        // CUDACHECKERROR(cudaThreadSynchronize());
+      },
+      tbb::simple_partitioner());
 
-  // simplexPoint();
+  CUDACHECKERROR(cudaDeviceSynchronize());
+  std::cout << std::endl << "Update Done" << std::endl;
+  // 3 Evaluate Reconstrucbility
+  evaluateReconstrucbility(grid, block, 0, numPoints, myObsRays.data,
+                           dReconScorePointer, dPointsPtr);
 
-  optimize_nadir();
+  CUDACHECKERROR(cudaDeviceSynchronize());
+  thrust::host_vector<float> hScore = dReconScore;
+
+  std::cout << "Evaluate Done" << std::endl;
+  // 4 Visualize point
+  // visulizeVisibility(pointCloud, hScore);
+  visulizeReconstruction(pointCloud, hScore);
+
+  // for (int i = 0; i < 50; ++i) std::cout << hRays[i].x << std::endl;
+
+  // initVariebles();
+
+  // generate_nadir();
+
+  ////simplexPoint();
+
+  // optimize_nadir();
 
   std::cout << "Extra Algorithm done" << endl;
 
@@ -1096,6 +1183,4 @@ void CPathGenarateComponent::extraAlgorithm() {
   return;
 }
 
-void CPathGenarateComponent::extraInit() {
-
-}
+void CPathGenarateComponent::extraInit() {}

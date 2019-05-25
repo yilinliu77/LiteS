@@ -56,13 +56,13 @@ void CPointCloudMesh::setupMesh() {
 
 void CPointCloudMesh::Draw(CShader* shader,bool vIsNormal) {
   if (vIsNormal && !isRenderNormal || !isRender) return;
-  std::lock_guard<std::mutex> lock(m_VAOMutex);
+  std::unique_lock<std::mutex> lock(m_VAOMutex);
   // draw point cloud
   glBindVertexArray(VAO);
 
   if (!pointsVertexChangeIndex.empty()) {
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
     for (int i = 0; i < pointsVertexChange.size(); ++i) {
-      glBindBuffer(GL_ARRAY_BUFFER, VBO);
       glBufferSubData(GL_ARRAY_BUFFER,
                       sizeof(Vertex) * pointsVertexChangeIndex[i],
                       sizeof(Vertex), &pointsVertexChange[i]);
@@ -70,6 +70,7 @@ void CPointCloudMesh::Draw(CShader* shader,bool vIsNormal) {
     pointsVertexChange.clear();
     pointsVertexChangeIndex.clear();
   }
+  lock.unlock();
   float nowPointSize;
   glGetFloatv(GL_POINT_SIZE, &nowPointSize);
   if (this->pointSize != -1) glPointSize(this->pointSize);

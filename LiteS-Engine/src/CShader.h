@@ -3,6 +3,9 @@
 #ifndef CSHADER_H
 #define CSHADER_H
 
+#define GLM_FORCE_SILENT_WARNINGS 
+
+
 #include <GL/glew.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>

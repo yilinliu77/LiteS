@@ -6,7 +6,7 @@
   "Model": [
     {
       "Name": "proxy_point",
-      "Path": "../../../my_test/qiao_point.ply",
+      "Path": "../../../my_test/qiao_point_sim.ply",
       "Path12": "D:\\swap\\jianzhu1_my_point.ply",
       "Path3": "D:\\swap\\jianzhu1/jianzhu1_point.ply",
       "Path5": "D:\\swap\\ny_point.ply",

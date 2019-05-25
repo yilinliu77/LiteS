@@ -6,13 +6,6 @@ enable_language(CUDA)
 include(CheckLanguage)
 check_language(CUDA)
 
-
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS}")
-set(CMAKE_CUDA_STANDARD 11)
-set(CMAKE_CUDA_STANDARD_REQUIRED ON)
-set(CMAKE_CUDA_RESOLVE_DEVICE_SYMBOLS ON)
-set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
-
 find_package(TBB CONFIG REQUIRED)
 
 include_directories (${TBB_INCLUDE_DIRS})
@@ -32,6 +25,7 @@ add_dependencies(T-PathGenerate LiteS-CUDA)
 target_link_libraries(T-PathGenerate PRIVATE LiteS LiteS-CUDA TBB::tbb GLEW::GLEW glfw 
 assimp::assimp imgui::imgui tinyply)
 
-set_target_properties(T-PathGenerate PROPERTIES
-                            CUDA_SEPERABLE_COMPILATION ON)
 set_target_properties(T-PathGenerate PROPERTIES POSITION_INDEPENDENT_CODE ON)
+set_target_properties(T-PathGenerate PROPERTIES RESOLVE_DEVICE_SYMBOLS ON)
+set_target_properties(T-PathGenerate PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+set_target_properties(T-PathGenerate PROPERTIES CUDA_STANDARD 11)

@@ -1,5 +1,5 @@
-#include <thrust/copy.h>
 #include "CCDataStructure.h"
+
 
 namespace CCDataStructure {
 void createDevicePointCloud(CMesh* vPointCloud,
@@ -59,32 +59,43 @@ DBVHAccel* createDBVHAccel(const ACCEL::BVHAccel* bvhTree) {
   return dDBVHAccel;
 }
 
-__device__ bool d_intersect(ACCEL::LinearBVHNode* vNodes, Tri* vTriangles,
-                            Ray& ray, SurfaceInteraction* isect) {
+__device__ bool d_intersect(const DBVHAccel* vBVHPointer, Ray& ray,
+                            SurfaceInteraction* isect) {
+  const ACCEL::LinearBVHNode* nodes = vBVHPointer->dBVHNodesPointer;
+  const Tri* tris = vBVHPointer->dTrianglesPointer;
+  const int numNodes = vBVHPointer->numNodes;
+  const int numTriangles = vBVHPointer->numTriangles;
   bool hit = false;
-  glm::vec3 invDir(min(1 / ray.d.x, 99999999.0f),
-                   min(1 / ray.d.y, 99999999.0f),
-                   min(1 / ray.d.z, 99999999.0f));
+  glm::vec3 invDir(glm::min(1 / ray.d.x, 99999.0f),
+                   glm::min(1 / ray.d.y, 99999.0f),
+                   glm::min(1 / ray.d.z, 99999.0f));
   int dirIsNeg[3] = {invDir[0] < 0, invDir[1] < 0, invDir[2] < 0};
   // Follow ray through BVH nodes to find primitive intersections
   int toVisitOffset = 0, currentNodeIndex = 0;
   int nodesToVisit[6400];
 
   while (true) {
-    const ACCEL::LinearBVHNode* node = &vNodes[currentNodeIndex];
+    if (currentNodeIndex >= numNodes) {
+      printf("Wrong Node %d\n", currentNodeIndex);
+      return false;
+    }
+    const ACCEL::LinearBVHNode* node = &nodes[currentNodeIndex];
     // Check ray against BVH node
     float a, b;
     if (node->bounds.Intersect(ray, &a, &b)) {
       if (node->nObject > 0) {
         // Intersect ray with primitives in leaf BVH node
-        for (int i = 0; i < node->nObject; ++i)
-          if (vTriangles[node->objectOffset + i].Intersect(ray, isect))
-            hit = true;
+        for (int i = 0; i < node->nObject; ++i) {
+          if (node->objectOffset + i >= numTriangles) {
+            printf("Wrong tri %d\n", node->objectOffset + i);
+            return false;
+          }
+          if (tris[node->objectOffset + i].Intersect(ray, isect)) hit = true;
+
+        }
         if (toVisitOffset == 0) break;
         currentNodeIndex = nodesToVisit[--toVisitOffset];
       } else {
-        // Put far BVH node on _nodesToVisit_ stack, advance to near
-        // node
         if (dirIsNeg[node->axis]) {
           nodesToVisit[toVisitOffset++] = currentNodeIndex + 1;
           currentNodeIndex = node->secondChildOffset;
@@ -101,19 +112,18 @@ __device__ bool d_intersect(ACCEL::LinearBVHNode* vNodes, Tri* vTriangles,
   return hit;
 }
 
-__device__ bool d_visible(ACCEL::LinearBVHNode* vNodes, Tri* vTriangles,
-                          glm::vec3 vCameraPos, glm::vec3 vVertexPosition,
-                          float margin) {
-
+__device__ bool d_visible(const DBVHAccel* vBVHPointer,
+                          const glm::vec3 vCameraPos,
+                          const glm::vec3 vVertexPosition,
+                          const float margin) {
   Ray ray(vCameraPos, vVertexPosition - vCameraPos);
   float current_t = glm::length(vVertexPosition - vCameraPos);
   SurfaceInteraction isect;
-  if (!d_intersect(vNodes, vTriangles, ray, &isect)) return false;
-  //if (current_t <= isect.t) {
-  //  return true;
-  //}
+  if (!d_intersect(vBVHPointer, ray, &isect)) return false;
+  if (current_t <= isect.t) {
+    return true;
+  }
   return false;
-
 }
 
 }  // namespace CCDataStructure
