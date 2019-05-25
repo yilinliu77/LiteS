@@ -880,7 +880,7 @@ void CPathGenarateComponent::visualizeExistCamera() {
 }
 
 void CPathGenarateComponent::extraAlgorithm() {
-	if (false) {
+	if (true) {
 		initVariebles();
 		generate_nadir();
 

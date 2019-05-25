@@ -6,13 +6,13 @@
     "Model":[
       {
         "Name": "proxy_point",
-        "Path": "../../../my_test/proxy_point.ply",
+        "Path": "../../../my_test/qiao_point_sim.ply",
         "Type": "PointCloud",
         "Render": true
       },
       {
         "Name": "proxy_mesh",
-        "Path": "../../../my_test/proxy_mesh.ply",
+        "Path": "../../../my_test/qiao_mesh.ply",
         "Type": "Mesh",
         "Render": false
       }
