@@ -1,8 +1,11 @@
 project (LiteS-Engine)
 
-enable_language(CUDA)
-include(CheckLanguage)
-check_language(CUDA)
+if(${LITES_CUDA_ON})
+	enable_language(CUDA)
+	include(CheckLanguage)
+	check_language(CUDA)
+endif(${LITES_CUDA_ON})
+
 include_directories (resources/)
 
 configure_file(
@@ -21,8 +24,6 @@ else(${LITES_CUDA_ON})
 	list(REMOVE_ITEM SOURCE_FILES *.cu)
 	message("CUDA Off")
 endif(${LITES_CUDA_ON})
-message(${SOURCE_FILES})
-
 
 file(GLOB_RECURSE HEADER_FILES src/*.h resources/*.h "${PROJECT_BINARY_DIR}/config.h")
 
