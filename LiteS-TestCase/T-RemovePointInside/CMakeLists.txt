@@ -16,5 +16,5 @@ add_executable(T-RemovePointInside ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_F
 
 add_dependencies(T-RemovePointInside LiteS)
 
-target_link_libraries(T-RemovePointInside assimp::assimp
+target_link_libraries(T-RemovePointInside ${ASSIMP_LIBRARIES}
 TBB::tbb LiteS GLEW::GLEW  glfw imgui::imgui)

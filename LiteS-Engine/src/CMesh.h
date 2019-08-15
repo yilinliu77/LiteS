@@ -16,12 +16,19 @@
 #include <assimp/Importer.hpp>
 #include "CShader.h"
 
+#ifdef LITES_CUDA_ON
+
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
+#define LITES_DEVICE __device__ __host__
+#else
+#define LITES_DEVICE 
+#endif
+
 
 #define MachineEpsilon (1e-6 * 0.5)
 #define FloatNAI 1e6f
-__device__ __host__ inline float gamma(int n);
+ inline float gamma(int n);
 
 inline float myClamp(float v, float a, float b) {
   if (v < a)
@@ -53,9 +60,9 @@ inline glm::vec3 Permute(const glm::vec3& p, int x, int y, int z) {
 // Ray Declarations
 struct Ray {
   // Ray Public Methods
-  __device__ __host__ Ray();
-  __device__ __host__ Ray(const glm::vec3& o, const glm::vec3& d);
-  __device__ __host__ glm::vec3 operator()(float t) const;
+  LITES_DEVICE Ray();
+  LITES_DEVICE Ray(const glm::vec3& o, const glm::vec3& d);
+  LITES_DEVICE glm::vec3 operator()(float t) const;
 
   // Ray Public Data
   glm::vec3 o;
@@ -67,8 +74,8 @@ struct Ray {
 struct SurfaceInteraction {
   glm::vec3 pHit;
   float t;
-  __device__ __host__ SurfaceInteraction();
-  __device__ __host__ SurfaceInteraction(glm::vec3 pHit, float t);
+  LITES_DEVICE SurfaceInteraction();
+  LITES_DEVICE SurfaceInteraction(glm::vec3 pHit, float t);
 };
 
 struct Vertex {
@@ -184,7 +191,7 @@ struct Bounds3f {
     return ret;
   }
 
-  __device__ __host__ bool Intersect(const Ray& ray, float* hitt0,
+  LITES_DEVICE bool Intersect(const Ray& ray, float* hitt0,
                                      float* hitt1) const;
 };
 
@@ -287,7 +294,7 @@ struct Tri {
     return v1.Position + s * edge0 + t * edge1;
   }
 
-  __device__ __host__ bool Intersect(Ray& ray, SurfaceInteraction* isect) const;
+  LITES_DEVICE bool Intersect(Ray& ray, SurfaceInteraction* isect) const;
 };
 
 class CMesh {
