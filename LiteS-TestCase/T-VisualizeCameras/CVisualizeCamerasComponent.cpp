@@ -74,7 +74,7 @@ void CVisualizeCamerasComponent::visualizeMyAsiaCamera(string vPath) {
   for (auto item : distances) {
     if (item == 0) numInvalid += 1;
   }
-  float totalDistance = std::reduce(distances.begin(), distances.end());
+  float totalDistance = std::accumulate(distances.begin(), distances.end(),0);
   std::vector<float>::iterator minDistanceIter =
       std::min_element(distances.begin(), distances.end());
   cameraMesh->changeColor(glm::vec3(1.f, 0.f, 0.f),

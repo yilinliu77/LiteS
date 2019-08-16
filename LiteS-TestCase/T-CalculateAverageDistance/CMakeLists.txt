@@ -16,5 +16,5 @@ add_executable(T-CalculateAverageDistance ${SOURCE_FILES} ${HEADER_FILES} ${RESO
 
 add_dependencies(T-CalculateAverageDistance LiteS)
 
-target_link_libraries(T-CalculateAverageDistance ${ASSIMP_LIBRARIES} 
-TBB::tbb LiteS GLEW::GLEW  glfw imgui::imgui)
+target_link_libraries(T-CalculateAverageDistance  
+TBB::tbb LiteS GLEW::GLEW  glfw imgui::imgui assimp)

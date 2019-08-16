@@ -4,6 +4,7 @@
 #include <sstream>
 #include <vector>
 #include "stb_image.h"
+#include "assimp/Importer.hpp"
 using namespace std;
 //using namespace tinyply;
 
@@ -147,12 +148,12 @@ void CMesh::saveMesh(const CMesh* v_mesh, string v_outName) {
   // Write a binary file
 //  outPLYFile.write(outstream_binary, true);
 
-   aiScene* scene = new aiScene;
-   scene->mRootNode = new aiNode;
+  //  Assimp::aiScene* scene = new Assimp::aiScene();
+  //  scene->mRootNode = new Assimp::aiNode();
 
-   scene->mMeshes = new aiMesh*[1];
-   scene->mMeshes[0] = new aiMesh;
-   scene->mNumMeshes = 1;
+  //  scene->mMeshes = new aiMesh*[1];
+  //  scene->mMeshes[0] = new aiMesh;
+  //  scene->mNumMeshes = 1;
 
   // scene->mMaterials = new aiMaterial*[1];
   // scene->mMaterials[0] = nullptr;
@@ -162,36 +163,36 @@ void CMesh::saveMesh(const CMesh* v_mesh, string v_outName) {
 
   // scene->mMeshes[0]->mMaterialIndex = 0;
 
-   scene->mRootNode->mMeshes = new unsigned int[1];
-   scene->mRootNode->mMeshes[0] = 0;
-   scene->mRootNode->mNumMeshes = 1;
+  //  scene->mRootNode->mMeshes = new unsigned int[1];
+  //  scene->mRootNode->mMeshes[0] = 0;
+  //  scene->mRootNode->mNumMeshes = 1;
 
-   auto pMesh = scene->mMeshes[0];
+  //  auto pMesh = scene->mMeshes[0];
 
-   size_t numValidPoints = v_mesh->vertices.size();
+  //  size_t numValidPoints = v_mesh->vertices.size();
 
-   pMesh->mVertices = new aiVector3D[numValidPoints];
-   pMesh->mNormals = new aiVector3D[numValidPoints];
-   pMesh->mNumVertices = (unsigned int)numValidPoints;
+  //  pMesh->mVertices = new aiVector3D[numValidPoints];
+  //  pMesh->mNormals = new aiVector3D[numValidPoints];
+  //  pMesh->mNumVertices = (unsigned int)numValidPoints;
 
-   int i = 0;
-   for (auto& p : v_mesh->vertices) {
-    pMesh->mVertices[i] = aiVector3D(v_mesh->vertices[i].Position.x,
-                                     v_mesh->vertices[i].Position.y,
-                                     v_mesh->vertices[i].Position.z);
-    pMesh->mNormals[i] =
-        aiVector3D(v_mesh->vertices[i].Normal.x, v_mesh->vertices[i].Normal.y,
-                   v_mesh->vertices[i].Normal.z);
-    ++i;
-  }
+  //  int i = 0;
+  //  for (auto& p : v_mesh->vertices) {
+  //   pMesh->mVertices[i] = aiVector3D(v_mesh->vertices[i].Position.x,
+  //                                    v_mesh->vertices[i].Position.y,
+  //                                    v_mesh->vertices[i].Position.z);
+  //   pMesh->mNormals[i] =
+  //       aiVector3D(v_mesh->vertices[i].Normal.x, v_mesh->vertices[i].Normal.y,
+  //                  v_mesh->vertices[i].Normal.z);
+  //   ++i;
+  // }
 
-   Assimp::Exporter* mAiExporter = new Assimp::Exporter;
-   Assimp::ExportProperties* properties = new Assimp::ExportProperties;
-   properties->SetPropertyBool(AI_CONFIG_EXPORT_POINT_CLOUDS, true);
-   mAiExporter->Export(scene, "ply", v_outName, 0, properties);
+  //  Assimp::Exporter* mAiExporter = new Assimp::Exporter;
+  //  Assimp::ExportProperties* properties = new Assimp::ExportProperties;
+  //  //properties->SetPropertyBool(AI_CONFIG_EXPORT_POINT_CLOUDS, true);
+  //  mAiExporter->Export(scene, "ply", v_outName, 0, properties);
 
-   cout << mAiExporter->GetErrorString() << endl;
-   delete properties;
+  //  cout << mAiExporter->GetErrorString() << endl;
+  //  delete properties;
   return;
 }
 

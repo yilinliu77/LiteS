@@ -10,5 +10,5 @@ include_directories (../../../LiteS-Engine/src/)
 add_executable(GenerateNadir ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_FILES})
 add_dependencies(GenerateNadir LiteS)
 
-target_link_libraries(GenerateNadir PRIVATE GLEW::GLEW glfw assimp::assimp imgui::imgui LiteS)
+target_link_libraries(GenerateNadir PRIVATE LiteS GLEW::GLEW  glfw imgui::imgui assimp)
 

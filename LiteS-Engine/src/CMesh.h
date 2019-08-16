@@ -8,12 +8,12 @@
 #include <string>
 #include <vector>
 
-#include <assimp/config.h>
-#include <assimp/postprocess.h>
-#include <assimp/scene.h>
-#include <assimp/types.h>
-#include <assimp/Exporter.hpp>
-#include <assimp/Importer.hpp>
+#include "assimp/config.h"
+#include "assimp/postprocess.h"
+#include "assimp/scene.h"
+#include "assimp/types.h"
+#include "assimp/Exporter.hpp"
+#include "assimp/Importer.hpp"
 #include "CShader.h"
 
 #ifdef LITES_CUDA_ON
