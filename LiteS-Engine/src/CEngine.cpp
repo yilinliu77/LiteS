@@ -117,8 +117,8 @@ void CEngine::runEngine() {
     }
     toAddModels.clear();
 
-    glfwSwapBuffers(m_Window);
     glfwPollEvents();
+    glfwSwapBuffers(m_Window);
   }
   // extraAlgorithm->~thread();
   // this->m_Component->~CComponent();
@@ -304,7 +304,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 bool CEngine::__initDLL() {
   glfwInit();
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
 

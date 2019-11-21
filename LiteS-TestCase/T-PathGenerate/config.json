@@ -6,7 +6,7 @@
   "Model": [
     {
       "Name": "proxy_point",
-      "Path": "../../../my_test/qiao_point_sim.ply",
+      "Path": "../../../my_test/ny_point.ply",
       "Path12": "D:\\swap\\jianzhu1_my_point.ply",
       "Path3": "D:\\swap\\jianzhu1/jianzhu1_point.ply",
       "Path5": "D:\\swap\\ny_point.ply",
@@ -17,7 +17,7 @@
     {
       "Name": "proxy_mesh",
       "Path2": "D:\\swap\\aoxing_mesh.ply",
-      "Path": "../../../my_test/qiao_mesh.ply",
+      "Path": "../../../my_test/ny_mesh.ply",
       "Path1": "D:\\swap\\jianzhu1_mesh.ply",
       "Type": "Mesh",
       "Render": false
