@@ -1,21 +1,12 @@
 cmake_minimum_required(VERSION 3.8.0)
 project(T-BVHDisplay)
 
+find_package(TBB CONFIG REQUIRED)
+
+include_directories (${TBB_INCLUDE_DIRS})
+
 #Path
 #set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build)
-
-find_package(glfw3 CONFIG REQUIRED)
-find_package(glew CONFIG REQUIRED)
-find_package(assimp CONFIG REQUIRED)
-find_package(imgui CONFIG REQUIRED)
-find_package(glm CONFIG REQUIRED)
-FIND_PACKAGE(OpenMP REQUIRED)
-
-include_directories (${GLFW3_INCLUDE_DIRS})
-include_directories (${GLEW_INCLUDE_DIRS})
-include_directories (${ASSIMP_INCLUDE_DIRS})
-include_directories (${GLM_INCLUDE_DIRS})
-include_directories (${IMGUI_INCLUDE_DIRS})
 
 # link_directories($ENV{OPENGL}/lib/x64)
 
@@ -28,5 +19,7 @@ include_directories (../../LiteS-Engine/src/)
 add_executable(T-BVHDisplay ${SOURCE_FILES} ${HEADER_FILES} ${RESOURCES_FILES})
 add_dependencies(T-BVHDisplay LiteS)
 
-target_link_libraries(T-BVHDisplay GLEW::GLEW glfw assimp::assimp imgui::imgui LiteS)
+message(STATUS  ${ASSIMP_INCLUDE_DIRS})
+
+target_link_libraries(T-BVHDisplay LiteS GLEW::GLEW glfw imgui::imgui assimp)
 

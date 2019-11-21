@@ -105,7 +105,7 @@ void saveTrajectory(const std::string vPath,
       float z = item.Position[2];
       if (x > 1000 || x < -1000 || y > 1000 || y < -1000) continue;
       char s[30];
-      sprintf_s(s, "%04d.jpg", imageIndex);
+      snprintf(s,sizeof(s), "%04d.jpg", imageIndex);
       std::string imageName(s);
       fileOut << imageName << "," << item.Position[0] << "," << item.Position[1]
               << "," << item.Position[2] << std::endl;
@@ -134,7 +134,7 @@ void saveTrajectoryUnreal(const std::string vPath,
       float z = item.Position[2] * 100;
       if (x > 100000 || x < -100000 || y > 100000 || y < -100000) continue;
       char s[30];
-      sprintf_s(s, "%04d.jpg", imageIndex);
+      snprintf(s,sizeof(s), "%04d.jpg", imageIndex);
       std::string imageName(s);
 
       glm::vec3 direction(-item.Normal[0], item.Normal[1], item.Normal[2]);

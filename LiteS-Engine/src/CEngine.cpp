@@ -1,6 +1,5 @@
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
 #define STB_IMAGE_IMPLEMENTATION
+
 #include <rapidjson/istreamwrapper.h>
 #include <fstream>
 #include <thread>
@@ -16,6 +15,9 @@
 #include "rapidjson/writer.h"
 #include "stb_image.h"
 #include "util.h"
+
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
@@ -301,18 +303,24 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
   glViewport(0, 0, width, height);
 }
 
+void glfwErrorDisplay(int vCode, const char * vMsg){
+    std::cout << "Error code: " << vCode << std::endl;
+    std::cout << "Error msg: " << vMsg << std::endl;
+}
+
 bool CEngine::__initDLL() {
   glfwInit();
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
 
   // glfw window creation
   // --------------------
+  glfwSetErrorCallback(glfwErrorDisplay);
   m_Window = glfwCreateWindow(this->m_Scene->m_WindowWidth,
-                              this->m_Scene->m_WindowHeight, "LearnOpenVR-Cube",
-                              NULL, NULL);
+      this->m_Scene->m_WindowHeight, "LearnOpenVR-Cube",
+      NULL, NULL);
   if (m_Window == NULL) {
     std::cout << "Failed to create GLFW window" << std::endl;
     glfwTerminate();

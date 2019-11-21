@@ -1,8 +1,11 @@
 project (LiteS-Engine)
 
-enable_language(CUDA)
-include(CheckLanguage)
-check_language(CUDA)
+if(${LITES_CUDA_ON})
+	enable_language(CUDA)
+	include(CheckLanguage)
+	check_language(CUDA)
+endif(${LITES_CUDA_ON})
+
 include_directories (resources/)
 
 configure_file(
@@ -21,13 +24,13 @@ else(${LITES_CUDA_ON})
 	list(REMOVE_ITEM SOURCE_FILES *.cu)
 	message("CUDA Off")
 endif(${LITES_CUDA_ON})
-message(${SOURCE_FILES})
-
 
 file(GLOB_RECURSE HEADER_FILES src/*.h resources/*.h "${PROJECT_BINARY_DIR}/config.h")
 
 add_library (LiteS STATIC ${SOURCE_FILES} ${HEADER_FILES})
-set_target_properties(LiteS PROPERTIES POSITION_INDEPENDENT_CODE ON)
-set_target_properties(LiteS PROPERTIES RESOLVE_DEVICE_SYMBOLS ON)
-set_target_properties(LiteS PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-set_target_properties(LiteS PROPERTIES CUDA_STANDARD 11)
+if(${LITES_CUDA_ON})
+	set_target_properties(LiteS PROPERTIES POSITION_INDEPENDENT_CODE ON)
+	set_target_properties(LiteS PROPERTIES RESOLVE_DEVICE_SYMBOLS ON)
+	set_target_properties(LiteS PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+	set_target_properties(LiteS PROPERTIES CUDA_STANDARD 11)
+endif(${LITES_CUDA_ON})
