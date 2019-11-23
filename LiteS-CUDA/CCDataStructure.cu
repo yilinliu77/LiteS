@@ -72,7 +72,7 @@ __device__ bool d_intersect(const DBVHAccel* vBVHPointer, Ray& ray,
   int dirIsNeg[3] = {invDir[0] < 0, invDir[1] < 0, invDir[2] < 0};
   // Follow ray through BVH nodes to find primitive intersections
   int toVisitOffset = 0, currentNodeIndex = 0;
-  int nodesToVisit[6400];
+  int nodesToVisit[64];
 
   while (true) {
     if (currentNodeIndex >= numNodes) {
@@ -90,7 +90,10 @@ __device__ bool d_intersect(const DBVHAccel* vBVHPointer, Ray& ray,
             printf("Wrong tri %d\n", node->objectOffset + i);
             return false;
           }
-          if (tris[node->objectOffset + i].Intersect(ray, isect)) hit = true;
+          if (tris[node->objectOffset + i].Intersect(ray, isect)) {
+            hit = true;
+            ray.tMax = isect->t;
+          }
 
         }
         if (toVisitOffset == 0) break;

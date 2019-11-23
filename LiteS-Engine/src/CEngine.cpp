@@ -119,8 +119,8 @@ void CEngine::runEngine() {
     }
     toAddModels.clear();
 
-    glfwSwapBuffers(m_Window);
     glfwPollEvents();
+    glfwSwapBuffers(m_Window);
   }
   // extraAlgorithm->~thread();
   // this->m_Component->~CComponent();
