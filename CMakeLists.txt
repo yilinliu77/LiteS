@@ -1,5 +1,5 @@
 set(CMAKE_TOOLCHAIN_FILE $ENV{vcpkg} CACHE STRING "" FORCE)
-message(${CMAKE_TOOLCHAIN_FILE})
+message(STATUS ${CMAKE_TOOLCHAIN_FILE})
 cmake_minimum_required (VERSION 3.13)
 project (LiteS CXX)
 
