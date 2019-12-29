@@ -57,6 +57,112 @@ void loadTrajectoryMVESpline(const std::string vPath,
   }
 }
 
+
+glm::quat rot2quat(std::vector<float> const& R) {
+  float v0 = 1.0 + R[0] + R[4] + R[8];
+  float v1 = 1.0 + R[0] - R[4] - R[8];
+  float v2 = 1.0 - R[0] + R[4] - R[8];
+  float v3 = 1.0 - R[0] - R[4] + R[8];
+
+  // TODO handle nan
+
+  glm::quat q;
+
+  if (v0 >= v1 && v0 >= v2 && v0 >= v3) {
+    float tmp = float(0.5) * std::sqrt(v0);
+    q[0] = tmp;
+    q[1] = (R[7] - R[5]) / (float(4.0) * tmp);
+    q[2] = (R[2] - R[6]) / (float(4.0) * tmp);
+    q[3] = (R[3] - R[1]) / (float(4.0) * tmp);
+
+    return q;
+  }
+
+  if (v1 >= v0 && v1 >= v2 && v1 >= v3) {
+    float tmp = float(0.5) * std::sqrt(v1);
+    q[0] = (R[7] - R[5]) / (float(4.0) * tmp);
+    q[1] = tmp;
+    q[2] = (R[1] + R[3]) / (float(4.0) * tmp);
+    q[3] = (R[2] + R[6]) / (float(4.0) * tmp);
+
+    return q;
+  }
+
+  if (v2 >= v0 && v2 >= v1 && v2 >= v3) {
+    float tmp = float(0.5) * std::sqrt(v2);
+    q[0] = (R[2] - R[6]) / (float(4.0) * tmp);
+    q[1] = (R[1] + R[3]) / (float(4.0) * tmp);
+    q[2] = tmp;
+    q[3] = (R[5] + R[7]) / (float(4.0) * tmp);
+
+    return q;
+  }
+
+  // if (v3 >= v0 && v3 >= v1 && v3 >= v2) {
+  float tmp = float(0.5) * std::sqrt(v3);
+  q[0] = (R[3] - R[1]) / (float(4.0) * tmp);
+  q[1] = (R[2] + R[6]) / (float(4.0) * tmp);
+  q[2] = (R[5] + R[7]) / (float(4.0) * tmp);
+  q[3] = tmp;
+
+  //return q;
+}
+
+void loadTrajectoryMVEUTJ(const std::string vPath,
+                             std::vector<Vertex>& vCameraVertexVector) {
+  try {
+    std::ifstream ifs(vPath, std::ios::in);
+    std::string line;
+    float x, y, z, qx, qy, qz, qw;
+	getline(ifs, line);
+    vCameraVertexVector.resize(LiteUtil::StringToNumber<int>(line));
+
+    getline(ifs, line);
+    while (line.length() > 2) {
+      std::vector<float> splitItems = LiteUtil::splitString<float>(line, " ");
+      x = splitItems[0];
+      y = splitItems[1];
+      z = splitItems[2];
+
+      getline(ifs, line);
+      splitItems = LiteUtil::splitString<float>(line, " ");
+      std::vector<float> rotateVector;
+      rotateVector.push_back(splitItems[0]);
+      rotateVector.push_back(splitItems[1]);
+      rotateVector.push_back(splitItems[2]);
+      getline(ifs, line);
+      splitItems = LiteUtil::splitString<float>(line, " ");
+      rotateVector.push_back(splitItems[0]);
+      rotateVector.push_back(splitItems[1]);
+      rotateVector.push_back(splitItems[2]);
+      getline(ifs, line);
+      splitItems = LiteUtil::splitString<float>(line, " ");
+      rotateVector.push_back(splitItems[0]);
+      rotateVector.push_back(splitItems[1]);
+      rotateVector.push_back(splitItems[2]);
+      getline(ifs, line);
+
+
+      glm::quat q = rot2quat(rotateVector);
+      glm::vec3 unitVec(0.f, 0.f, 1.f);
+      unitVec = unitVec * q;
+      if (unitVec[2] > 0) unitVec[2] = -unitVec[2];
+      vCameraVertexVector.push_back(Vertex());
+      vCameraVertexVector.back().Position = glm::vec3(x, y, z);
+      vCameraVertexVector.back().Normal =
+          glm::normalize(glm::vec3(unitVec[0], unitVec[1], unitVec[2]));
+
+      line = "";
+      getline(ifs, line);
+    }
+
+    ifs.close();
+  } catch (const std::exception& e) {
+    std::cout << e.what() << std::endl;
+    throw e;
+  }
+}
+
 void loadTrajectoryUnreal(const std::string vPath,
                           std::vector<Vertex>& vCameraVertexVector) {
   try {

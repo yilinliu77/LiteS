@@ -46,6 +46,16 @@ std::string numberToString(T vNumber) {
   ss << vNumber;
   return ss.str();
 }
+
+template <typename T>
+T StringToNumber(std::string vString) {
+  std::stringstream ss;
+  ss << vString;
+  T number;
+  ss >> number;
+  return number;
+}
+
 }  // namespace LiteUtil
 struct My8BitRGBImage {
   int ncols;

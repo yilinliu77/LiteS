@@ -89,7 +89,12 @@ void CVisualizeAnimationComponent::visualizeMyAsiaCamera(string vPath) {
 }
 
 void CVisualizeAnimationComponent::extraAlgorithm() {
-  visualizeMyAsiaCamera(CEngine::m_Arguments.at("spline_file"));
+  vector<Vertex> cameraVertexVector;
+  LiteS_Trajectory::loadTrajectoryMVEUTJ("E:\\paths\\paths\\0",
+                                         cameraVertexVector);
+	
+	
+	//visualizeMyAsiaCamera(CEngine::m_Arguments.at("spline_file"));
 
   // staticsForPath(15.f);
 
