@@ -118,6 +118,7 @@ void loadTrajectoryMVEUTJ(const std::string vPath,
     vCameraVertexVector.resize(LiteUtil::StringToNumber<int>(line));
 
     getline(ifs, line);
+    size_t index = 0;
     while (line.length() > 2) {
       std::vector<float> splitItems = LiteUtil::splitString<float>(line, " ");
       x = splitItems[0];
@@ -147,9 +148,8 @@ void loadTrajectoryMVEUTJ(const std::string vPath,
       glm::vec3 unitVec(0.f, 0.f, 1.f);
       unitVec = unitVec * q;
       if (unitVec[2] > 0) unitVec[2] = -unitVec[2];
-      vCameraVertexVector.push_back(Vertex());
-      vCameraVertexVector.back().Position = glm::vec3(x, y, z);
-      vCameraVertexVector.back().Normal =
+      vCameraVertexVector[index].Position = glm::vec3(x, y, z);
+      vCameraVertexVector[index].Normal =
           glm::normalize(glm::vec3(unitVec[0], unitVec[1], unitVec[2]));
 
       line = "";
