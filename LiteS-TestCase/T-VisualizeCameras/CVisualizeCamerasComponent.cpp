@@ -77,8 +77,8 @@ void CVisualizeCamerasComponent::visualizeMyAsiaCamera(string vPath) {
   float totalDistance = std::accumulate(distances.begin(), distances.end(),0);
   std::vector<float>::iterator minDistanceIter =
       std::min_element(distances.begin(), distances.end());
-  cameraMesh->changeColor(glm::vec3(1.f, 0.f, 0.f),
-                          std::distance(distances.begin(), minDistanceIter));
+  //cameraMesh->changeColor(glm::vec3(1.f, 0.f, 0.f),
+  //                        std::distance(distances.begin(), minDistanceIter));
   float maxDistance = *std::max_element(distances.begin(), distances.end());
 
   std::cout << "Distance Size: " << cameraVertexVector.size() << std::endl;

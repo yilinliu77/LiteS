@@ -34,7 +34,7 @@ void loadTrajectoryMVESpline(const std::string vPath,
       qy = splitItems[5];
       qz = splitItems[6];
       float key = splitItems[7];
-      if (key < 0.0001f || std::abs(x) > 300 || std::abs(y) > 300) {
+      if (key < 0.0001f) {
         getline(ifs, line);
         continue;
       }
@@ -103,7 +103,7 @@ void saveTrajectory(const std::string vPath,
       float x = item.Position[0];
       float y = item.Position[1];
       float z = item.Position[2];
-      if (x > 1000 || x < -1000 || y > 1000 || y < -1000) continue;
+      //if (x > 1000 || x < -1000 || y > 1000 || y < -1000) continue;
       char s[30];
       snprintf(s,sizeof(s), "%04d.jpg", imageIndex);
       std::string imageName(s);
@@ -132,7 +132,7 @@ void saveTrajectoryUnreal(const std::string vPath,
       float x = -item.Position[0] * 100;
       float y = item.Position[1] * 100;
       float z = item.Position[2] * 100;
-      if (x > 100000 || x < -100000 || y > 100000 || y < -100000) continue;
+      //if (x > 100000 || x < -100000 || y > 100000 || y < -100000) continue;
       char s[30];
       snprintf(s,sizeof(s), "%04d.jpg", imageIndex);
       std::string imageName(s);

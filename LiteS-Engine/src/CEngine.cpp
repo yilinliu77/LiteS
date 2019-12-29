@@ -718,7 +718,8 @@ bool CEngine::__initScene(string configFile) {
 
     float CameraSpeed = 10.0f;
     if (d.HasMember("CameraSpeed")) CameraSpeed = d["CameraSpeed"].GetFloat();
-    CEngine::m_Scene->m_Camera = new CCamera(CameraSpeed, glm::vec3(0, 0, 20));
+    CEngine::m_Scene->m_Camera =
+        new CCamera(CameraSpeed, glm::vec3(83210.5, 31053.1, 20));
 
     CEngine::m_lastX = CEngine::m_Scene->m_WindowWidth / 2.0f;
     CEngine::m_lastY = CEngine::m_Scene->m_WindowHeight / 2.0f;

@@ -50,8 +50,9 @@ public:
 	// Constructor with vectors
 	CCamera(float vCameraSpeed,glm::vec3 position = glm::vec3(0.0f, 0.0f, 3.0f)
 		, glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f)) : Front(glm::vec3(0.0f, 0.0f, -1.0f))
-				, MovementSpeed(vCameraSpeed), MouseSensitivity(SENSITIVTY)
-				, Zoom(ZOOM), WorldCenter(glm::vec3(0.f,0.f,0.f))
+				, MovementSpeed(vCameraSpeed), MouseSensitivity(SENSITIVTY),
+              Zoom(ZOOM),
+              WorldCenter(glm::vec3(83210.5f, 31053.1f, 0.f))
 				,Yaw(YAW),Pitch(PITCH),Roll(ROLL){
 		Position = position;
 		Front = WorldCenter - Position;
