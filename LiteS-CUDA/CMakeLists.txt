@@ -1,8 +1,5 @@
 project (LiteS-CUDA)
 
-include_directories("C:/repos/Graphics/RENDERING/LiteS/LiteS-Engine/src/")
-
-
 enable_language(CUDA)
 include(CheckLanguage)
 check_language(CUDA)
