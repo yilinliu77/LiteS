@@ -18,4 +18,6 @@ ADD_SUBDIRECTORY(T-RemovePointInside)
 ADD_SUBDIRECTORY(T-VisualizeCameras)
 ADD_SUBDIRECTORY(T-EvaluatePointCloud)
 ADD_SUBDIRECTORY(T-CalculateAverageDistance)
+ADD_SUBDIRECTORY(T-VisualizeAnimation)
+
 ADD_SUBDIRECTORY(P)
